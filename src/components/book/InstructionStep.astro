@@ -1,0 +1,53 @@
+---
+interface Props {
+  number: number;
+  title: string;
+}
+
+const { number, title } = Astro.props;
+---
+
+<div class="instruction-step">
+  <span class="instruction-step__number" aria-hidden="true">{number}</span>
+  <div>
+    <h3>{title}</h3>
+    <div class="instruction-step__body"><slot /></div>
+  </div>
+</div>
+
+<style>
+  .instruction-step {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .instruction-step__number {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--color-primary);
+    color: white;
+    font-weight: 800;
+  }
+
+  h3 {
+    font-size: var(--font-size-md);
+  }
+
+  .instruction-step__body {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+  }
+
+  @media print {
+    .instruction-step__number {
+      border: 1px solid #777777;
+      background: white;
+      color: #111111;
+    }
+  }
+</style>

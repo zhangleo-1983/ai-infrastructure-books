@@ -1,0 +1,82 @@
+---
+book: "02-overseas-network"
+order: 1
+slug: "01-after-vps"
+title: "VPS 已经买好了，然后呢？"
+shortTitle: "买好 VPS，然后呢"
+description: "先看清整条链路。你不是在服务器里“安装一个魔法按钮”，而是在连接服务器端和客户端两套系统。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch1"
+chapterNumber: 1
+duration: "预计 6 分钟"
+labels:
+  - "认知章节"
+  - "预计 6 分钟"
+  - "无命令"
+completionId: "book02-chapter-01"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ConceptList from "../../../components/book/ConceptList.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="ch1-map">
+  ## 你即将完成的完整工作链路
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💻</span>
+      <strong>你的设备</strong>
+      <small>Clash / Shadowrocket</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">📋</span>
+      <strong>订阅配置</strong>
+      <small>告诉客户端怎么连接</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>你的 VPS</strong>
+      <small>Xray 负责传输</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>目标网站</strong>
+      <small>看到 VPS 的出口 IP</small>
+    </div>
+  </FlowDiagram>
+
+  <ConceptList>
+    <section>
+      ### 3X-UI 是管理台
+
+      它帮助你用网页配置 Xray，不是最终负责传输数据的协议。
+    </section>
+    <section>
+      ### Xray 是发动机
+
+      真正监听端口、验证客户端并转发流量的是 Xray-core。
+    </section>
+    <section>
+      ### VLESS 是通信规则
+
+      它负责客户端身份验证与数据传输结构，本身不是“一个软件”。
+    </section>
+    <section>
+      ### Reality 是安全层
+
+      它与 VLESS、Vision 配合，完成握手与传输安全设计。
+    </section>
+  </ConceptList>
+
+  <Callout type="danger" title="自建节点不等于绝对匿名">
+    VPS 提供商知道服务器属于哪个账户，目标网站能看到 VPS 出口 IP，错误配置也可能产生 DNS 或路由泄漏。它提供的是可控性，不是“无法追踪”的保证。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-01">
+    我已经理解：服务器端和客户端都需要配置。
+  </ChapterChecklist>
+</section>

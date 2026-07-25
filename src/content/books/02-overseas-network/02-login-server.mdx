@@ -1,0 +1,122 @@
+---
+book: "02-overseas-network"
+order: 2
+slug: "02-login-server"
+title: "登录你的第一台服务器"
+shortTitle: "登录服务器"
+description: "从自己的电脑建立一条 SSH 加密通道，进入远程 VPS。输入密码时什么都看不见，是正常现象。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch2"
+chapterNumber: 2
+duration: "预计 10 分钟"
+labels:
+  - "实操章节"
+  - "预计 10 分钟"
+  - "Windows / Mac"
+completionId: "book02-chapter-02"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+<section className="book-section" id="ch2-ssh">
+  ## SSH 与 Terminal 到底是什么？
+
+  <p className="book-lead">SSH 像“没有图形界面的远程桌面”；Terminal 是你输入文字命令的窗口。</p>
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💻</span>
+      <strong>本地终端</strong>
+      <small>你输入命令</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>SSH</strong>
+      <small>加密远程通道</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🖥️</span>
+      <strong>Ubuntu VPS</strong>
+      <small>服务器执行命令</small>
+    </div>
+  </FlowDiagram>
+
+  ### 准备三项信息
+
+  <ComparisonTable>
+
+  | 项目 | 示例 | 说明 |
+  | --- | --- | --- |
+  | IP Address | `203.0.113.10` | 必须替换成你的真实 IP |
+  | Username | `root` | 若部署时启用了 Limited User，请用实际用户名 |
+  | Password | Vultr 页面提供 | 不要截图或分享 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="本书示例 IP 不可使用">
+    `203.0.113.10` 是文档示例地址，不是真实服务器。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch2-login">
+  ## 第一次登录
+
+  <PlatformTabs id="ssh-platform">
+    <div slot="mac">
+      <InstructionStep number={1} title="打开“终端”">
+        按 <kbd>Command</kbd> + <kbd>空格</kbd>，搜索“终端”或 Terminal。
+      </InstructionStep>
+    </div>
+    <div slot="windows">
+      <InstructionStep number={1} title="打开 PowerShell 或 Windows Terminal">
+        在开始菜单中搜索即可。现代 Windows 通常自带 OpenSSH 客户端。
+      </InstructionStep>
+    </div>
+  </PlatformTabs>
+
+  <CodeBlock
+    label="把示例 IP 换成你的真实 IP"
+    code="ssh root@203.0.113.10"
+  />
+
+  <TerminalMock title="第一次连接">
+    <span className="term-green">user@computer</span>{" "}
+    <span className="term-white">~ %</span>{" "}
+    <span className="term-blue">ssh root@203.0.113.10</span><br />
+    {"The authenticity of host '203.0.113.10' can't be established."}<br />
+    {"Are you sure you want to continue connecting (yes/no/[fingerprint])?"}
+  </TerminalMock>
+
+  核对 IP 后输入：
+
+  <CodeBlock code="yes" />
+
+  <Callout type="warning" title="输入密码时不会显示星号">
+    复制密码、粘贴、直接按回车。屏幕没有变化并不代表没有输入。
+  </Callout>
+
+  <TerminalMock title="登录成功">
+    {"Welcome to Ubuntu 24.04 LTS"}<br /><br />
+    <span className="term-green">root@vultr</span><span className="term-white">{":~#"}</span>{" "}
+    <span className="term-blue">whoami</span><br />
+    {"root"}<br />
+    <span className="term-green">root@vultr</span><span className="term-white">{":~#"}</span>{" ▌"}
+  </TerminalMock>
+
+  看到 `root@……:~#` 即表示成功。退出时输入：
+
+  <CodeBlock code="exit" />
+
+  <ChapterChecklist chapterId="book02-chapter-02">
+    我已经成功登录、执行 whoami，并使用 exit 退出。
+  </ChapterChecklist>
+</section>

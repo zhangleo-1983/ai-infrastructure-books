@@ -1,0 +1,90 @@
+---
+type CalloutType = "info" | "tip" | "warning" | "danger";
+
+interface Props {
+  type?: CalloutType;
+  title: string;
+}
+
+const { type = "info", title } = Astro.props;
+const icons: Record<CalloutType, string> = {
+  info: "i",
+  tip: "✓",
+  warning: "!",
+  danger: "!",
+};
+---
+
+<aside class:list={["callout", `callout--${type}`]}>
+  <span class="callout__icon" aria-hidden="true" data-parity-ignore>{icons[type]}</span>
+  <div>
+    <strong>{title}</strong>
+    <div class="callout__body"><slot /></div>
+  </div>
+</aside>
+
+<style>
+  .callout {
+    --callout-color: var(--color-primary);
+    --callout-bg: var(--color-primary-soft);
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    gap: var(--space-3);
+    border: var(--border-thin);
+    border-left: 0.3125rem solid var(--callout-color);
+    border-radius: var(--radius-lg);
+    background: var(--callout-bg);
+    padding: var(--space-5);
+  }
+
+  .callout--tip {
+    --callout-color: var(--color-success);
+    --callout-bg: var(--color-success-soft);
+  }
+
+  .callout--warning {
+    --callout-color: var(--color-warning);
+    --callout-bg: var(--color-warning-soft);
+  }
+
+  .callout--danger {
+    --callout-color: var(--color-danger);
+    --callout-bg: var(--color-danger-soft);
+  }
+
+  .callout__icon {
+    display: grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--callout-color);
+    color: white;
+    font-size: var(--font-size-sm);
+    font-weight: 900;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: var(--space-1);
+  }
+
+  .callout__body {
+    color: color-mix(in srgb, var(--color-text) 88%, var(--color-text-muted));
+  }
+
+  @media print {
+    .callout {
+      border-color: #999999;
+      border-left-width: 3px;
+      background: white;
+      break-inside: avoid;
+    }
+
+    .callout__icon {
+      border: 1px solid #777777;
+      background: white;
+      color: #111111;
+    }
+  }
+</style>

@@ -1,0 +1,37 @@
+<div class="concept-list">
+  <slot />
+</div>
+
+<style>
+  .concept-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  :global(.concept-list > section) {
+    border-top: 0.1875rem solid var(--color-primary);
+    padding-top: var(--space-4);
+  }
+
+  :global(.concept-list h3) {
+    font-size: var(--font-size-md);
+  }
+
+  :global(.concept-list p) {
+    margin-top: var(--space-2);
+  }
+
+  @media (max-width: 48rem) {
+    .concept-list {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media print {
+    .concept-list {
+      grid-template-columns: repeat(2, 1fr);
+      break-inside: avoid;
+    }
+  }
+</style>

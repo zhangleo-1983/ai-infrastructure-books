@@ -1,0 +1,58 @@
+@media print {
+  :root {
+    color-scheme: light;
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-muted: #f2f2f2;
+    --color-surface-strong: #e8e8e8;
+    --color-text: #111111;
+    --color-text-muted: #444444;
+    --color-border: #cccccc;
+    --color-primary: #111111;
+    --color-primary-strong: #111111;
+    --color-primary-soft: #f2f2f2;
+    --shadow-soft: none;
+  }
+
+  @page {
+    margin: 18mm 16mm 20mm;
+    size: A4;
+  }
+
+  body {
+    min-width: 0;
+    background: white;
+    color: #111111;
+    font-size: 10.5pt;
+  }
+
+  .skip-link,
+  .site-header,
+  .site-footer,
+  [data-print-hidden] {
+    display: none !important;
+  }
+
+  .site-main {
+    min-height: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    overflow-wrap: anywhere;
+    color: #444444;
+    font-size: 0.85em;
+  }
+
+  pre,
+  table,
+  figure,
+  blockquote {
+    break-inside: avoid;
+  }
+}

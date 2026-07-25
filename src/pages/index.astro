@@ -1,0 +1,238 @@
+---
+import { books, currentBook, seriesTitle } from "../data/books";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { sitePath } from "../lib/site-path";
+
+const plannedBooks = books.filter((book) => book.status === "planned");
+---
+
+<BaseLayout
+  title={seriesTitle}
+  description="面向零基础读者的中文 AI 基础设施图解书系列。"
+>
+  <section class="home-hero">
+    <div class="home-hero__inner">
+      <p class="eyebrow">Chinese illustrated learning series</p>
+      <h1>{seriesTitle}</h1>
+      <p class="lede">
+        从第一台 VPS 开始，逐步理解网络、容器、域名、AI 工具部署和服务器维护。
+        每一步都说明做什么、为什么、成功状态和失败判断。
+      </p>
+      <a class="text-link" href={sitePath(`/books/${currentBook.slug}/`)}>
+        阅读当前维护的第二册 <span aria-hidden="true">→</span>
+      </a>
+    </div>
+    <div class="home-hero__number" aria-hidden="true">01—10</div>
+  </section>
+
+  <section class="current-book" aria-labelledby="current-book-title">
+    <div class="current-book__number" aria-hidden="true">02</div>
+    <div class="current-book__content">
+      <div class="current-book__meta">
+        <p class="eyebrow">当前优先维护</p>
+        <span class="status-label" data-status="current">迁移中</span>
+      </div>
+      <h2 id="current-book-title">{currentBook.shortTitle}</h2>
+      <p>{currentBook.description}</p>
+      <p class="current-book__route">
+        Ubuntu → SSH → 3X-UI → VLESS Reality → Clash / Shadowrocket
+      </p>
+      <a class="text-link" href={sitePath(`/books/${currentBook.slug}/`)}>
+        查看第二册 <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="series-index" aria-labelledby="series-index-title">
+    <div>
+      <p class="eyebrow">系列路线</p>
+      <h2 id="series-index-title">从购买服务器到长期维护</h2>
+    </div>
+    <ol>
+      {
+        plannedBooks.map((book) => (
+          <li>
+            <span>{String(book.number).padStart(2, "0")}</span>
+            <strong>{book.shortTitle}</strong>
+            <span class="status-label">计划中</span>
+          </li>
+        ))
+      }
+    </ol>
+    <a class="text-link" href={sitePath("/books/")}>
+      查看全部书目 <span aria-hidden="true">→</span>
+    </a>
+  </section>
+</BaseLayout>
+
+<style>
+  .home-hero {
+    position: relative;
+    min-height: min(44rem, calc(100svh - var(--height-header)));
+    overflow: hidden;
+    border-bottom: var(--border-thin);
+    background:
+      radial-gradient(
+        circle at 86% 12%,
+        color-mix(in srgb, var(--color-primary) 22%, transparent),
+        transparent 34%
+      ),
+      linear-gradient(155deg, var(--color-surface), var(--color-bg));
+  }
+
+  .home-hero__inner {
+    display: flex;
+    width: min(100%, var(--width-content));
+    min-height: inherit;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-6);
+    margin-inline: auto;
+    padding: var(--space-16) var(--space-5);
+  }
+
+  .home-hero h1 {
+    max-width: 58rem;
+    font-size: var(--font-size-display);
+    letter-spacing: -0.055em;
+    line-height: var(--line-height-tight);
+  }
+
+  .home-hero__number {
+    position: absolute;
+    right: max(var(--space-5), calc((100% - var(--width-content)) / 2));
+    bottom: var(--space-8);
+    color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+    font-size: clamp(4rem, 13vw, 10rem);
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    line-height: 0.8;
+  }
+
+  .current-book,
+  .series-index {
+    display: grid;
+    width: min(100%, var(--width-content));
+    margin-inline: auto;
+    padding: var(--space-20) var(--space-5);
+  }
+
+  .current-book {
+    grid-template-columns: minmax(8rem, 0.45fr) minmax(0, 1fr);
+    gap: var(--space-12);
+    border-bottom: var(--border-thin);
+  }
+
+  .current-book__number {
+    color: var(--color-primary);
+    font-size: clamp(5rem, 12vw, 9rem);
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    line-height: 0.8;
+  }
+
+  .current-book__content {
+    display: flex;
+    max-width: var(--width-reading);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .current-book__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .current-book h2,
+  .series-index h2 {
+    font-size: var(--font-size-2xl);
+    letter-spacing: -0.035em;
+  }
+
+  .current-book p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+  }
+
+  .current-book__route {
+    overflow-wrap: anywhere;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .series-index {
+    grid-template-columns: minmax(15rem, 0.6fr) minmax(0, 1fr);
+    gap: var(--space-12);
+  }
+
+  .series-index ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .series-index li {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    border-bottom: var(--border-thin);
+    padding-block: var(--space-4);
+  }
+
+  .series-index li > span:first-child {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+  }
+
+  .series-index > .text-link {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  @media (max-width: 48rem) {
+    .home-hero {
+      min-height: 36rem;
+    }
+
+    .home-hero__inner {
+      justify-content: flex-start;
+      padding-top: var(--space-16);
+    }
+
+    .home-hero__number {
+      bottom: var(--space-6);
+    }
+
+    .current-book,
+    .series-index {
+      grid-template-columns: 1fr;
+      gap: var(--space-8);
+      padding-block: var(--space-12);
+    }
+
+    .current-book__number {
+      font-size: 5rem;
+    }
+
+    .series-index > .text-link {
+      grid-column: 1;
+    }
+  }
+
+  @media (max-width: 35.625rem) {
+    .home-hero__inner,
+    .current-book,
+    .series-index {
+      padding-inline: var(--space-4);
+    }
+
+    .home-hero__number {
+      right: var(--space-4);
+    }
+  }
+</style>

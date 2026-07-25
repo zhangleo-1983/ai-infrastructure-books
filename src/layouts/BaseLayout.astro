@@ -1,0 +1,70 @@
+---
+import { seriesTitle } from "../data/books";
+import { sitePath } from "../lib/site-path";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/print.css";
+
+interface Props {
+  title: string;
+  description: string;
+  robots?: string;
+}
+
+const {
+  title,
+  description,
+  robots = "index,follow",
+} = Astro.props;
+const documentTitle = title === seriesTitle ? title : `${title}｜${seriesTitle}`;
+const canonicalUrl = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site)
+  : undefined;
+const homeHref = sitePath("/");
+const booksHref = sitePath("/books/");
+const onHome = Astro.url.pathname === homeHref;
+const onBooks = Astro.url.pathname.startsWith(booksHref);
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c121a" media="(prefers-color-scheme: dark)" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={documentTitle} />
+    <meta property="og:description" content={description} />
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    <link rel="icon" href={sitePath("/favicon.svg")} type="image/svg+xml" />
+    <title>{documentTitle}</title>
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href={homeHref} aria-label={`${seriesTitle}首页`}>
+          <span class="site-brand__mark" aria-hidden="true">AI</span>
+          <span class="site-brand__name">{seriesTitle}</span>
+        </a>
+        <nav class="site-nav" aria-label="全站导航">
+          <a href={homeHref} aria-current={onHome ? "page" : undefined}>首页</a>
+          <a href={booksHref} aria-current={onBooks ? "page" : undefined}>书目</a>
+        </nav>
+      </div>
+    </header>
+    <main class="site-main" id="main-content">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      《AI 基础设施从零开始》· 面向零基础读者的中文技术图解书
+    </footer>
+  </body>
+</html>

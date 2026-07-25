@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">AI 基础设施从零开始</title>
+  <rect width="64" height="64" rx="16" fill="#1668dc"/>
+  <path d="M18 43 27 19h9l10 24h-8l-2-6H27l-2 6Zm11-12h5l-3-8Z" fill="#fff"/>
+  <path d="M47 19h6v24h-6z" fill="#bcd8ff"/>
+</svg>

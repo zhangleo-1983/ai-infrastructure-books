@@ -1,0 +1,116 @@
+---
+import { books } from "../../data/books";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { sitePath } from "../../lib/site-path";
+---
+
+<BaseLayout
+  title="全部书目"
+  description="《AI 基础设施从零开始》系列书目与当前维护状态。"
+>
+  <header class="page-heading">
+    <p class="eyebrow">Books</p>
+    <h1>全部书目</h1>
+    <p class="lede">当前只实施第二册，其他书目仅展示系列规划，不包含正文。</p>
+  </header>
+
+  <ol class="book-list">
+    {
+      books.map((book) => (
+        <li>
+          <span class="book-list__number">
+            {String(book.number).padStart(2, "0")}
+          </span>
+          <div>
+            <h2>
+              {book.status === "current" ? (
+                <a href={sitePath(`/books/${book.slug}/`)}>{book.title}</a>
+              ) : (
+                book.title
+              )}
+            </h2>
+            <p>{book.description}</p>
+          </div>
+          <span class="status-label" data-status={book.status}>
+            {book.status === "current" ? "当前维护" : "计划中"}
+          </span>
+        </li>
+      ))
+    }
+  </ol>
+</BaseLayout>
+
+<style>
+  .page-heading,
+  .book-list {
+    width: min(100%, var(--width-content));
+    margin-inline: auto;
+    padding-inline: var(--space-5);
+  }
+
+  .page-heading {
+    display: grid;
+    gap: var(--space-4);
+    padding-block: var(--space-16) var(--space-10);
+  }
+
+  .page-heading h1 {
+    font-size: var(--font-size-display);
+    letter-spacing: -0.055em;
+  }
+
+  .book-list {
+    margin-block: 0 var(--space-16);
+    list-style: none;
+  }
+
+  .book-list li {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    gap: var(--space-5);
+    align-items: start;
+    border-top: var(--border-thin);
+    padding-block: var(--space-6);
+  }
+
+  .book-list__number {
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-weight: 800;
+  }
+
+  .book-list h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  .book-list h2 a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .book-list h2 a:hover {
+    color: var(--color-primary);
+  }
+
+  .book-list p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 35.625rem) {
+    .page-heading,
+    .book-list {
+      padding-inline: var(--space-4);
+    }
+
+    .book-list li {
+      grid-template-columns: 2.25rem minmax(0, 1fr);
+      gap: var(--space-3);
+    }
+
+    .book-list .status-label {
+      grid-column: 2;
+      justify-self: start;
+    }
+  }
+</style>

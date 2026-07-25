@@ -1,0 +1,210 @@
+---
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const macPanelId = `${id}-mac`;
+const windowsPanelId = `${id}-windows`;
+---
+
+<div class="platform-tabs" data-platform-tabs>
+  <div
+    class="platform-tabs__list"
+    role="tablist"
+    aria-label="选择电脑系统"
+    data-platform-tablist
+    hidden
+  >
+    <button
+      type="button"
+      role="tab"
+      id={`${id}-tab-mac`}
+      aria-controls={macPanelId}
+      aria-selected="true"
+      tabindex="0"
+      data-platform-tab="mac"
+    >
+      Mac
+    </button>
+    <button
+      type="button"
+      role="tab"
+      id={`${id}-tab-windows`}
+      aria-controls={windowsPanelId}
+      aria-selected="false"
+      tabindex="-1"
+      data-platform-tab="windows"
+    >
+      Windows
+    </button>
+  </div>
+
+  <section
+    class="platform-tabs__panel"
+    id={macPanelId}
+    role="tabpanel"
+    aria-labelledby={`${id}-tab-mac`}
+    data-platform-panel="mac"
+  >
+    <h3 class="platform-tabs__fallback-title" data-parity-ignore>Mac</h3>
+    <slot name="mac" />
+  </section>
+
+  <section
+    class="platform-tabs__panel"
+    id={windowsPanelId}
+    role="tabpanel"
+    aria-labelledby={`${id}-tab-windows`}
+    data-platform-panel="windows"
+  >
+    <h3 class="platform-tabs__fallback-title" data-parity-ignore>Windows</h3>
+    <slot name="windows" />
+  </section>
+</div>
+
+<script>
+  function enhancePlatformTabs(root: HTMLElement): void {
+    if (root.dataset.enhanced === "true") return;
+
+    const tablist = root.querySelector<HTMLElement>("[data-platform-tablist]");
+    const tabs = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("[data-platform-tab]"),
+    );
+    const panels = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-platform-panel]"),
+    );
+    const initialTab = tabs[0];
+
+    if (!tablist || !initialTab || panels.length === 0) return;
+
+    function selectTab(selectedTab: HTMLButtonElement): void {
+      const platform = selectedTab.dataset.platformTab;
+
+      for (const tab of tabs) {
+        const selected = tab === selectedTab;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+      }
+
+      for (const panel of panels) {
+        panel.hidden = panel.dataset.platformPanel !== platform;
+      }
+    }
+
+    root.dataset.enhanced = "true";
+    root.classList.add("is-enhanced");
+    tablist.hidden = false;
+    selectTab(initialTab);
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (event) => {
+        let nextIndex = index;
+        if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+        if (event.key === "ArrowLeft") {
+          nextIndex = (index - 1 + tabs.length) % tabs.length;
+        }
+        if (event.key === "Home") nextIndex = 0;
+        if (event.key === "End") nextIndex = tabs.length - 1;
+        if (nextIndex === index) return;
+
+        event.preventDefault();
+        const nextTab = tabs[nextIndex];
+        if (!nextTab) return;
+        nextTab.focus();
+        selectTab(nextTab);
+      });
+    });
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-platform-tabs]")
+    .forEach(enhancePlatformTabs);
+</script>
+
+<style>
+  .platform-tabs {
+    margin-block: var(--space-6);
+  }
+
+  .platform-tabs__list {
+    display: flex;
+    gap: var(--space-1);
+    width: fit-content;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    padding: var(--space-1);
+  }
+
+  .platform-tabs__list[hidden] {
+    display: none;
+  }
+
+  button {
+    min-height: 2.5rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    padding: var(--space-2) var(--space-5);
+    cursor: pointer;
+    font-weight: 750;
+  }
+
+  button[aria-selected="true"] {
+    background: var(--color-surface);
+    color: var(--color-primary);
+    box-shadow: 0 1px 0.35rem rgb(24 34 49 / 10%);
+  }
+
+  .platform-tabs__panel {
+    margin-top: var(--space-4);
+  }
+
+  .platform-tabs__panel + .platform-tabs__panel {
+    border-top: var(--border-thin);
+    padding-top: var(--space-5);
+  }
+
+  .platform-tabs__panel[hidden] {
+    display: none;
+  }
+
+  .platform-tabs__fallback-title {
+    margin-bottom: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .is-enhanced .platform-tabs__fallback-title {
+    display: none;
+  }
+
+  .is-enhanced .platform-tabs__panel + .platform-tabs__panel {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  @media print {
+    .platform-tabs__list {
+      display: none !important;
+    }
+
+    .platform-tabs__panel,
+    .platform-tabs__panel[hidden] {
+      display: block !important;
+      break-inside: avoid;
+    }
+
+    .platform-tabs__panel + .platform-tabs__panel {
+      border-top: 1px solid #cccccc;
+      padding-top: 4mm;
+    }
+
+    .platform-tabs__fallback-title {
+      display: block !important;
+    }
+  }
+</style>

@@ -1,0 +1,137 @@
+@layer tokens {
+  :root {
+    color-scheme: light;
+
+    --color-bg: #f3f6fa;
+    --color-surface: #ffffff;
+    --color-surface-muted: #edf2f7;
+    --color-surface-strong: #e4ebf3;
+    --color-text: #182231;
+    --color-text-muted: #5f6f83;
+    --color-border: #d7e0eb;
+    --color-primary: #1668dc;
+    --color-primary-strong: #0f54b8;
+    --color-primary-soft: #e8f2ff;
+    --color-success: #16794a;
+    --color-success-soft: #e8f7ef;
+    --color-warning: #9a5b00;
+    --color-warning-soft: #fff5dc;
+    --color-danger: #b83232;
+    --color-danger-soft: #fff0f0;
+    --color-terminal: #0d1520;
+    --color-terminal-raised: #202c3a;
+    --color-terminal-text: #dce8f7;
+    --color-focus: #0b63ce;
+
+    --font-sans:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --font-mono:
+      ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+      monospace;
+
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-md: 1.125rem;
+    --font-size-lg: 1.375rem;
+    --font-size-xl: 1.75rem;
+    --font-size-2xl: clamp(2rem, 5vw, 3.25rem);
+    --font-size-display: clamp(2.75rem, 8vw, 5rem);
+
+    --line-height-tight: 1.18;
+    --line-height-heading: 1.35;
+    --line-height-body: 1.78;
+
+    --space-0: 0;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1.125rem;
+    --radius-xl: 1.75rem;
+    --radius-pill: 999px;
+
+    --border-thin: 1px solid var(--color-border);
+    --shadow-soft: 0 0.875rem 2.375rem rgb(24 34 49 / 8%);
+    --shadow-focus: 0 0 0 0.1875rem var(--color-primary-soft);
+
+    --width-reading: 46rem;
+    --width-content: 74rem;
+    --width-wide: 90rem;
+    --width-sidebar: 17rem;
+    --height-header: 4rem;
+
+    /*
+     * 响应式断点基准：
+     * phone 35.625rem / tablet 48rem / book layout 64rem / wide 90rem。
+     * 原生 CSS 不能在媒体查询中使用自定义属性，实际查询需与此处同步。
+     */
+    --breakpoint-phone: 35.625rem;
+    --breakpoint-tablet: 48rem;
+    --breakpoint-book: 64rem;
+    --breakpoint-wide: 90rem;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-bg: #0c121a;
+    --color-surface: #141c27;
+    --color-surface-muted: #1a2532;
+    --color-surface-strong: #223041;
+    --color-text: #edf3fb;
+    --color-text-muted: #9baabd;
+    --color-border: #2c394a;
+    --color-primary: #76adff;
+    --color-primary-strong: #9ac3ff;
+    --color-primary-soft: #172b45;
+    --color-success: #65d49a;
+    --color-success-soft: #173426;
+    --color-warning: #ffca65;
+    --color-warning-soft: #362c15;
+    --color-danger: #ff8989;
+    --color-danger-soft: #3b1f23;
+    --color-terminal: #070c13;
+    --color-terminal-raised: #172230;
+    --color-terminal-text: #e8f1fd;
+    --color-focus: #90bdff;
+    --shadow-soft: 0 0.875rem 2.375rem rgb(0 0 0 / 30%);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --color-bg: #0c121a;
+      --color-surface: #141c27;
+      --color-surface-muted: #1a2532;
+      --color-surface-strong: #223041;
+      --color-text: #edf3fb;
+      --color-text-muted: #9baabd;
+      --color-border: #2c394a;
+      --color-primary: #76adff;
+      --color-primary-strong: #9ac3ff;
+      --color-primary-soft: #172b45;
+      --color-success: #65d49a;
+      --color-success-soft: #173426;
+      --color-warning: #ffca65;
+      --color-warning-soft: #362c15;
+      --color-danger: #ff8989;
+      --color-danger-soft: #3b1f23;
+      --color-terminal: #070c13;
+      --color-terminal-raised: #172230;
+      --color-terminal-text: #e8f1fd;
+      --color-focus: #90bdff;
+      --shadow-soft: 0 0.875rem 2.375rem rgb(0 0 0 / 30%);
+    }
+  }
+}

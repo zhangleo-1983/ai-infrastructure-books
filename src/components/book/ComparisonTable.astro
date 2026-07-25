@@ -1,0 +1,61 @@
+<div class="comparison-table" tabindex="0" role="region" aria-label="可横向滚动的数据表">
+  <slot />
+</div>
+
+<style>
+  .comparison-table {
+    max-width: 100%;
+    overflow-x: auto;
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+  }
+
+  .comparison-table:focus-visible {
+    outline: 0.1875rem solid var(--color-focus);
+    outline-offset: 0.1875rem;
+  }
+
+  :global(.comparison-table table) {
+    width: 100%;
+    min-width: 36rem;
+    border-collapse: collapse;
+  }
+
+  :global(.comparison-table th),
+  :global(.comparison-table td) {
+    border-bottom: var(--border-thin);
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  :global(.comparison-table th) {
+    background: var(--color-surface-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  :global(.comparison-table tr:last-child td) {
+    border-bottom: 0;
+  }
+
+  @media print {
+    .comparison-table {
+      overflow: visible;
+      border-color: #bbbbbb;
+      break-inside: avoid;
+    }
+
+    :global(.comparison-table table) {
+      min-width: 0;
+      table-layout: fixed;
+      font-size: 9pt;
+    }
+
+    :global(.comparison-table th),
+    :global(.comparison-table td) {
+      border-color: #cccccc;
+      padding: 2mm;
+      overflow-wrap: anywhere;
+    }
+  }
+</style>

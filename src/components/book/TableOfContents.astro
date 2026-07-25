@@ -1,0 +1,187 @@
+---
+import type { Book02ChapterPlanItem } from "../../data/book02";
+import { book02Id } from "../../data/book02";
+import { sitePath } from "../../lib/site-path";
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  items: Book02ChapterPlanItem[];
+  currentSlug?: string;
+  headings?: Heading[];
+}
+
+const { items, currentSlug, headings = [] } = Astro.props;
+const migratedCount = items.filter((item) => item.migrated).length;
+
+function itemLabel(item: Book02ChapterPlanItem): string {
+  if (item.chapterType === "introduction") return "开始";
+  if (item.chapterType === "appendix") return "附录";
+  if (item.chapterType === "sources") return "资料";
+  return String(item.order).padStart(2, "0");
+}
+---
+
+<details class="table-of-contents" open>
+  <summary>
+    <span>本册目录</span>
+    <small>{migratedCount} 项可阅读</small>
+  </summary>
+  <nav aria-label="第二册目录">
+    <ol>
+      {
+        items.map((item) => (
+          <li class:list={{ current: item.slug === currentSlug }}>
+            <div class="table-of-contents__item">
+              <span class="table-of-contents__number">{itemLabel(item)}</span>
+              {item.migrated ? (
+                <a
+                  href={sitePath(`/books/${book02Id}/${item.slug}/`)}
+                  aria-current={item.slug === currentSlug ? "page" : undefined}
+                >
+                  {item.shortTitle}
+                </a>
+              ) : (
+                <>
+                  <span class="table-of-contents__pending-title">
+                    {item.shortTitle}
+                  </span>
+                  <small>迁移中</small>
+                </>
+              )}
+            </div>
+            {item.slug === currentSlug && headings.length > 0 && (
+              <ol class="table-of-contents__headings">
+                {headings
+                  .filter((heading) => heading.depth <= 3)
+                  .map((heading) => (
+                    <li data-depth={heading.depth}>
+                      <a href={`#${heading.slug}`}>{heading.text}</a>
+                    </li>
+                  ))}
+              </ol>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+</details>
+
+<style>
+  .table-of-contents {
+    font-size: var(--font-size-sm);
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    padding: var(--space-3);
+    font-weight: 800;
+  }
+
+  summary small {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  nav > ol,
+  .table-of-contents__headings {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  nav > ol {
+    padding-block: var(--space-2);
+  }
+
+  nav > ol > li {
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+    padding-block: var(--space-1);
+  }
+
+  .table-of-contents__item {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-2);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2);
+  }
+
+  .current > .table-of-contents__item {
+    background: var(--color-primary-soft);
+  }
+
+  .table-of-contents__number {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+  }
+
+  a {
+    color: var(--color-text-muted);
+    font-weight: 680;
+    line-height: 1.45;
+    text-decoration: none;
+  }
+
+  a:hover,
+  a[aria-current="page"] {
+    color: var(--color-primary);
+  }
+
+  .table-of-contents__pending-title {
+    color: var(--color-text-muted);
+    line-height: 1.45;
+    opacity: 0.72;
+  }
+
+  .table-of-contents__item small {
+    color: var(--color-text-muted);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+
+  .table-of-contents__headings {
+    padding: var(--space-1) var(--space-2) var(--space-2) 3.25rem;
+  }
+
+  .table-of-contents__headings li {
+    margin-top: var(--space-1);
+  }
+
+  .table-of-contents__headings li[data-depth="3"] {
+    padding-left: var(--space-3);
+  }
+
+  .table-of-contents__headings a {
+    font-size: var(--font-size-xs);
+    font-weight: 550;
+  }
+
+  @media (min-width: 64.001rem) {
+    summary {
+      display: none;
+    }
+
+    details:not([open]) > :not(summary) {
+      display: block !important;
+    }
+  }
+
+  @media print {
+    .table-of-contents {
+      display: none;
+    }
+  }
+</style>

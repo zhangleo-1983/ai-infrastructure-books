@@ -1,0 +1,93 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import "../styles/book.css";
+
+interface Props {
+  title: string;
+  description: string;
+  bookTitle: string;
+}
+
+const { title, description, bookTitle } = Astro.props;
+const hasSidebar = Astro.slots.has("sidebar");
+---
+
+<BaseLayout title={title} description={description}>
+  <div class:list={["book-shell", { "book-shell--without-sidebar": !hasSidebar }]}>
+    {
+      hasSidebar && (
+        <aside class="book-sidebar" aria-label={`${bookTitle}章节目录`}>
+          <slot name="sidebar" />
+        </aside>
+      )
+    }
+    <article class="book-content">
+      <slot />
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .book-shell {
+    display: grid;
+    width: min(100%, var(--width-content));
+    grid-template-columns: var(--width-sidebar) minmax(0, 1fr);
+    gap: var(--space-8);
+    margin-inline: auto;
+    padding: var(--space-8) var(--space-5) var(--space-16);
+  }
+
+  .book-shell--without-sidebar {
+    grid-template-columns: minmax(0, var(--width-reading));
+    justify-content: center;
+  }
+
+  .book-sidebar {
+    position: sticky;
+    top: calc(var(--height-header) + var(--space-4));
+    max-height: calc(100vh - var(--height-header) - var(--space-8));
+    align-self: start;
+    overflow: auto;
+    border-right: var(--border-thin);
+    padding-right: var(--space-5);
+  }
+
+  .book-content {
+    min-width: 0;
+  }
+
+  @media (max-width: 64rem) {
+    .book-shell {
+      grid-template-columns: minmax(0, 1fr);
+      padding-top: var(--space-5);
+    }
+
+    .book-sidebar {
+      position: static;
+      max-height: none;
+      border-right: 0;
+      border-bottom: var(--border-thin);
+      padding: 0 0 var(--space-4);
+    }
+  }
+
+  @media (max-width: 35.625rem) {
+    .book-shell {
+      gap: var(--space-5);
+      padding-inline: var(--space-3);
+    }
+  }
+
+  @media print {
+    .book-shell,
+    .book-shell--without-sidebar {
+      display: block;
+      width: 100%;
+      padding: 0;
+    }
+
+    .book-sidebar {
+      display: none;
+    }
+  }
+</style>

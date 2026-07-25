@@ -1,0 +1,55 @@
+---
+interface Props {
+  chapterId: string;
+}
+
+const { chapterId } = Astro.props;
+---
+
+<div class="chapter-checklist">
+  <label>
+    <input type="checkbox" name={chapterId} value="complete" />
+    <span><slot /></span>
+  </label>
+</div>
+
+<style>
+  .chapter-checklist {
+    border: 1px dashed var(--color-primary);
+    border-radius: var(--radius-lg);
+    background: var(--color-primary-soft);
+    padding: var(--space-5);
+  }
+
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    cursor: pointer;
+    font-weight: 680;
+  }
+
+  input {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: 0 0 auto;
+    margin-top: 0.32rem;
+    accent-color: var(--color-primary);
+  }
+
+  @media print {
+    .chapter-checklist {
+      border-color: #888888;
+      background: white;
+    }
+
+    input {
+      display: none;
+    }
+
+    label::before {
+      content: "□";
+      margin-right: 0.25em;
+    }
+  }
+</style>

@@ -1,0 +1,135 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  sourceAnchor: string;
+  chapterType: "introduction" | "chapter" | "appendix" | "sources";
+  chapterNumber?: number;
+  labels?: string[];
+}
+
+const {
+  title,
+  description,
+  sourceAnchor,
+  chapterType,
+  chapterNumber,
+  labels = [],
+} = Astro.props;
+const chapterLabel =
+  chapterType === "chapter" && chapterNumber
+    ? `Chapter ${String(chapterNumber).padStart(2, "0")}`
+    : undefined;
+---
+
+<header
+  class:list={["chapter-header", `chapter-header--${chapterType}`]}
+  id={sourceAnchor}
+  data-chapter={chapterNumber}
+>
+  {chapterLabel && <p class="chapter-header__number">{chapterLabel}</p>}
+  <h1>{title}</h1>
+  <p class="chapter-header__description">{description}</p>
+  {
+    labels.length > 0 && (
+      <div class="chapter-header__meta" aria-label="章节信息">
+        {labels.map((label) => (
+          <span>{label}</span>
+        ))}
+      </div>
+    )
+  }
+</header>
+
+<style>
+  .chapter-header {
+    position: relative;
+    overflow: hidden;
+    border: var(--border-thin);
+    border-radius: var(--radius-xl);
+    background:
+      radial-gradient(
+        circle at 92% 5%,
+        color-mix(in srgb, var(--color-primary) 17%, transparent),
+        transparent 35%
+      ),
+      var(--color-surface);
+    padding: var(--space-10);
+    box-shadow: var(--shadow-soft);
+    scroll-margin-top: calc(var(--height-header) + var(--space-5));
+  }
+
+  .chapter-header--introduction {
+    background: var(--color-surface);
+  }
+
+  .chapter-header__number {
+    color: var(--color-primary);
+    font-size: var(--font-size-xs);
+    font-weight: 820;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    max-width: 48rem;
+    margin-top: var(--space-3);
+    font-size: var(--font-size-2xl);
+    letter-spacing: -0.04em;
+    line-height: var(--line-height-tight);
+  }
+
+  .chapter-header--introduction h1 {
+    margin-top: 0;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+  }
+
+  .chapter-header__description {
+    max-width: 48rem;
+    margin-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+  }
+
+  .chapter-header__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-5);
+  }
+
+  .chapter-header__meta span {
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 35.625rem) {
+    .chapter-header {
+      border-radius: var(--radius-lg);
+      padding: var(--space-8) var(--space-5);
+    }
+  }
+
+  @media print {
+    .chapter-header {
+      border: 0;
+      border-bottom: 1px solid #b8b8b8;
+      border-radius: 0;
+      background: white;
+      padding: 0 0 8mm;
+      box-shadow: none;
+    }
+
+    .chapter-header--chapter {
+      break-before: page;
+    }
+
+    .chapter-header__meta span {
+      border-color: #b8b8b8;
+      background: white;
+    }
+  }
+</style>

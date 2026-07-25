@@ -1,0 +1,69 @@
+---
+interface Props {
+  audience: string;
+  duration: string;
+  outcome: string;
+}
+
+const { audience, duration, outcome } = Astro.props;
+---
+
+<div class="learning-goals" aria-label="阅读目标">
+  <section>
+    <span aria-hidden="true">👤</span>
+    <h2>适合谁</h2>
+    <p>{audience}</p>
+  </section>
+  <section>
+    <span aria-hidden="true">⏱️</span>
+    <h2>需要多久</h2>
+    <p>{duration}</p>
+  </section>
+  <section>
+    <span aria-hidden="true">🎯</span>
+    <h2>最终结果</h2>
+    <p>{outcome}</p>
+  </section>
+</div>
+
+<style>
+  .learning-goals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin-block: var(--space-6);
+  }
+
+  section {
+    border-top: 0.1875rem solid var(--color-primary);
+    padding: var(--space-5) var(--space-2) 0;
+  }
+
+  section > span {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: var(--font-size-md);
+  }
+
+  p {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 48rem) {
+    .learning-goals {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media print {
+    .learning-goals {
+      grid-template-columns: repeat(3, 1fr);
+      break-inside: avoid;
+    }
+  }
+</style>

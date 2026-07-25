@@ -1,0 +1,195 @@
+---
+import { currentBook } from "../../../data/books";
+import TableOfContents from "../../../components/book/TableOfContents.astro";
+import { book02ChapterPlan, book02Id } from "../../../data/book02";
+import BookLayout from "../../../layouts/BookLayout.astro";
+import { sitePath } from "../../../lib/site-path";
+---
+
+<BookLayout
+  title={currentBook.shortTitle}
+  description={currentBook.description}
+  bookTitle={currentBook.shortTitle}
+>
+  <header class="book-cover">
+    <p class="eyebrow">AI 基础设施从零开始 · 第 02 册</p>
+    <h1>拥有自己的<br />海外网络</h1>
+    <p class="book-cover__subtitle">从 VPS 到 Clash，只需要 30 分钟</p>
+    <p class="book-cover__route">
+      Ubuntu → SSH → 3X-UI → VLESS Reality → Clash / Shadowrocket
+    </p>
+    <div class="book-cover__status">
+      <span class="status-label" data-status="current">Milestone 2</span>
+      <p>
+        “开始之前”、第 1 章和第 2 章已经迁移，其余章节会按原顺序继续整理。
+      </p>
+    </div>
+    <a
+      class="book-cover__start"
+      href={sitePath(`/books/${book02Id}/start/`)}
+    >
+      从“开始之前”阅读
+      <span aria-hidden="true">→</span>
+    </a>
+    <span class="book-cover__number" aria-hidden="true">02</span>
+  </header>
+
+  <section class="book-index" aria-labelledby="book-index-title">
+    <div>
+      <p class="eyebrow">目录</p>
+      <h2 id="book-index-title">第二册章节</h2>
+      <p>已迁移章节可直接进入；后续章节仅显示计划，不会进入空白页面。</p>
+    </div>
+    <TableOfContents items={book02ChapterPlan} />
+  </section>
+</BookLayout>
+
+<style>
+  .book-cover {
+    position: relative;
+    display: flex;
+    min-height: 38rem;
+    overflow: hidden;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-5);
+    border: var(--border-thin);
+    border-radius: var(--radius-xl);
+    background:
+      radial-gradient(
+        circle at 90% 10%,
+        color-mix(in srgb, var(--color-primary) 22%, transparent),
+        transparent 36%
+      ),
+      var(--color-surface);
+    padding: var(--space-12);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .book-cover h1 {
+    max-width: 44rem;
+    font-size: var(--font-size-display);
+    letter-spacing: -0.055em;
+    line-height: var(--line-height-tight);
+  }
+
+  .book-cover__subtitle {
+    max-width: 38rem;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+  }
+
+  .book-cover__route {
+    max-width: 36rem;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+  }
+
+  .book-cover__status {
+    display: flex;
+    max-width: 40rem;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .book-cover__status p {
+    flex: 1;
+  }
+
+  .book-cover__number {
+    position: absolute;
+    right: var(--space-8);
+    bottom: var(--space-6);
+    color: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    font-size: clamp(5rem, 14vw, 9rem);
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    line-height: 0.8;
+  }
+
+  .book-cover__start {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: white;
+    padding: var(--space-2) var(--space-5);
+    font-weight: 760;
+    text-decoration: none;
+  }
+
+  .book-cover__start:hover {
+    background: var(--color-primary-strong);
+    color: white;
+  }
+
+  .book-index {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
+    gap: var(--space-10);
+    margin-top: var(--space-12);
+    border-top: var(--border-thin);
+    padding-top: var(--space-8);
+  }
+
+  .book-index h2 {
+    margin-top: var(--space-2);
+    font-size: var(--font-size-xl);
+  }
+
+  .book-index p:not(.eyebrow) {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 35.625rem) {
+    .book-cover {
+      min-height: 34rem;
+      border-radius: var(--radius-lg);
+      padding: var(--space-8) var(--space-5);
+    }
+
+    .book-cover__status {
+      flex-direction: column;
+    }
+
+    .book-cover__number {
+      right: var(--space-5);
+      bottom: var(--space-5);
+    }
+
+    .book-index {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+  }
+
+  @media print {
+    .book-cover {
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      background: white;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .book-cover__status,
+    .book-cover__start,
+    .book-cover__number {
+      display: none;
+    }
+
+    .book-index {
+      display: none;
+    }
+  }
+</style>

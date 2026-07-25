@@ -1,0 +1,109 @@
+---
+interface NavigationTarget {
+  label: string;
+  title: string;
+  href?: string;
+  status?: "available" | "pending";
+}
+
+interface Props {
+  previous?: NavigationTarget;
+  next?: NavigationTarget;
+}
+
+const { previous, next } = Astro.props;
+---
+
+<nav class="chapter-navigation" aria-label="章节翻页" data-print-hidden>
+  <div>
+    {
+      previous?.href ? (
+        <a class="chapter-navigation__link" href={previous.href}>
+          <small>{previous.label}</small>
+          <strong>
+            <span aria-hidden="true">←</span> {previous.title}
+          </strong>
+        </a>
+      ) : (
+        <span />
+      )
+    }
+  </div>
+  <div class="chapter-navigation__next">
+    {
+      next?.href ? (
+        <a class="chapter-navigation__link" href={next.href}>
+          <small>{next.label}</small>
+          <strong>
+            {next.title} <span aria-hidden="true">→</span>
+          </strong>
+        </a>
+      ) : next ? (
+        <div class="chapter-navigation__pending" aria-disabled="true">
+          <small>{next.label}</small>
+          <strong>{next.title}</strong>
+          <span>迁移中</span>
+        </div>
+      ) : null
+    }
+  </div>
+</nav>
+
+<style>
+  .chapter-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+    border-top: var(--border-thin);
+    padding-top: var(--space-6);
+  }
+
+  .chapter-navigation__next {
+    text-align: right;
+  }
+
+  .chapter-navigation__link,
+  .chapter-navigation__pending {
+    display: inline-flex;
+    max-width: 100%;
+    flex-direction: column;
+    gap: var(--space-1);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  .chapter-navigation__link {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .chapter-navigation__link:hover {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+
+  small,
+  .chapter-navigation__pending span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  strong {
+    line-height: var(--line-height-heading);
+  }
+
+  .chapter-navigation__pending {
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 35.625rem) {
+    .chapter-navigation {
+      grid-template-columns: 1fr;
+    }
+
+    .chapter-navigation__next {
+      text-align: left;
+    }
+  }
+</style>

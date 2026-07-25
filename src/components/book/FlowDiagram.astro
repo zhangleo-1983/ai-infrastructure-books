@@ -1,0 +1,87 @@
+<figure class="flow-diagram" aria-label="流程图">
+  <div class="flow-diagram__track"><slot /></div>
+</figure>
+
+<style>
+  .flow-diagram {
+    max-width: 100%;
+    overflow: hidden;
+    margin: 0;
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-muted);
+    padding: var(--space-5);
+  }
+
+  .flow-diagram__track {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: stretch;
+    gap: var(--space-8);
+    overflow-x: auto;
+    padding: var(--space-1);
+  }
+
+  :global(.flow-node) {
+    position: relative;
+    display: grid;
+    width: 9.5rem;
+    flex: 0 0 9.5rem;
+    place-items: center;
+    align-content: center;
+    gap: var(--space-1);
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-4);
+    text-align: center;
+  }
+
+  :global(.flow-node:not(:last-child)::after) {
+    position: absolute;
+    left: calc(100% + var(--space-3));
+    content: "→";
+    color: var(--color-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+  }
+
+  :global(.flow-node__icon) {
+    font-size: 1.625rem;
+  }
+
+  :global(.flow-node small) {
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+
+  @media print {
+    .flow-diagram {
+      border-color: #bbbbbb;
+      background: white;
+      padding: 3mm;
+      break-inside: avoid;
+    }
+
+    .flow-diagram__track {
+      display: grid;
+      min-width: 0;
+      grid-template-columns: repeat(auto-fit, minmax(28mm, 1fr));
+      gap: 5mm;
+      overflow: visible;
+    }
+
+    :global(.flow-node) {
+      width: auto;
+      min-width: 0;
+      border-color: #bbbbbb;
+      padding: 3mm;
+    }
+
+    :global(.flow-node:not(:last-child)::after) {
+      left: calc(100% + 1mm);
+      color: #333333;
+    }
+  }
+</style>

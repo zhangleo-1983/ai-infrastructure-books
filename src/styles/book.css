@@ -1,0 +1,149 @@
+@layer components {
+  .book-prose {
+    max-width: var(--width-reading);
+    margin-inline: auto;
+  }
+
+  .book-prose > * + * {
+    margin-top: var(--space-6);
+  }
+
+  .book-prose :where(p, li) {
+    overflow-wrap: anywhere;
+  }
+
+  .book-prose :where(p, ul, ol, table, figure, aside, .chapter-checklist) + :where(
+      p,
+      ul,
+      ol,
+      table,
+      figure,
+      aside,
+      .chapter-checklist
+    ) {
+    margin-top: var(--space-5);
+  }
+
+  .book-prose :where(h2, h3) {
+    scroll-margin-top: calc(var(--height-header) + var(--space-5));
+  }
+
+  .book-prose h2 {
+    margin-top: var(--space-10);
+    font-size: var(--font-size-xl);
+  }
+
+  .book-prose h3 {
+    margin-top: var(--space-8);
+    font-size: var(--font-size-md);
+  }
+
+  .book-prose :where(p, li) > code,
+  .book-prose td code {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-muted);
+    padding: 0.08em 0.35em;
+    font-size: 0.92em;
+  }
+
+  .book-prose kbd {
+    border: var(--border-thin);
+    border-bottom-width: 0.1875rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    padding: 0.08em 0.4em;
+    font-size: 0.88em;
+    white-space: nowrap;
+  }
+
+  .book-section {
+    margin-top: var(--space-12);
+    scroll-margin-top: calc(var(--height-header) + var(--space-5));
+  }
+
+  .book-section > * + * {
+    margin-top: var(--space-6);
+  }
+
+  .book-section > h2:first-child {
+    margin-top: 0;
+  }
+
+  .book-lead {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+  }
+
+  .preparation-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: var(--space-5) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .preparation-list li {
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  @media (max-width: 35.625rem) {
+    .book-prose h2 {
+      font-size: 1.5rem;
+    }
+
+    .preparation-list {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@media print {
+  .book-prose {
+    max-width: none;
+  }
+
+  .book-prose h2 {
+    margin-top: 8mm;
+    font-size: 17pt;
+  }
+
+  .book-prose h3 {
+    margin-top: 6mm;
+    font-size: 12pt;
+  }
+
+  .book-section {
+    margin-top: 8mm;
+  }
+
+  .book-section > * + * {
+    margin-top: 4mm;
+  }
+
+  .book-prose :where(p, ul, ol, table, figure, aside, .chapter-checklist) + :where(
+      p,
+      ul,
+      ol,
+      table,
+      figure,
+      aside,
+      .chapter-checklist
+    ) {
+    margin-top: 4mm;
+  }
+
+  .preparation-list {
+    grid-template-columns: repeat(2, 1fr);
+    break-inside: avoid;
+  }
+
+  .preparation-list li {
+    border-color: #bbbbbb;
+    background: white;
+  }
+}
