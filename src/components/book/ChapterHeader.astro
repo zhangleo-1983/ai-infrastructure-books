@@ -6,6 +6,7 @@ interface Props {
   chapterType: "introduction" | "chapter" | "appendix" | "sources";
   chapterNumber?: number;
   labels?: string[];
+  headingLevel?: 1 | 2;
 }
 
 const {
@@ -15,7 +16,9 @@ const {
   chapterType,
   chapterNumber,
   labels = [],
+  headingLevel = 1,
 } = Astro.props;
+const HeadingTag = headingLevel === 1 ? "h1" : "h2";
 const chapterLabel =
   chapterType === "chapter" && chapterNumber
     ? `Chapter ${String(chapterNumber).padStart(2, "0")}`
@@ -30,7 +33,7 @@ const chapterLabel =
   data-chapter={chapterNumber}
 >
   {chapterLabel && <p class="chapter-header__number">{chapterLabel}</p>}
-  <h1>{title}</h1>
+  <HeadingTag>{title}</HeadingTag>
   <p class="chapter-header__description">{description}</p>
   {
     labels.length > 0 && (
@@ -73,7 +76,7 @@ const chapterLabel =
     text-transform: uppercase;
   }
 
-  h1 {
+  :is(h1, h2) {
     max-width: 48rem;
     margin-top: var(--space-3);
     font-size: var(--font-size-2xl);
@@ -81,7 +84,7 @@ const chapterLabel =
     line-height: var(--line-height-tight);
   }
 
-  .chapter-header--introduction h1 {
+  .chapter-header--introduction :is(h1, h2) {
     margin-top: 0;
     font-size: clamp(2rem, 4vw, 2.75rem);
   }

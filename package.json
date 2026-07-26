@@ -18,9 +18,13 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:chromium": "playwright test --project=chromium",
     "check:content": "node scripts/check-content-integrity.mjs",
     "check:links": "node scripts/check-internal-links.mjs dist",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:content && npm run check:links"
+    "check:release": "node scripts/check-release-readiness.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:content && npm run check:links",
+    "check:all": "npm run check && npm run check:release && npm run test:e2e"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.3",
@@ -29,10 +33,13 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.0",
     "eslint": "^10.8.0",
     "eslint-plugin-astro": "^1.6.0",
     "globals": "^17.0.0",
+    "lighthouse": "^13.4.1",
     "node-html-parser": "^9.0.0",
     "pagefind": "1.5.2",
     "typescript": "^6.0.3",

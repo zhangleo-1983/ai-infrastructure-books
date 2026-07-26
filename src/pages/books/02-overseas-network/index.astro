@@ -22,12 +22,26 @@ const updatedAt = bookEntries.reduce(
     entry.data.updatedAt > latest ? entry.data.updatedAt : latest,
   "1970-01-01",
 );
+const canonicalUrl = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site).href
+  : undefined;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Book",
+  name: currentBook.title,
+  description: currentBook.description,
+  inLanguage: "zh-CN",
+  dateModified: updatedAt,
+  ...(canonicalUrl ? { url: canonicalUrl } : {}),
+};
 ---
 
 <BookLayout
   title={currentBook.shortTitle}
   description={currentBook.description}
   bookTitle={currentBook.shortTitle}
+  ogType="book"
+  structuredData={structuredData}
 >
   <BookCover updatedAt={updatedAt} />
 

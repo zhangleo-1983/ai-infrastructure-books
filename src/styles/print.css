@@ -17,6 +17,12 @@
   @page {
     margin: 18mm 16mm 20mm;
     size: A4;
+
+    @bottom-center {
+      content: counter(page);
+      color: #555555;
+      font-size: 8pt;
+    }
   }
 
   body {

@@ -33,6 +33,7 @@ const updatedAt = entries.reduce(
   title={`${currentBook.shortTitle} · 整册打印`}
   description="第二册《拥有自己的海外网络》完整打印版。"
   bookTitle={currentBook.shortTitle}
+  robots="noindex,follow"
 >
   <nav class="print-toolbar" aria-label="打印页操作" data-print-hidden>
     <a href={sitePath(`/books/${book02Id}/`)}>← 返回第二册目录</a>
@@ -46,6 +47,30 @@ const updatedAt = entries.reduce(
       showActions={false}
     />
 
+    <nav class="print-contents" aria-labelledby="print-contents-title">
+      <h2 id="print-contents-title">目录</h2>
+      <ol>
+        {
+          entries.map((entry) => (
+            <li>
+              <a href={`#print-unit-${entry.data.slug}`}>
+                <span>
+                  {entry.data.chapterType === "chapter"
+                    ? String(entry.data.chapterNumber).padStart(2, "0")
+                    : entry.data.chapterType === "introduction"
+                      ? "开始"
+                      : entry.data.chapterType === "appendix"
+                        ? "附录"
+                        : "资料"}
+                </span>
+                {entry.data.title}
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+
     {
       chapters.map(({ entry, rendered: { Content } }) => {
         const chapterNumberProps = entry.data.chapterNumber
@@ -54,6 +79,7 @@ const updatedAt = entries.reduce(
         return (
           <section
             class="print-chapter"
+            id={`print-unit-${entry.data.slug}`}
             data-print-chapter
             data-order={entry.data.order}
             data-source-anchor={entry.data.sourceAnchor}
@@ -64,6 +90,7 @@ const updatedAt = entries.reduce(
               sourceAnchor={`print-${entry.data.sourceAnchor}`}
               chapterType={entry.data.chapterType}
               labels={entry.data.labels}
+              headingLevel={2}
               {...chapterNumberProps}
             />
             <Content />
@@ -124,6 +151,41 @@ const updatedAt = entries.reduce(
     margin-top: var(--space-16);
   }
 
+  .print-contents {
+    margin-top: var(--space-12);
+    border-top: var(--border-thin);
+    padding-top: var(--space-8);
+  }
+
+  .print-contents h2 {
+    font-size: var(--font-size-xl);
+  }
+
+  .print-contents ol {
+    margin-top: var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  .print-contents li {
+    border-bottom: var(--border-thin);
+  }
+
+  .print-contents a {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: var(--space-3);
+    padding-block: var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .print-contents a span {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+  }
+
   .print-chapter > * + * {
     margin-top: var(--space-6);
   }
@@ -139,6 +201,18 @@ const updatedAt = entries.reduce(
     .print-book {
       max-width: none;
       margin: 0;
+    }
+
+    .print-contents {
+      min-height: 245mm;
+      break-after: page;
+      margin-top: 0;
+      border-top: 0;
+      padding-top: 12mm;
+    }
+
+    .print-contents a {
+      padding-block: 2.5mm;
     }
 
     .print-chapter {

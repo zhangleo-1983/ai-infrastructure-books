@@ -201,5 +201,9 @@ const hasToolbar = Astro.slots.has("toolbar");
       background: white;
       padding: 3mm;
     }
+
+    .mock-window :global(a[href^="http"]::after) {
+      content: none;
+    }
   }
 </style>

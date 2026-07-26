@@ -12,16 +12,23 @@ interface Props {
   title: string;
   description: string;
   robots?: string;
+  ogType?: "website" | "article" | "book";
+  structuredData?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 const {
   title,
   description,
   robots = "index,follow",
+  ogType = "website",
+  structuredData,
 } = Astro.props;
 const documentTitle = title === seriesTitle ? title : `${title}｜${seriesTitle}`;
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site)
+  : undefined;
+const serializedStructuredData = structuredData
+  ? JSON.stringify(structuredData).replaceAll("<", "\\u003c")
   : undefined;
 const homeHref = sitePath("/");
 const booksHref = sitePath("/books/");
@@ -41,6 +48,7 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
     <meta name="theme-color" content="#f3f6fa" data-theme-color />
     <script is:inline define:vars={{ themeStorageKey: THEME_STORAGE_KEY }}>
       (() => {
+        document.documentElement.dataset.js = "true";
         let mode = "system";
         try {
           const saved = localStorage.getItem(themeStorageKey);
@@ -65,10 +73,21 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
       })();
     </script>
     <meta property="og:locale" content="zh_CN" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:title" content={documentTitle} />
     <meta property="og:description" content={description} />
+    <meta property="og:site_name" content={seriesTitle} />
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    {
+      serializedStructuredData && (
+        <script
+          is:inline
+          type="application/ld+json"
+          set:html={serializedStructuredData}
+        />
+      )
+    }
     <link rel="icon" href={sitePath("/favicon.svg")} type="image/svg+xml" />
     <title>{documentTitle}</title>
     <slot name="head" />

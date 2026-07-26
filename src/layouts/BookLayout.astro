@@ -6,13 +6,30 @@ interface Props {
   title: string;
   description: string;
   bookTitle: string;
+  robots?: string;
+  ogType?: "website" | "article" | "book";
+  structuredData?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const { title, description, bookTitle } = Astro.props;
+const {
+  title,
+  description,
+  bookTitle,
+  robots,
+  ogType,
+  structuredData,
+} = Astro.props;
 const hasSidebar = Astro.slots.has("sidebar");
+const layoutProps = {
+  title,
+  description,
+  ...(robots ? { robots } : {}),
+  ...(ogType ? { ogType } : {}),
+  ...(structuredData ? { structuredData } : {}),
+};
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout {...layoutProps}>
   <div class:list={["book-shell", { "book-shell--without-sidebar": !hasSidebar }]}>
     {
       hasSidebar && (

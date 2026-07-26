@@ -4,9 +4,10 @@ dist/
 coverage/
 playwright-report/
 test-results/
+output/pdf/
+output/lighthouse/
 
 .DS_Store
 .env
 .env.*
 !.env.example
-

@@ -150,7 +150,8 @@ describe("第二册 Milestone 3 内容", () => {
       "utf8",
     );
     expect(codeBlock).toContain("<CopyButton value={code} />");
-    expect(codeBlock).toContain("<pre><code>{code}</code></pre>");
+    expect(codeBlock).toContain("<code>{code}</code></pre>");
+    expect(codeBlock).toContain('tabindex="0"');
   });
 
   it("平台面板的静态 HTML 默认不隐藏任何一套正文", () => {

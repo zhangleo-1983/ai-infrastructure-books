@@ -206,6 +206,16 @@ function itemLabel(item: BookTocItem): string {
     }
   }
 
+  @media (max-width: 64rem) {
+    :global(html[data-js="true"])
+      .table-of-contents[data-current-chapter="true"]:not(
+        [data-mobile-ready="true"]
+      )
+      > :not(summary) {
+      display: none;
+    }
+  }
+
   @media print {
     .table-of-contents {
       display: none;

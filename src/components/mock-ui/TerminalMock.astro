@@ -13,7 +13,12 @@ const { title } = Astro.props;
     </span>
     <span>{title}</span>
   </figcaption>
-  <div class="terminal-mock__content"><slot /></div>
+  <div
+    class="terminal-mock__content"
+    tabindex="0"
+    role="region"
+    aria-label={`${title} 终端内容，可横向滚动`}
+  ><slot /></div>
 </figure>
 
 <style>
@@ -80,6 +85,10 @@ const { title } = Astro.props;
     color: white;
   }
 
+  .terminal-mock :global(a) {
+    color: #9dcbff;
+  }
+
   @media print {
     .terminal-mock {
       border-color: #999999;
@@ -111,6 +120,14 @@ const { title } = Astro.props;
     :global(.term-white) {
       color: #111111;
       font-weight: 700;
+    }
+
+    .terminal-mock :global(a) {
+      color: #111111;
+    }
+
+    .terminal-mock :global(a[href^="http"]::after) {
+      content: none;
     }
   }
 </style>

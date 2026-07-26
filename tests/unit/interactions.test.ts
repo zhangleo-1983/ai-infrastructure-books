@@ -14,6 +14,7 @@ import {
 import { copyText, getCopyFeedback } from "../../src/scripts/copy";
 import { calculateReadingProgress } from "../../src/scripts/reading-progress";
 import { isThemeMode, resolveTheme } from "../../src/scripts/theme";
+import { sitePath } from "../../src/lib/site-path";
 
 const root = resolve(import.meta.dirname, "../..");
 const chapterSlugs = Array.from(
@@ -42,6 +43,7 @@ describe("Milestone 4 基础交互", () => {
 
     expect(earlyTheme).toBeGreaterThan(0);
     expect(earlyTheme).toBeLessThan(body);
+    expect(layout).toContain('document.documentElement.dataset.js = "true"');
     expect(layout).toContain("root.dataset.themeMode = mode");
   });
 
@@ -162,11 +164,23 @@ describe("Milestone 4 基础交互", () => {
     expect(search).toContain("没有找到与");
     expect(search).toContain("ArrowDown");
     expect(search).toContain('event.key === "Enter"');
+    expect(search).toContain("appendSafeExcerpt");
+    expect(search).not.toContain("excerptElement.innerHTML");
     expect(copyButton).toContain("data-copy-value={value}");
     expect(copyButton).toMatch(/data-copy-button[\s\S]*hidden/);
     expect(mobileToc).toContain('event.key !== "Escape"');
     expect(mobileToc).toContain('link.addEventListener("click"');
     expect(chapterRoute).toContain("data-pagefind-body");
     expect(printRoute).not.toContain("data-pagefind-body");
+  });
+
+  it("子路径链接保留页面尾斜杠，但不破坏静态文件路径", () => {
+    expect(sitePath("/books/02-overseas-network/", "/docs/")).toBe(
+      "/docs/books/02-overseas-network/",
+    );
+    expect(sitePath("/favicon.svg", "/docs/")).toBe("/docs/favicon.svg");
+    expect(sitePath("/sitemap-index.xml", "/docs/")).toBe(
+      "/docs/sitemap-index.xml",
+    );
   });
 });

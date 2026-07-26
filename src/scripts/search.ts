@@ -38,6 +38,32 @@ function textMetadata(
   return typeof value === "string" ? value : "";
 }
 
+export function appendSafeExcerpt(
+  target: HTMLElement,
+  excerpt: string,
+  documentObject: Document = document,
+): void {
+  const parsed = new DOMParser().parseFromString(excerpt, "text/html");
+  for (const node of Array.from(parsed.body.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      target.append(documentObject.createTextNode(node.textContent ?? ""));
+      continue;
+    }
+
+    if (
+      node instanceof HTMLElement &&
+      node.tagName.toLowerCase() === "mark"
+    ) {
+      const mark = documentObject.createElement("mark");
+      mark.textContent = node.textContent;
+      target.append(mark);
+      continue;
+    }
+
+    target.append(documentObject.createTextNode(node.textContent ?? ""));
+  }
+}
+
 export function initializeSearch(): void {
   const trigger = document.querySelector<HTMLButtonElement>(
     "[data-search-open]",
@@ -160,8 +186,7 @@ export function initializeSearch(): void {
             ? `${pageTitle} · ${sectionTitle}`
             : pageTitle;
         bookLabel.textContent = book;
-        // Pagefind escapes excerpts before adding its own <mark> elements.
-        excerptElement.innerHTML = excerpt;
+        appendSafeExcerpt(excerptElement, excerpt);
 
         link.append(bookLabel, title, excerptElement);
         item.append(link);

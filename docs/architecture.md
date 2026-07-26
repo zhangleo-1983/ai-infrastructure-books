@@ -1,6 +1,6 @@
 # 工程架构
 
-校订日期：2026-07-25
+校订日期：2026-07-26
 
 ## 技术边界
 
@@ -52,7 +52,25 @@ HTML，不依赖客户端 JavaScript 才能阅读。
 第二章的平台差异使用原生静态面板：HTML 默认同时输出 Mac 和 Windows 正文，客户端
 脚本成功运行后才启用标签切换。打印时两套正文强制同时显示。
 
-## 里程碑
+## 客户端脚本边界
 
-当前完成 Milestone 2：浅层核心组件，以及“开始之前”、第 1 章和第 2 章的试迁移。
-第 3 章及后续内容未经项目 Owner 确认不得迁移。
+交互按职责拆分为 `theme.ts`、`search.ts`、`reading-progress.ts`、
+`chapter-status.ts`、`copy.ts` 和 `mobile-toc.ts`。公共存储键与时长常量集中在
+`constants.ts`，不使用前端框架或全局状态库。
+
+Pagefind 只索引章节页中带 `data-pagefind-body` 的正文。打印页、404、封面目录和站点导航
+不会进入索引。搜索资源只有在用户打开搜索后才动态加载。
+
+## SEO 与部署
+
+`SITE_URL` 是可选的公开站点地址；配置后生成 canonical、Open Graph URL、robots
+sitemap 声明和 sitemap 文件。`BASE_PATH` 负责 GitHub Pages 项目子路径，所有站内链接
+必须经过 `sitePath()`，客户端状态只使用书号与章节 slug，不依赖部署路径。
+
+章节输出 `TechArticle` 或 `Article` JSON-LD，第二册封面输出 `Book` JSON-LD。整册打印页
+使用 `noindex,follow`，避免与章节页形成重复索引。
+
+## 当前状态
+
+Milestone 1—5 已完成；当前工程已经覆盖跨浏览器、打印 PDF、可访问性、性能、部署模拟
+和发布文档。第二册正文仍以 `source/book02-v1.html` 为内容与视觉参考基线。

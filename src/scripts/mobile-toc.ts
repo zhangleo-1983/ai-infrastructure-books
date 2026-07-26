@@ -39,6 +39,7 @@ export function initializeMobileTableOfContents(): void {
     });
 
     table.dataset.mobileOpen = String(table.open);
+    table.dataset.mobileReady = "true";
   }
 }
 

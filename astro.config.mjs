@@ -12,5 +12,15 @@ export default defineConfig({
   base,
   output: "static",
   trailingSlash: "always",
-  integrations: [mdx(), ...(site ? [sitemap()] : [])],
+  integrations: [
+    mdx(),
+    ...(site
+      ? [
+          sitemap({
+            filter: (page) =>
+              !page.endsWith("/404/") && !page.endsWith("/print/"),
+          }),
+        ]
+      : []),
+  ],
 });

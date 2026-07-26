@@ -40,7 +40,7 @@ source/book02-v1.html
 
 在完成正式项目迁移之前，不应删除或覆盖该文件。
 
-工程迁移按五个里程碑推进。当前已完成 Milestone 4：
+工程迁移的五个里程碑已经完成，当前版本可作为第二册发布候选：
 
 - Astro 静态站点骨架
 - TypeScript 严格模式和 MDX 内容集合
@@ -56,8 +56,8 @@ source/book02-v1.html
 - 正文阅读进度、12 个编号章的本地完成状态
 - 复制反馈与手机目录键盘交互
 - CI、类型检查、Lint、单元测试、内容基线和内部链接检查
-
-完整浏览器用户路径和最终综合验收留待 Milestone 5。
+- Chromium、Firefox、WebKit 发布关键路径与 axe 可访问性检查
+- SEO、结构化数据、静态部署与 PDF 发布准备
 
 ------------------------------------------------------------------------
 
@@ -226,11 +226,11 @@ source/book02-v1.html
 
 ``` text
 第二册单文件 HTML 原型：已完成
-工程化项目：Milestone 4 已完成基础交互
+工程化项目：Milestone 5 已完成最终验收与发布准备
 设计系统：基础 Token 已提取
 内容迁移：开始之前、第 1—12 章、附录和资料来源已迁移
 整册打印：已完成
-正式部署：待开始
+正式部署：待项目 Owner 确认域名与发布平台
 ```
 
 ------------------------------------------------------------------------
@@ -258,7 +258,10 @@ npm run lint
 npm run test
 npm run check:content
 npm run check:links
+npm run check:release
+npm run test:e2e
 npm run check
+npm run check:all
 ```
 
 `npm run check:content` 和 `npm run check:links` 需要先完成 `npm run build`。
@@ -277,6 +280,19 @@ npm run preview
 站点导航和重复目录不会进入索引。主题与阅读状态只保存在浏览器本机；
 第二册完成率的定义与数据格式见
 `docs/interaction/book02-completion-rules.md`。
+
+完整工程说明见：
+
+- `docs/architecture.md`
+- `docs/design-system.md`
+- `docs/content-authoring.md`
+- `docs/search.md`
+- `docs/interactions.md`
+- `docs/deployment.md`
+- `docs/print-and-pdf.md`
+- `docs/testing.md`
+- `docs/content-review.md`
+- `docs/adding-book03.md`
 
 部署到 GitHub Pages 项目子路径时，可通过 `.env` 中的 `BASE_PATH` 配置路径前缀；
 设置公开域名 `SITE_URL` 后才会生成 sitemap。参考 `.env.example`。
