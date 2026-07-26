@@ -6,6 +6,7 @@ playwright-report/
 test-results/
 output/pdf/
 output/lighthouse/
+tmp/pdfs/
 
 .DS_Store
 .env
