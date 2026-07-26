@@ -1,0 +1,32 @@
+---
+book: "02-overseas-network"
+order: 14
+slug: "sources"
+title: "版本说明与官方资料"
+shortTitle: "资料来源"
+description: "软件变化较快。本书技术流程以 2026 年 7 月可获得的官方资料为基准；实际操作时，下载页面与安装器输出优先于书中的仿真文字。"
+chapterType: "sources"
+updatedAt: "2026-07-25"
+sourceAnchor: "sources"
+labels: []
+draft: false
+---
+
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="sources-body">
+  <ol className="source-list">
+    <li><a href="https://github.com/MHSanaei/3x-ui" target="_blank" rel="noopener noreferrer">3X-UI 官方仓库</a>：功能、支持平台、Quick Start 与个人用途提示。</li>
+    <li><a href="https://github.com/MHSanaei/3x-ui/wiki/Installation" target="_blank" rel="noopener noreferrer">3X-UI Installation Wiki</a>：一键安装命令、随机凭证和面板路径。</li>
+    <li><a href="https://github.com/clash-verge-rev/clash-verge-rev" target="_blank" rel="noopener noreferrer">Clash Verge Rev 官方仓库</a>：Windows、macOS、Linux 图形客户端。</li>
+    <li><a href="https://github.com/clash-verge-rev/clash-verge-rev/releases" target="_blank" rel="noopener noreferrer">Clash Verge Rev Releases</a>：稳定版下载与更新说明。</li>
+    <li><a href="https://github.com/XTLS/Xray-core" target="_blank" rel="noopener noreferrer">Xray-core 官方仓库</a>：VLESS、Vision、Reality 的核心实现。</li>
+    <li><a href="https://xtls.github.io/en/config/outbounds/vless.html" target="_blank" rel="noopener noreferrer">Project X / VLESS 文档</a>：VLESS 的协议定义和 UUID 验证。</li>
+    <li><a href="https://docs.vultr.com/how-to-connect-to-a-linux-cloud-server-from-your-windows-desktop" target="_blank" rel="noopener noreferrer">Vultr SSH 指南</a>：凭证、OpenSSH、首次连接、密码不可见和退出。</li>
+    <li><a href="https://docs.vultr.com/best-practices-for-ssh-on-a-production-cloud-server" target="_blank" rel="noopener noreferrer">Vultr SSH 安全实践</a>：密钥登录、限制 root、Fail2ban 与端口管理。</li>
+  </ol>
+
+  <Callout type="info" title="关于仿真界面">
+    所有软件界面均由 HTML/CSS 绘制，目的在于标示信息结构和操作路径，不是对任一版本像素级复刻。
+  </Callout>
+</section>

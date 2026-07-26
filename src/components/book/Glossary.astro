@@ -1,0 +1,55 @@
+<dl class="glossary">
+  <slot />
+</dl>
+
+<style>
+  .glossary {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.32fr) minmax(0, 1fr);
+    margin: 0;
+    border-top: var(--border-thin);
+  }
+
+  :global(.glossary dt),
+  :global(.glossary dd) {
+    margin: 0;
+    border-bottom: var(--border-thin);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  :global(.glossary dt) {
+    font-weight: 800;
+  }
+
+  :global(.glossary dd) {
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 35.625rem) {
+    .glossary {
+      grid-template-columns: 1fr;
+    }
+
+    :global(.glossary dt) {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    :global(.glossary dd) {
+      padding-top: var(--space-1);
+    }
+  }
+
+  @media print {
+    .glossary {
+      grid-template-columns: 30mm 1fr;
+      break-inside: auto;
+    }
+
+    :global(.glossary dt),
+    :global(.glossary dd) {
+      border-color: #cccccc;
+      padding: 2mm 3mm;
+    }
+  }
+</style>

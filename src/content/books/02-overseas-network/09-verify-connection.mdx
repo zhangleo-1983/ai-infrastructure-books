@@ -1,0 +1,78 @@
+---
+book: "02-overseas-network"
+order: 9
+slug: "09-verify-connection"
+title: "验证是否真正成功"
+shortTitle: "验证连接"
+description: "“某个网页能打开”只能证明一部分。你还需要核对出口 IP、路由、DNS 与实际应用。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch9"
+chapterNumber: 9
+duration: "预计 7 分钟"
+labels:
+  - "验证章节"
+  - "预计 7 分钟"
+completionId: "book02-chapter-09"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+
+<section className="book-section" id="ch9-body">
+  ## 四层验证法
+
+  <InfoGrid columns={4}>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">1️⃣</span>
+      ### 客户端
+
+      内核运行、节点已选、无持续报错。
+    </section>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">2️⃣</span>
+      ### 出口 IP
+
+      查询结果应与 VPS 公网 IP 或所在区域一致。
+    </section>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">3️⃣</span>
+      ### DNS
+
+      检查解析位置是否符合客户端配置预期。
+    </section>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">4️⃣</span>
+      ### 应用
+
+      浏览器、AI 工具与实际软件分别测试。
+    </section>
+  </InfoGrid>
+
+  ### 出口 IP
+
+  连接前后分别访问 IP 查询网站，或在浏览器搜索 “what is my IP”。连接后结果应发生变化。也可访问：
+
+  <CodeBlock label="浏览器地址" code="https://ipinfo.io" />
+
+  ### DNS 检查
+
+  <CodeBlock label="浏览器地址" code="https://www.dnsleaktest.com" />
+
+  DNS 服务器位置不必与 VPS 城市完全相同，但不应在你明确要求代理 DNS 时仍持续暴露本地运营商解析。测试网站只能提供线索，不能证明“绝对匿名”。
+
+  ### 延迟与速度
+
+  先看客户端延迟，再进行网页、视频和实际应用测试。速度受 VPS 区域、国际路由、晚高峰、套餐带宽和本地网络共同影响。
+
+  <Callout type="warning" title="网站显示 403 不一定是节点坏了">
+    某些服务会根据出口 IP 的信誉、机房属性、账户地区或服务政策限制访问。更换协议通常不会改变 IP 信誉，必要时应更换 VPS 区域或公网 IP。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-09">
+    我已核对出口 IP，并在电脑和手机上分别完成实际应用测试。
+  </ChapterChecklist>
+</section>

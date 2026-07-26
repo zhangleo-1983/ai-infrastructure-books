@@ -1,0 +1,49 @@
+---
+book: "02-overseas-network"
+order: 13
+slug: "appendix"
+title: "速查表与术语"
+shortTitle: "附录"
+description: "忘记某个词时，不需要重新翻完整章。"
+chapterType: "appendix"
+updatedAt: "2026-07-25"
+sourceAnchor: "appendix"
+labels: []
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Glossary from "../../../components/book/Glossary.astro";
+
+<section className="book-section" id="appendix-body">
+  ## 五条高频命令
+
+  <ComparisonTable>
+
+  | 目的 | 命令 |
+  | --- | --- |
+  | 登录服务器 | `ssh root@你的IP` |
+  | 退出服务器 | `exit` |
+  | 打开 3X-UI 管理菜单 | `x-ui` |
+  | 查看 443 是否被监听 | `ss -lntp \| grep ':443 '` |
+  | 更新 Ubuntu | `apt update && apt upgrade -y` |
+
+  </ComparisonTable>
+
+  ## 核心术语
+
+  <Glossary>
+    <dt>VPS</dt><dd>运行在云端数据中心的虚拟服务器，你拥有系统管理权限。</dd>
+    <dt>SSH</dt><dd>安全远程登录协议，用于从本地终端控制服务器。</dd>
+    <dt>3X-UI</dt><dd>管理 Xray-core 的开源网页面板。</dd>
+    <dt>Xray-core</dt><dd>处理入站、出站、协议、路由和流量的后台内核。</dd>
+    <dt>Inbound</dt><dd>服务器接收客户端连接的入口，包含协议、端口和身份配置。</dd>
+    <dt>VLESS</dt><dd>轻量、无状态的传输协议，使用 UUID 进行客户端验证。</dd>
+    <dt>Reality</dt><dd>Xray 生态中的传输安全方案，与公私钥、Server Name、Short ID 等参数配合。</dd>
+    <dt>Vision</dt><dd>本书组合中使用的 Flow：<code>xtls-rprx-vision</code>。</dd>
+    <dt>UUID</dt><dd>客户端身份标识。泄露后应立即更换或禁用。</dd>
+    <dt>订阅 URL</dt><dd>客户端获取一个或多个节点配置的地址，本身也是敏感凭证。</dd>
+    <dt>System Proxy</dt><dd>让遵循操作系统代理设置的软件使用 Clash。</dd>
+    <dt>TUN</dt><dd>通过虚拟网卡接管更多流量，覆盖广但更容易与局域网或其他 VPN 冲突。</dd>
+  </Glossary>
+</section>

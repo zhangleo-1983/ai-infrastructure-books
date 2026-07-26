@@ -19,7 +19,9 @@ const {
 const chapterLabel =
   chapterType === "chapter" && chapterNumber
     ? `Chapter ${String(chapterNumber).padStart(2, "0")}`
-    : undefined;
+    : chapterType === "appendix"
+      ? "Appendix"
+      : undefined;
 ---
 
 <header

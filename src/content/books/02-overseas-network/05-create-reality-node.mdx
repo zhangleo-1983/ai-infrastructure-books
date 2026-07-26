@@ -1,0 +1,180 @@
+---
+book: "02-overseas-network"
+order: 5
+slug: "05-create-reality-node"
+title: "创建第一个 VLESS Reality 节点"
+shortTitle: "创建 Reality 节点"
+description: "这是全书最关键的一章。每个选项都会解释“为什么”，而不是只告诉你照填。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch5"
+chapterNumber: 5
+duration: "预计 15 分钟"
+labels:
+  - "核心实操"
+  - "预计 15 分钟"
+  - "VLESS + Vision + Reality"
+completionId: "book02-chapter-05"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch5-fields">
+  ## 先检查 443 端口是否空闲
+
+  <CodeBlock code={"ss -lntp | grep ':443 '"} />
+
+  没有任何输出通常表示 443 未被监听，可以使用；有输出则说明已有服务占用。新手可以改用 `8443`，或者先查清占用者。
+
+  <Callout type="info" title="为什么优先 443？">
+    443 是标准 HTTPS 端口，通常网络兼容性最好。但“使用 443”不是成功的必要条件，端口冲突时不要强行抢占。
+  </Callout>
+
+  ### 进入“入站列表”并点击“添加入站”
+
+  <MockWindow title="3X-UI">
+    <MockToolbar slot="toolbar">
+      <span className="mock-action mock-action--primary">＋ 添加入站</span>
+    </MockToolbar>
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item">系统状态</span>
+      <span className="mock-sidebar__item mock-sidebar__item--active">入站列表</span>
+      <span className="mock-sidebar__item">面板设置</span>
+      <span className="mock-sidebar__item">日志</span>
+    </MockSidebar>
+    <h3 className="mock-heading">添加入站</h3>
+    <div className="mock-form-grid">
+      <MockField label="备注 Remark">My-Reality</MockField>
+      <MockField label="启用 Enable"><MockStatusBadge>已启用</MockStatusBadge></MockField>
+      <MockField label="协议 Protocol">VLESS</MockField>
+      <MockField label="端口 Port">443</MockField>
+      <MockField label="传输 Transmission">TCP / RAW</MockField>
+      <MockField label="安全 Security">Reality</MockField>
+    </div>
+  </MockWindow>
+
+  ### 基础字段怎么选
+
+  <ComparisonTable>
+
+  | 字段 | 建议值 | 解释 |
+  | --- | --- | --- |
+  | Remark | `My-Reality` | 仅用于你自己识别节点 |
+  | Protocol | `VLESS` | 轻量、使用 UUID 验证，不依赖 VMess 的时间机制 |
+  | Port | `443` 或未占用端口 | 客户端必须使用同一端口 |
+  | Transmission | `TCP / RAW` | 与 Reality + Vision 的入门组合直接、稳定 |
+  | Security | `Reality` | 启用 Reality 握手与相关密钥字段 |
+
+  </ComparisonTable>
+
+  ### 添加客户端
+
+  <MockWindow title="Clients">
+    <MockToolbar slot="toolbar">
+      <span className="mock-action">＋ Add Client</span>
+    </MockToolbar>
+    <div className="mock-form-grid">
+      <MockField label="Email / Label">MacBook</MockField>
+      <MockField label="UUID">自动生成，不要公开</MockField>
+      <MockField label="Flow">xtls-rprx-vision</MockField>
+      <MockField label="Traffic / Expiry">0 = 不限制（个人使用）</MockField>
+    </div>
+  </MockWindow>
+
+  <Callout type="info" title="UUID 可以理解成客户端通行证">
+    别人获得 UUID 和完整连接参数后，可能使用你的节点。每台自己的设备建议创建独立客户端，而不是多人共享同一 UUID。
+  </Callout>
+
+  <Callout type="tip" title="Flow 选择 xtls-rprx-vision">
+    本书使用 VLESS + TCP/RAW + Reality + Vision 的组合。不要把 Flow 留空后再照搬 Vision 参数；协议字段必须前后一致。
+  </Callout>
+
+  ### 填写 Reality 字段
+
+  <MockWindow title="Reality Settings">
+    <MockToolbar slot="toolbar">
+      <MockStatusBadge>Security Enabled</MockStatusBadge>
+    </MockToolbar>
+    <div className="mock-form-grid">
+      <MockField label="Dest / Target">www.microsoft.com:443</MockField>
+      <MockField label="Server Names">www.microsoft.com</MockField>
+      <MockField label="Private Key">点击 Generate 自动生成</MockField>
+      <MockField label="Public Key">由面板根据私钥生成</MockField>
+      <MockField label="Short IDs">点击 Generate 自动生成</MockField>
+      <MockField label="SpiderX">/</MockField>
+      <MockField label="Fingerprint" wide>
+        客户端通常选择 chrome；分享链接会携带参数
+      </MockField>
+    </div>
+    <div className="mock-actions">
+      <MockToolbar>
+        <span className="mock-action">Generate</span>
+        <span className="mock-action mock-action--primary">Save</span>
+      </MockToolbar>
+    </div>
+  </MockWindow>
+
+  <Callout type="warning" title="Target 只是示例，不是永恒答案">
+    本书以 `www.microsoft.com:443` 示意。目标站应当是 VPS 能稳定访问、支持现代 TLS 的大型 HTTPS 网站；`Server Names` 必须与所选域名匹配。若连接异常，可更换目标后重新生成并更新订阅。
+  </Callout>
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      ### Private Key
+
+      只保留在服务器端，不要手动发给客户端。
+    </section>
+    <section className="info-grid__item">
+      ### Public Key
+
+      客户端需要，用于验证 Reality 服务端。
+    </section>
+    <section className="info-grid__item">
+      ### Short ID
+
+      连接参数的一部分，使用面板生成的十六进制值。
+    </section>
+    <section className="info-grid__item">
+      ### Fingerprint
+
+      客户端的 TLS 指纹模拟参数，常用 chrome。
+    </section>
+  </InfoGrid>
+</section>
+
+<section className="book-section" id="ch5-save">
+  ## 保存、放行端口并检查监听
+
+  <InstructionStep number={1} title="保存入站">
+    确认状态为启用，客户端数量至少为 1。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="若 UFW 已启用，放行节点端口" />
+
+  <CodeBlock label="使用 443 时" code="ufw allow 443/tcp" />
+
+  <InstructionStep number={3} title="检查 Xray 是否监听端口" />
+
+  <CodeBlock code={"ss -lntp | grep ':443 '"} />
+
+  应当看到 Xray 或相关进程监听 `0.0.0.0:443`、`[::]:443` 或服务器对应地址。
+
+  <Callout type="warning" title="使用 Vultr Firewall 时也要放行">
+    系统内 UFW 放行不代表云防火墙自动放行。若实例绑定了 Vultr Firewall Group，还要在控制台增加相同 TCP 端口规则。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-05">
+    我的 VLESS Reality 入站已保存、启用，并且端口正在监听。
+  </ChapterChecklist>
+</section>

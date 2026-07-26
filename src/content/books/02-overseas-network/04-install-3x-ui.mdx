@@ -1,0 +1,128 @@
+---
+book: "02-overseas-network"
+order: 4
+slug: "04-install-3x-ui"
+title: "安装 3X-UI"
+shortTitle: "安装 3X-UI"
+description: "使用项目官方安装脚本。安装器会生成随机用户名、密码、面板端口和网页路径，请完整保存。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch4"
+chapterNumber: 4
+duration: "预计 10 分钟"
+labels:
+  - "实操章节"
+  - "预计 10 分钟"
+completionId: "book02-chapter-04"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+<section className="book-section" id="ch4-install">
+  ## 执行安装
+
+  <InstructionStep number={1} title="登录服务器">
+    重新使用 `ssh root@你的IP` 进入 VPS。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="更新软件索引并安装 curl" />
+
+  <CodeBlock label="Ubuntu" code="apt update && apt install -y curl" />
+
+  <Callout type="info" title="这条命令做了什么？">
+    `apt update` 刷新软件清单；`&&` 表示前一步成功后再继续；`apt install -y curl` 安装下载工具并自动确认。
+  </Callout>
+
+  <InstructionStep number={3} title="运行官方一键安装命令" />
+
+  <CodeBlock
+    label="3X-UI 官方 Quick Start，校订于 2026-07"
+    code={"bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)"}
+  />
+
+  <Callout type="danger" title="只从官方仓库复制安装命令">
+    不要从陌生短链接、网盘脚本或群聊附件安装“魔改面板”。脚本拥有 root 权限，能控制整台服务器。
+  </Callout>
+
+  <TerminalMock title="安装完成后的示意输出">
+    <span className="term-green">3X-UI installed successfully.</span><br />
+    Username: <span className="term-blue">random-user</span><br />
+    Password: <span className="term-blue">random-password</span><br />
+    Port: <span className="term-blue">18472</span><br />
+    Web Base Path: <span className="term-blue">/a8xKp7Qm/</span><br />
+    Access URL: <span className="term-white">http://203.0.113.10:18472/a8xKp7Qm/</span>
+  </TerminalMock>
+
+  <Callout type="tip" title="立即保存四项信息">
+    用户名、密码、端口、Web Base Path。不要只记住 IP，也不要把随机路径删掉。
+  </Callout>
+
+  <Callout type="warning" title="初装 HTTP 地址只用于短时配置">
+    不要在公共 Wi-Fi 下登录明文 HTTP 面板。完成节点配置后，应在后续维护中为面板配置 TLS、限制来源 IP，或通过 SSH 隧道访问；随机路径不能替代加密。
+  </Callout>
+
+  ### 以后如何重新打开管理菜单？
+
+  <CodeBlock code="x-ui" />
+
+  该菜单通常可用于启动、停止、重启、查看或重设面板设置，并管理证书。具体编号可能随版本变化，请按屏幕文字选择。
+</section>
+
+<section className="book-section" id="ch4-login">
+  ## 登录面板
+
+  在浏览器输入安装器给出的完整地址，例如：
+
+  <CodeBlock
+    label="示例地址，不能照抄"
+    code="http://203.0.113.10:18472/a8xKp7Qm/"
+  />
+
+  <MockWindow title="3X-UI Login">
+    <MockToolbar slot="toolbar"><span aria-hidden="true">🔒</span></MockToolbar>
+    <div className="mock-narrow mock-stack">
+      <MockField label="Username">random-user</MockField>
+      <MockField label="Password">••••••••••••••••</MockField>
+      <MockToolbar><span className="mock-action mock-action--primary">Login</span></MockToolbar>
+    </div>
+  </MockWindow>
+
+  ### 页面打不开时
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      ### 先核对地址
+
+      IP、端口、路径、斜杠都要完整；初装地址可能是 HTTP，不要擅自改成 HTTPS。
+    </section>
+    <section className="info-grid__item">
+      ### 再检查防火墙
+
+      若启用了 UFW 或 Vultr Firewall，需要允许面板端口访问。
+    </section>
+  </InfoGrid>
+
+  若 UFW 状态为 active，可先放行安装器生成的面板端口：
+
+  <CodeBlock
+    label="把 18472 换成你的面板端口"
+    code="ufw allow 18472/tcp"
+  />
+
+  <Callout type="warning" title="不要盲目开启 UFW">
+    如果此前没有配置防火墙，先确保 SSH 端口已放行：`ufw allow 22/tcp`。错误操作可能把自己锁在服务器外。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-04">
+    我已经登录面板，并安全保存了随机账号、密码、端口和路径。
+  </ChapterChecklist>
+</section>

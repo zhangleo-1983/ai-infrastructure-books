@@ -1,5 +1,5 @@
 ---
-import type { Book02ChapterPlanItem } from "../../data/book02";
+import type { BookTocItem } from "../../data/book02";
 import { book02Id } from "../../data/book02";
 import { sitePath } from "../../lib/site-path";
 
@@ -10,15 +10,14 @@ interface Heading {
 }
 
 interface Props {
-  items: Book02ChapterPlanItem[];
+  items: BookTocItem[];
   currentSlug?: string;
   headings?: Heading[];
 }
 
 const { items, currentSlug, headings = [] } = Astro.props;
-const migratedCount = items.filter((item) => item.migrated).length;
 
-function itemLabel(item: Book02ChapterPlanItem): string {
+function itemLabel(item: BookTocItem): string {
   if (item.chapterType === "introduction") return "开始";
   if (item.chapterType === "appendix") return "附录";
   if (item.chapterType === "sources") return "资料";
@@ -26,10 +25,15 @@ function itemLabel(item: Book02ChapterPlanItem): string {
 }
 ---
 
-<details class="table-of-contents" open>
+<details
+  class="table-of-contents"
+  open
+  data-table-of-contents
+  data-current-chapter={currentSlug ? "true" : undefined}
+>
   <summary>
     <span>本册目录</span>
-    <small>{migratedCount} 项可阅读</small>
+    <small>{items.length} 项可阅读</small>
   </summary>
   <nav aria-label="第二册目录">
     <ol>
@@ -38,21 +42,12 @@ function itemLabel(item: Book02ChapterPlanItem): string {
           <li class:list={{ current: item.slug === currentSlug }}>
             <div class="table-of-contents__item">
               <span class="table-of-contents__number">{itemLabel(item)}</span>
-              {item.migrated ? (
-                <a
-                  href={sitePath(`/books/${book02Id}/${item.slug}/`)}
-                  aria-current={item.slug === currentSlug ? "page" : undefined}
-                >
-                  {item.shortTitle}
-                </a>
-              ) : (
-                <>
-                  <span class="table-of-contents__pending-title">
-                    {item.shortTitle}
-                  </span>
-                  <small>迁移中</small>
-                </>
-              )}
+              <a
+                href={sitePath(`/books/${book02Id}/${item.slug}/`)}
+                aria-current={item.slug === currentSlug ? "page" : undefined}
+              >
+                {item.shortTitle}
+              </a>
             </div>
             {item.slug === currentSlug && headings.length > 0 && (
               <ol class="table-of-contents__headings">
@@ -71,6 +66,18 @@ function itemLabel(item: Book02ChapterPlanItem): string {
     </ol>
   </nav>
 </details>
+
+<script>
+  const mobileBookLayout = window.matchMedia("(max-width: 64rem)");
+
+  document
+    .querySelectorAll<HTMLDetailsElement>(
+      "[data-table-of-contents][data-current-chapter]",
+    )
+    .forEach((tableOfContents) => {
+      if (mobileBookLayout.matches) tableOfContents.open = false;
+    });
+</script>
 
 <style>
   .table-of-contents {
@@ -138,18 +145,6 @@ function itemLabel(item: Book02ChapterPlanItem): string {
   a:hover,
   a[aria-current="page"] {
     color: var(--color-primary);
-  }
-
-  .table-of-contents__pending-title {
-    color: var(--color-text-muted);
-    line-height: 1.45;
-    opacity: 0.72;
-  }
-
-  .table-of-contents__item small {
-    color: var(--color-text-muted);
-    font-size: 0.6875rem;
-    white-space: nowrap;
   }
 
   .table-of-contents__headings {

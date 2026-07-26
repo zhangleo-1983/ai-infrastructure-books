@@ -1,0 +1,94 @@
+---
+book: "02-overseas-network"
+order: 3
+slug: "03-understand-3x-ui"
+title: "认识 3X-UI"
+shortTitle: "认识 3X-UI"
+description: "先分清“管理面板”和“传输内核”。这样以后面板升级、按钮移动，你仍然知道自己在做什么。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch3"
+chapterNumber: 3
+duration: "预计 7 分钟"
+labels:
+  - "认知章节"
+  - "预计 7 分钟"
+completionId: "book02-chapter-03"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch3-panel">
+  ## 3X-UI、Xray 和节点的关系
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">🧭</span>
+      ### 3X-UI
+
+      网页控制面板，负责把你的选择写成 Xray 配置。
+    </section>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">⚙️</span>
+      ### Xray-core
+
+      后台服务，负责监听、认证、转发与统计。
+    </section>
+    <section className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">🚪</span>
+      ### 入站 Inbound
+
+      服务器开放的一扇“门”，定义协议、端口和客户端身份。
+    </section>
+  </InfoGrid>
+
+  <MockWindow title="3X-UI">
+    <MockToolbar slot="toolbar">
+      <MockStatusBadge>Panel Online</MockStatusBadge>
+    </MockToolbar>
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item">系统状态</span>
+      <span className="mock-sidebar__item mock-sidebar__item--active">入站列表</span>
+      <span className="mock-sidebar__item">面板设置</span>
+      <span className="mock-sidebar__item">Xray 设置</span>
+      <span className="mock-sidebar__item">日志</span>
+    </MockSidebar>
+    <h3 className="mock-heading">入站列表</h3>
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr><th>备注</th><th>协议</th><th>端口</th><th>状态</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>My-Reality</td><td>VLESS</td><td>443</td>
+            <td><MockStatusBadge>已启用</MockStatusBadge></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  ### 为什么不用手写 Xray JSON？
+
+  手写配置更灵活，但新手更容易因为逗号、括号、字段拼写和密钥对应关系失败。3X-UI 把高频操作转成表单，并提供分享链接、二维码、流量统计和订阅。
+
+  <Callout type="warning" title="它适合个人管理，不等于企业级安全平台">
+    官方项目明确提示以个人用途为主，不建议将其直接视为生产环境网关。面板仍需强密码、随机路径、更新和备份。
+  </Callout>
+
+  ### “出站”需要配置吗？
+
+  本书的单节点入门方案通常不需要。Xray 默认的直连出站即可把通过验证的流量发往互联网。只有 WARP、链式代理、分流或特殊路由需求才需要新增出站。
+
+  <ChapterChecklist chapterId="book02-chapter-03">
+    我能区分 3X-UI、Xray、入站和出站。
+  </ChapterChecklist>
+</section>

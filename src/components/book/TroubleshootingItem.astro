@@ -1,0 +1,64 @@
+---
+interface Props {
+  title: string;
+  open?: boolean;
+}
+
+const { title, open = false } = Astro.props;
+---
+
+<details class="troubleshooting-item" open data-default-open={String(open)}>
+  <summary>{title}</summary>
+  <div class="troubleshooting-item__body"><slot /></div>
+</details>
+
+<script>
+  const troubleshootingItems = Array.from(
+    document.querySelectorAll<HTMLDetailsElement>(
+      ".troubleshooting-item[data-default-open]",
+    ),
+  );
+
+  for (const item of troubleshootingItems) {
+    if (item.dataset.defaultOpen === "false") item.open = false;
+  }
+
+  window.addEventListener("beforeprint", () => {
+    for (const item of troubleshootingItems) item.open = true;
+  });
+
+  window.addEventListener("afterprint", () => {
+    for (const item of troubleshootingItems) {
+      item.open = item.dataset.defaultOpen === "true";
+    }
+  });
+</script>
+
+<style>
+  .troubleshooting-item {
+    border-top: var(--border-thin);
+    padding-block: var(--space-3);
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 760;
+  }
+
+  .troubleshooting-item__body {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  @media print {
+    .troubleshooting-item {
+      break-inside: avoid;
+      border-color: #bbbbbb;
+    }
+
+    .troubleshooting-item__body {
+      display: block !important;
+      color: #333333;
+    }
+  }
+</style>

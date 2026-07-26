@@ -1,0 +1,48 @@
+<nav class="mock-sidebar" aria-label="仿真界面侧栏">
+  <slot />
+</nav>
+
+<style>
+  .mock-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    border-right: var(--border-thin);
+    background: var(--color-surface-muted);
+    padding: var(--space-3);
+  }
+
+  :global(.mock-sidebar__item) {
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+  }
+
+  :global(.mock-sidebar__item--active) {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-weight: 760;
+  }
+
+  @media (max-width: 35.625rem) {
+    .mock-sidebar {
+      flex-direction: row;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: var(--border-thin);
+    }
+
+    :global(.mock-sidebar__item) {
+      flex: 0 0 auto;
+    }
+  }
+
+  @media print {
+    .mock-sidebar {
+      border-color: #cccccc;
+      background: white;
+      padding: 2mm;
+    }
+  }
+</style>

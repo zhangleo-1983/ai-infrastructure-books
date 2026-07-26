@@ -1,0 +1,81 @@
+---
+book: "02-overseas-network"
+order: 10
+slug: "10-daily-use"
+title: "多设备与日常使用"
+shortTitle: "多设备与日常使用"
+description: "最省事的方式不是把一个 UUID 到处复制，而是在同一入站中为每台设备创建独立客户端。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch10"
+chapterNumber: 10
+duration: "预计 7 分钟"
+labels:
+  - "管理章节"
+  - "预计 7 分钟"
+completionId: "book02-chapter-10"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch10-body">
+  ## 一台设备，一个客户端身份
+
+  <MockWindow title="Inbound: My-Reality">
+    <MockToolbar slot="toolbar">
+      <span className="mock-action mock-action--primary">＋ Add Client</span>
+    </MockToolbar>
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr><th>设备标签</th><th>UUID</th><th>流量</th><th>状态</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>MacBook</td><td>独立 UUID</td><td>12 GB</td><td><MockStatusBadge>启用</MockStatusBadge></td></tr>
+          <tr><td>iPhone</td><td>独立 UUID</td><td>8 GB</td><td><MockStatusBadge>启用</MockStatusBadge></td></tr>
+          <tr><td>Windows</td><td>独立 UUID</td><td>3 GB</td><td><MockStatusBadge>启用</MockStatusBadge></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      ### 更容易排查
+
+      哪台设备异常、用了多少流量，一眼可见。
+    </section>
+    <section className="info-grid__item">
+      ### 更容易撤销
+
+      设备丢失时只禁用对应客户端，不影响其他设备。
+    </section>
+  </InfoGrid>
+
+  ### 每天真正需要做什么？
+
+  <ul className="preparation-list">
+    <li>电脑：打开 Clash Verge Rev</li>
+    <li>选择节点并打开 System Proxy</li>
+    <li>手机：打开 Shadowrocket 开关</li>
+    <li>不需要每天 SSH 登录服务器</li>
+  </ul>
+
+  ### 什么时候才需要回服务器？
+
+  面板或 Xray 升级、节点突然失效、修改端口或 UUID、备份、服务器重启后服务没有自动恢复，以及 IP 被目标服务限制时。
+
+  <Callout type="tip" title="修改服务端后，记得更新订阅">
+    客户端不会凭空知道你换了 UUID、端口、Public Key 或 Short ID。服务端保存后，需要在客户端手动更新订阅。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-10">
+    我已为主要设备创建独立身份，并知道日常无需频繁登录 VPS。
+  </ChapterChecklist>
+</section>

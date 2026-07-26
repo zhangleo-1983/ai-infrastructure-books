@@ -1,0 +1,101 @@
+---
+book: "02-overseas-network"
+order: 11
+slug: "11-troubleshooting"
+title: "常见故障排查"
+shortTitle: "故障排查"
+description: "不要同时修改十个选项。按照“服务器 → 面板 → 入站 → 订阅 → 客户端 → 网站”的顺序逐层定位。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch11"
+chapterNumber: 11
+labels:
+  - "排障章节"
+  - "建议收藏"
+completionId: "book02-chapter-11"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="ch11-body">
+  ## 先判断问题发生在哪一层
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>1. VPS</strong>
+      <small>Running？SSH 能进？</small>
+    </div>
+    <div className="flow-node">
+      <strong>2. 面板</strong>
+      <small>能打开？Xray 运行？</small>
+    </div>
+    <div className="flow-node">
+      <strong>3. 入站</strong>
+      <small>启用？端口监听？</small>
+    </div>
+    <div className="flow-node">
+      <strong>4. 客户端</strong>
+      <small>参数一致？日志？</small>
+    </div>
+  </FlowDiagram>
+
+  <TroubleshootingItem title="SSH：Connection timed out" open>
+    IP 错误、服务器未运行、本地网络不可达，或云防火墙阻挡。先在 Vultr 控制台确认实例为 Running，再核对 IP 与 22 端口规则。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="SSH：Permission denied">
+    用户名或密码错误。重新从实例页面复制；若使用 Limited User Login，可能不能直接使用 root。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="SSH：REMOTE HOST IDENTIFICATION HAS CHANGED">
+    常见于删除旧实例后 IP 被新实例复用。确认当前 IP 确实属于你的服务器，再执行 `ssh-keygen -R 你的IP` 删除旧指纹记录。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="面板打不开">
+    检查完整 URL、端口、随机路径和 HTTP/HTTPS；SSH 进入后运行 `x-ui` 查看面板状态；检查 UFW 与 Vultr Firewall 是否放行面板端口。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="入站已保存，但节点 Timeout">
+    确认入站启用、端口正在监听、云防火墙放行；客户端的 UUID、端口、Public Key、Short ID、Server Name、Flow 必须与服务端完全一致。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="订阅显示 404">
+    重新从对应客户端复制订阅地址，检查客户端是否被禁用或过期，并确认订阅服务相关设置。订阅失败不等同于 Xray 入站失败。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Clash 导入后显示 0 个节点">
+    最常见原因是订阅格式不对。回到 3X-UI，选择 Clash/Mihomo 输出格式，再新建或更新订阅。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="System Proxy 已开，但某个软件不走节点">
+    该软件可能忽略系统代理。先确认软件自己的代理设置；确有全局接管需求时再开启 TUN。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="开启 TUN 后公司内网、NAS 或打印机不可用">
+    关闭 TUN 验证；使用 Rule 模式并为局域网地址设置直连。不要同时叠加多个 VPN、代理或安全客户端。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="iPhone 显示 VPN，但没有网络">
+    切换到“配置”路由、更新订阅、选择节点；确认手机订阅格式；删除并重建 iOS VPN 配置仅作为后续排查步骤。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="能连接，但很慢">
+    比较不同时间、本地网络和服务器区域；看 CPU/内存与套餐带宽；更换更近或路由更好的机房通常比反复修改协议参数更有效。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="ChatGPT、Claude 或其他网站返回 403">
+    先确认其他网站正常。若只有特定服务拒绝，通常与出口 IP、机房属性、账户地区或服务条款有关，不是 Reality 字段必然配置错误。
+  </TroubleshootingItem>
+
+  <Callout type="info" title="排障原则">
+    每次只改一个变量，改完立即测试并记录。不要在 UUID、端口、Target、Flow、DNS 和 TUN 之间同时乱改，否则无法知道哪一步起作用。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-11">
+    我知道按照 VPS、面板、入站、订阅、客户端、目标网站的顺序排查。
+  </ChapterChecklist>
+</section>

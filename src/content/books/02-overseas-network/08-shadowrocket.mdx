@@ -1,0 +1,73 @@
+---
+book: "02-overseas-network"
+order: 8
+slug: "08-shadowrocket"
+title: "在 iPhone 上使用 Shadowrocket"
+shortTitle: "Shadowrocket"
+description: "手机端可以通过订阅 URL 或二维码导入。首次连接时，iOS 会要求创建 VPN 配置。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch8"
+chapterNumber: 8
+duration: "预计 8 分钟"
+labels:
+  - "iPhone / iPad"
+  - "预计 8 分钟"
+completionId: "book02-chapter-08"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch8-body">
+  ## 导入订阅
+
+  <Callout type="warning" title="应用可用性因 App Store 地区和政策变化">
+    请通过自己的合法 App Store 账户获取正版应用。本书不提供共享账户、企业签名或非官方安装包。
+  </Callout>
+
+  <MockWindow title="Shadowrocket">
+    <MockToolbar slot="toolbar">
+      <span className="mock-action mock-action--primary">＋</span>
+    </MockToolbar>
+    <div className="mock-form-grid">
+      <MockField label="Type">Subscribe</MockField>
+      <MockField label="Remarks">My VPS</MockField>
+      <MockField label="URL" wide>
+        粘贴 3X-UI 生成的手机订阅 URL
+      </MockField>
+    </div>
+    <div className="mock-actions">
+      <MockToolbar><span className="mock-action mock-action--primary">完成</span></MockToolbar>
+    </div>
+  </MockWindow>
+
+  <InstructionStep number={1} title="点击右上角 ＋">
+    类型选择 Subscribe，粘贴 URL 并保存。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="更新订阅并选择节点">
+    也可以在 3X-UI 中显示单节点二维码，再用扫码功能导入。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="全局路由选择“配置”">
+    它会按照配置规则决定哪些连接使用节点；“代理”通常相当于更接近全局模式。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="打开顶部连接开关">
+    首次使用时允许 iOS 添加 VPN 配置，并用 Face ID、Touch ID 或密码确认。
+  </InstructionStep>
+
+  <Callout type="info" title="为什么状态栏显示 VPN？">
+    iOS 通过系统 VPN 接口把网络流量交给 Shadowrocket 处理。这不代表你使用的是传统企业 VPN 协议，而是系统统一显示方式。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-08">
+    iPhone 已出现 VPN 状态，并能选择自己的节点。
+  </ChapterChecklist>
+</section>

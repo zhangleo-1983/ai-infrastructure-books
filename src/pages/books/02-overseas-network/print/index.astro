@@ -1,0 +1,157 @@
+---
+import { getCollection, render } from "astro:content";
+import BookCover from "../../../../components/book/BookCover.astro";
+import ChapterHeader from "../../../../components/book/ChapterHeader.astro";
+import { currentBook } from "../../../../data/books";
+import {
+  book02Id,
+  sortBookChapters,
+} from "../../../../data/book02";
+import BookLayout from "../../../../layouts/BookLayout.astro";
+import { sitePath } from "../../../../lib/site-path";
+
+const entries = sortBookChapters(
+  await getCollection(
+    "chapters",
+    ({ data }) => data.book === book02Id && !data.draft,
+  ),
+);
+const chapters = await Promise.all(
+  entries.map(async (entry) => ({
+    entry,
+    rendered: await render(entry),
+  })),
+);
+const updatedAt = entries.reduce(
+  (latest, entry) =>
+    entry.data.updatedAt > latest ? entry.data.updatedAt : latest,
+  "1970-01-01",
+);
+---
+
+<BookLayout
+  title={`${currentBook.shortTitle} · 整册打印`}
+  description="第二册《拥有自己的海外网络》完整打印版。"
+  bookTitle={currentBook.shortTitle}
+>
+  <nav class="print-toolbar" aria-label="打印页操作" data-print-hidden>
+    <a href={sitePath(`/books/${book02Id}/`)}>← 返回第二册目录</a>
+    <button type="button" data-print-button>打印或导出 PDF</button>
+  </nav>
+
+  <div class="print-book book-prose" data-print-book>
+    <BookCover
+      updatedAt={updatedAt}
+      showDetails={true}
+      showActions={false}
+    />
+
+    {
+      chapters.map(({ entry, rendered: { Content } }) => {
+        const chapterNumberProps = entry.data.chapterNumber
+          ? { chapterNumber: entry.data.chapterNumber }
+          : {};
+        return (
+          <section
+            class="print-chapter"
+            data-print-chapter
+            data-order={entry.data.order}
+            data-source-anchor={entry.data.sourceAnchor}
+          >
+            <ChapterHeader
+              title={entry.data.title}
+              description={entry.data.description}
+              sourceAnchor={`print-${entry.data.sourceAnchor}`}
+              chapterType={entry.data.chapterType}
+              labels={entry.data.labels}
+              {...chapterNumberProps}
+            />
+            <Content />
+          </section>
+        );
+      })
+    }
+  </div>
+</BookLayout>
+
+<script>
+  document
+    .querySelector<HTMLButtonElement>("[data-print-button]")
+    ?.addEventListener("click", () => window.print());
+</script>
+
+<style>
+  .print-toolbar {
+    position: sticky;
+    top: calc(var(--height-header) + var(--space-3));
+    z-index: 5;
+    display: flex;
+    max-width: var(--width-reading);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 auto var(--space-6);
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(1rem);
+  }
+
+  .print-toolbar a {
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .print-toolbar button {
+    min-height: 2.75rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: white;
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 760;
+  }
+
+  .print-book {
+    max-width: var(--width-reading);
+  }
+
+  .print-chapter {
+    margin-top: var(--space-16);
+  }
+
+  .print-chapter > * + * {
+    margin-top: var(--space-6);
+  }
+
+  @media (max-width: 35.625rem) {
+    .print-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+
+  @media print {
+    .print-book {
+      max-width: none;
+      margin: 0;
+    }
+
+    .print-chapter {
+      break-before: page;
+      margin-top: 0;
+    }
+
+    .print-chapter > * + * {
+      margin-top: 4mm;
+    }
+
+    .print-chapter :global(.chapter-header--chapter) {
+      break-before: auto;
+    }
+  }
+</style>

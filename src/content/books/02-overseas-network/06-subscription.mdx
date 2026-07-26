@@ -1,0 +1,93 @@
+---
+book: "02-overseas-network"
+order: 6
+slug: "06-subscription"
+title: "生成并理解订阅"
+shortTitle: "生成订阅"
+description: "订阅不是付费会员。它是一条配置地址，让客户端获取节点参数并在服务器修改后更新。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch6"
+chapterNumber: 6
+duration: "预计 6 分钟"
+labels:
+  - "实操章节"
+  - "预计 6 分钟"
+completionId: "book02-chapter-06"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch6-body">
+  ## 为什么推荐订阅，而不是只复制一个节点？
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🛠️</span>
+      <strong>面板修改</strong>
+      <small>UUID、端口、目标站</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔗</span>
+      <strong>订阅地址</strong>
+      <small>保存最新配置</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔄</span>
+      <strong>客户端更新</strong>
+      <small>重新获取节点</small>
+    </div>
+  </FlowDiagram>
+
+  ### 在客户端行打开“分享 / 二维码 / 订阅”
+
+  <MockWindow title="Client: MacBook">
+    <MockToolbar slot="toolbar"><MockStatusBadge>Enabled</MockStatusBadge></MockToolbar>
+    <InfoGrid columns={3}>
+      <section className="info-grid__item">
+        #### 分享链接
+
+        单个 VLESS URI
+      </section>
+      <section className="info-grid__item">
+        #### 二维码
+
+        适合手机扫描
+      </section>
+      <section className="info-grid__item">
+        #### 订阅 URL
+
+        适合 Clash / Shadowrocket
+      </section>
+    </InfoGrid>
+    <div className="mock-spacing-top">
+      <MockField label="Format" wide>
+        Clash / Mihomo　·　Base64 / Universal　·　Sing-box
+      </MockField>
+    </div>
+  </MockWindow>
+
+  <Callout type="info" title="格式要和客户端匹配">
+    Clash Verge Rev 优先选择 Clash/Mihomo 格式；Shadowrocket 可使用面板提供的通用订阅或直接扫描单节点二维码。以当前面板实际提供的选项为准。
+  </Callout>
+
+  <Callout type="danger" title="订阅地址同样是凭证">
+    拿到订阅 URL 的人可能获得你的节点参数。不要发到公开群、短链接服务、公开 GitHub 或截图中。
+  </Callout>
+
+  ### 订阅链接打不开是否代表节点失败？
+
+  不一定。订阅服务和节点监听是两条不同链路：订阅负责“传配置”，节点负责“传流量”。订阅 404 时，可能只是路径、订阅服务或客户端状态有问题。
+
+  <ChapterChecklist chapterId="book02-chapter-06">
+    我已为自己的设备复制正确格式的订阅 URL，并妥善保存。
+  </ChapterChecklist>
+</section>

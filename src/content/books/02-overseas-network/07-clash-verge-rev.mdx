@@ -1,0 +1,133 @@
+---
+book: "02-overseas-network"
+order: 7
+slug: "07-clash-verge-rev"
+title: "在电脑上使用 Clash Verge Rev"
+shortTitle: "Clash Verge Rev"
+description: "Clash Verge Rev 是 Windows、macOS 和 Linux 的图形客户端，使用 Mihomo 内核处理代理规则与连接。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch7"
+chapterNumber: 7
+duration: "预计 10 分钟"
+labels:
+  - "Windows / macOS"
+  - "预计 10 分钟"
+completionId: "book02-chapter-07"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockToolbar from "../../../components/mock-ui/MockToolbar.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="ch7-import">
+  ## 下载、导入、选择、连接
+
+  <Callout type="danger" title="只使用官方发布页">
+    不要搜索并安装名称相似的第三方“官网版”“绿色版”或带商业订阅入口的魔改包。到项目官方 GitHub Releases 页面下载标记为 Latest 的稳定版本。
+  </Callout>
+
+  <PlatformTabs
+    id="clash-platform"
+    firstPlatform="windows"
+    macLabel="macOS"
+  >
+    <div slot="windows">
+      Windows 选择与系统架构匹配的安装包。普通 Windows 10/11 电脑通常是 x64；安装后允许软件创建系统服务或网络规则。
+    </div>
+    <div slot="mac">
+      Apple 芯片 Mac 选择 aarch64 / arm64，Intel Mac 选择 x64。首次启用系统代理或 TUN 时，macOS 可能要求管理员授权。
+    </div>
+  </PlatformTabs>
+
+  <MockWindow title="Clash Verge Rev">
+    <MockToolbar slot="toolbar"><span aria-hidden="true">⚙️</span></MockToolbar>
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item">首页</span>
+      <span className="mock-sidebar__item mock-sidebar__item--active">订阅</span>
+      <span className="mock-sidebar__item">代理</span>
+      <span className="mock-sidebar__item">连接</span>
+      <span className="mock-sidebar__item">设置</span>
+    </MockSidebar>
+    <h3 className="mock-heading">订阅 Profiles</h3>
+    <MockField label="订阅链接" wide>
+      粘贴 3X-UI 生成的 Clash / Mihomo URL
+    </MockField>
+    <div className="mock-actions">
+      <MockToolbar><span className="mock-action mock-action--primary">导入</span></MockToolbar>
+    </div>
+    <div className="mock-panel">
+      <strong>My VPS</strong><br />
+      <span className="mock-small">上次更新：刚刚　·　节点：1</span>
+    </div>
+  </MockWindow>
+
+  <InstructionStep number={1} title="订阅页面粘贴 URL">
+    给订阅起一个容易识别的名字，例如 My VPS。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="更新订阅">
+    确认显示至少一个节点。如果为 0，优先检查订阅格式。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="进入“代理”并选择节点">
+    先运行延迟测试，再点击 My-Reality。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="打开 System Proxy">
+    浏览器和大多数遵循系统代理的软件会开始使用该节点。
+  </InstructionStep>
+</section>
+
+<section className="book-section" id="ch7-modes">
+  ## Rule、Global、Direct 和 TUN 怎么选？
+
+  <ComparisonTable>
+
+  | 模式 | 含义 | 新手建议 |
+  | --- | --- | --- |
+  | Rule | 按配置规则决定直连或代理 | **日常优先** |
+  | Global | 大部分流量都交给当前节点 | 排查规则问题时临时使用 |
+  | Direct | 不使用节点 | 相当于临时关闭代理逻辑 |
+  | TUN | 创建虚拟网卡，接管更多应用流量 | 普通系统代理覆盖不到应用时再开 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="TUN 不是“速度增强开关”">
+    它扩大流量接管范围，也更容易影响公司内网、打印机、局域网设备或其他 VPN。能用 System Proxy 解决时，不必默认开启 TUN。
+  </Callout>
+
+  <MockWindow title="Home">
+    <MockToolbar slot="toolbar"><MockStatusBadge>Core Running</MockStatusBadge></MockToolbar>
+    <InfoGrid columns={3}>
+      <section className="info-grid__item">
+        #### System Proxy
+
+        <MockStatusBadge>ON</MockStatusBadge>
+      </section>
+      <section className="info-grid__item">
+        #### TUN Mode
+
+        OFF
+      </section>
+      <section className="info-grid__item">
+        #### Mode
+
+        **Rule**
+      </section>
+    </InfoGrid>
+  </MockWindow>
+
+  <ChapterChecklist chapterId="book02-chapter-07">
+    Clash Verge Rev 已导入订阅、选择节点，并在 Rule 模式打开 System Proxy。
+  </ChapterChecklist>
+</section>

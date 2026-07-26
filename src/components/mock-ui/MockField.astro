@@ -1,0 +1,49 @@
+---
+interface Props {
+  label: string;
+  wide?: boolean;
+}
+
+const { label, wide = false } = Astro.props;
+---
+
+<div class:list={["mock-field", { "mock-field--wide": wide }]}>
+  <span class="mock-field__label">{label}</span>
+  <div class="mock-field__value"><slot /></div>
+</div>
+
+<style>
+  .mock-field {
+    min-width: 0;
+  }
+
+  .mock-field--wide {
+    grid-column: 1 / -1;
+  }
+
+  .mock-field__label {
+    display: block;
+    margin-bottom: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+  }
+
+  .mock-field__value {
+    min-height: 2.75rem;
+    overflow-wrap: anywhere;
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  @media print {
+    .mock-field__value {
+      min-height: 0;
+      border-color: #bbbbbb;
+      background: white;
+      padding: 2mm;
+    }
+  }
+</style>

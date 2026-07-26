@@ -1,0 +1,46 @@
+<div class="book-completion">
+  <div>
+    <small>本册完成</small>
+    <strong><slot /></strong>
+  </div>
+  <span aria-hidden="true">✓</span>
+</div>
+
+<style>
+  .book-completion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    border-top: 0.1875rem solid var(--color-success);
+    background: var(--color-success-soft);
+    padding: var(--space-5);
+  }
+
+  small,
+  strong {
+    display: block;
+  }
+
+  small {
+    color: var(--color-text-muted);
+  }
+
+  strong {
+    margin-top: var(--space-1);
+  }
+
+  .book-completion > span {
+    color: var(--color-success);
+    font-size: var(--font-size-xl);
+    font-weight: 900;
+  }
+
+  @media print {
+    .book-completion {
+      border-color: #555555;
+      background: white;
+      break-inside: avoid;
+    }
+  }
+</style>

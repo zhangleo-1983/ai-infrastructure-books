@@ -1,0 +1,42 @@
+<div class="mock-toolbar">
+  <slot />
+</div>
+
+<style>
+  .mock-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  :global(.mock-action) {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    border: var(--border-thin);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 750;
+  }
+
+  :global(.mock-action--primary) {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: white;
+  }
+
+  @media print {
+    :global(.mock-action) {
+      min-height: 0;
+      border-color: #999999;
+      background: white;
+      color: #111111;
+      padding: 1mm 2mm;
+    }
+  }
+</style>

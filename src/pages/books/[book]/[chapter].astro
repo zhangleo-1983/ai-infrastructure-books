@@ -4,9 +4,9 @@ import ChapterHeader from "../../../components/book/ChapterHeader.astro";
 import ChapterNavigation from "../../../components/book/ChapterNavigation.astro";
 import TableOfContents from "../../../components/book/TableOfContents.astro";
 import {
-  book02ChapterPlan,
   book02Id,
-  type Book02ChapterPlanItem,
+  sortBookChapters,
+  toBookTocItems,
 } from "../../../data/book02";
 import { currentBook } from "../../../data/books";
 import BookLayout from "../../../layouts/BookLayout.astro";
@@ -18,7 +18,7 @@ export async function getStaticPaths() {
     ({ data }) => data.book === book02Id && !data.draft,
   );
 
-  return chapters.map((entry) => ({
+  return sortBookChapters(chapters).map((entry) => ({
     params: {
       book: entry.data.book,
       chapter: entry.data.slug,
@@ -35,36 +35,38 @@ interface Props {
 
 const { entry }: Props = Astro.props;
 const { Content, headings } = await render(entry);
-const currentPlanIndex = book02ChapterPlan.findIndex(
-  (item) => item.slug === entry.data.slug,
+const bookEntries = sortBookChapters(
+  await getCollection(
+    "chapters",
+    ({ data }) => data.book === book02Id && !data.draft,
+  ),
 );
-const previousPlan =
-  currentPlanIndex > 0 ? book02ChapterPlan[currentPlanIndex - 1] : undefined;
-const nextPlan =
-  currentPlanIndex >= 0
-    ? book02ChapterPlan[currentPlanIndex + 1]
+const tocItems = toBookTocItems(bookEntries);
+const currentEntryIndex = bookEntries.findIndex(
+  (item) => item.data.slug === entry.data.slug,
+);
+const previousEntry =
+  currentEntryIndex > 0 ? bookEntries[currentEntryIndex - 1] : undefined;
+const nextEntry =
+  currentEntryIndex >= 0
+    ? bookEntries[currentEntryIndex + 1]
     : undefined;
 
 function navigationTarget(
-  item: Book02ChapterPlanItem | undefined,
+  item: ChapterEntry | undefined,
   label: string,
 ) {
   if (!item) return undefined;
-  const target = {
+  return {
     label,
-    title: item.title,
-    status: item.migrated ? ("available" as const) : ("pending" as const),
+    title: item.data.title,
+    href: sitePath(`/books/${book02Id}/${item.data.slug}/`),
+    status: "available" as const,
   };
-  return item.migrated
-    ? {
-        ...target,
-        href: sitePath(`/books/${book02Id}/${item.slug}/`),
-      }
-    : target;
 }
 
-const previousTarget = navigationTarget(previousPlan, "上一页");
-const nextTarget = navigationTarget(nextPlan, "下一章");
+const previousTarget = navigationTarget(previousEntry, "上一页");
+const nextTarget = navigationTarget(nextEntry, "下一章");
 const chapterNumberProps = entry.data.chapterNumber
   ? { chapterNumber: entry.data.chapterNumber }
   : {};
@@ -81,7 +83,7 @@ const navigationProps = {
 >
   <TableOfContents
     slot="sidebar"
-    items={book02ChapterPlan}
+    items={tocItems}
     currentSlug={entry.data.slug}
     headings={headings}
   />

@@ -1,0 +1,205 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const hasSidebar = Astro.slots.has("sidebar");
+const hasToolbar = Astro.slots.has("toolbar");
+---
+
+<figure class="mock-window" aria-label={`仿真界面：${title}`}>
+  <figcaption>
+    <span class="mock-window__dots" aria-hidden="true" data-parity-ignore>
+      <i></i><i></i><i></i>
+    </span>
+    <strong>{title}</strong>
+    {hasToolbar && <slot name="toolbar" />}
+  </figcaption>
+  <div class:list={["mock-window__body", { "mock-window__body--with-sidebar": hasSidebar }]}>
+    {hasSidebar && <slot name="sidebar" />}
+    <div class="mock-window__main"><slot /></div>
+  </div>
+</figure>
+
+<style>
+  .mock-window {
+    max-width: 100%;
+    overflow: hidden;
+    margin: 0;
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+  }
+
+  figcaption {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: var(--border-thin);
+    background: var(--color-surface-muted);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  figcaption > :last-child {
+    margin-left: auto;
+  }
+
+  .mock-window__dots {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .mock-window__dots i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--color-border);
+  }
+
+  .mock-window__body--with-sidebar {
+    display: grid;
+    grid-template-columns: 10rem minmax(0, 1fr);
+  }
+
+  .mock-window__main {
+    min-width: 0;
+    padding: var(--space-5);
+  }
+
+  :global(.mock-heading) {
+    margin: 0 0 var(--space-4);
+    font-size: var(--font-size-md);
+  }
+
+  :global(.mock-form-grid) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  :global(.mock-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  :global(.mock-table-wrap) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  :global(.mock-table) {
+    width: 100%;
+    min-width: 34rem;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  :global(.mock-table th),
+  :global(.mock-table td) {
+    border-bottom: var(--border-thin);
+    padding: var(--space-3);
+    text-align: left;
+  }
+
+  :global(.mock-panel) {
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    padding: var(--space-4);
+  }
+
+  :global(.mock-panel + .mock-panel) {
+    margin-top: var(--space-3);
+  }
+
+  :global(.mock-narrow) {
+    max-width: 29rem;
+    margin-inline: auto;
+  }
+
+  :global(.mock-stack) {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  :global(.mock-spacing-top) {
+    margin-top: var(--space-4);
+  }
+
+  :global(.mock-small) {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  @media (max-width: 35.625rem) {
+    .mock-window__body--with-sidebar {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mock-window__main {
+      padding: var(--space-4);
+    }
+
+    :global(.mock-form-grid) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media print {
+    .mock-window {
+      border-color: #aaaaaa;
+      border-radius: 2mm;
+      background: white;
+      box-shadow: none;
+      break-inside: avoid;
+    }
+
+    figcaption {
+      min-height: 0;
+      border-color: #bbbbbb;
+      background: white;
+      padding: 2mm 3mm;
+    }
+
+    .mock-window__dots {
+      display: none;
+    }
+
+    .mock-window__body--with-sidebar {
+      grid-template-columns: 28mm 1fr;
+    }
+
+    .mock-window__main {
+      padding: 3mm;
+    }
+
+    :global(.mock-form-grid) {
+      gap: 3mm;
+    }
+
+    :global(.mock-table) {
+      min-width: 0;
+      table-layout: fixed;
+      font-size: 8.5pt;
+    }
+
+    :global(.mock-table th),
+    :global(.mock-table td) {
+      border-color: #cccccc;
+      padding: 2mm;
+      overflow-wrap: anywhere;
+    }
+
+    :global(.mock-panel) {
+      border-color: #bbbbbb;
+      background: white;
+      padding: 3mm;
+    }
+  }
+</style>

@@ -1,0 +1,91 @@
+---
+book: "02-overseas-network"
+order: 12
+slug: "12-security-maintenance"
+title: "安全、备份与长期维护"
+shortTitle: "安全与维护"
+description: "能用只是起点。服务器暴露在公网，随机扫描和登录尝试会持续发生。"
+chapterType: "chapter"
+updatedAt: "2026-07-25"
+sourceAnchor: "ch12"
+chapterNumber: 12
+labels:
+  - "维护章节"
+  - "长期使用必读"
+completionId: "book02-chapter-12"
+draft: false
+---
+
+import BookCompletion from "../../../components/book/BookCompletion.astro";
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+
+<section className="book-section" id="ch12-body">
+  ## 最低限度的安全清单
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      ### 强密码与随机路径
+
+      面板账号、密码、端口和路径不要使用 admin、123456 等可猜值。
+    </section>
+    <section className="info-grid__item">
+      ### 及时更新
+
+      只从官方项目更新 3X-UI 和 Xray，更新前先备份。
+    </section>
+    <section className="info-grid__item">
+      ### 限制暴露端口
+
+      只开放 SSH、面板和节点实际需要的端口。
+    </section>
+    <section className="info-grid__item">
+      ### 独立设备身份
+
+      设备丢失时立即禁用对应 UUID，并更新订阅。
+    </section>
+  </InfoGrid>
+
+  ### 修改 root 密码
+
+  <CodeBlock code="passwd" />
+
+  输入两次新密码。输入过程仍然不会显示字符。请使用密码管理器保存长且唯一的密码。
+
+  ### 系统更新
+
+  <CodeBlock label="Ubuntu" code="apt update && apt upgrade -y" />
+
+  <Callout type="warning" title="不要在关键使用前临时大升级">
+    更新可能重启服务或改变依赖。先备份，选择有时间排障的窗口操作。
+  </Callout>
+
+  ### 备份什么？
+
+  <ul className="preparation-list">
+    <li>3X-UI 面板数据库或面板导出的备份</li>
+    <li>当前账号、端口、路径和证书信息</li>
+    <li>Vultr Snapshot 或服务器快照</li>
+    <li>客户端订阅地址与设备清单</li>
+  </ul>
+
+  优先使用面板当前版本提供的备份/恢复功能。手动复制数据库前，应先确认当前版本实际存储位置和数据库类型，避免拿错文件。
+
+  ### 进一步加固：留到后续运维册
+
+  创建 sudo 普通用户、配置 ED25519 SSH Key、关闭密码登录与 root 远程登录、Fail2ban、面板域名与 TLS、IP 白名单、自动备份和监控，适合在节点稳定后逐步完成。
+
+  <Callout type="tip" title="不要为了“安全”一次性改完所有东西">
+    每完成一项加固，都要先开一个新的终端窗口验证仍能登录，再关闭旧连接，避免把自己锁在服务器外。
+  </Callout>
+
+  <ChapterChecklist chapterId="book02-chapter-12">
+    我已经保存备份，并知道更新和安全加固需要逐项验证。
+  </ChapterChecklist>
+
+  <BookCompletion>
+    你已经从一台空白 VPS，走到了可管理、可更新的个人节点。
+  </BookCompletion>
+</section>

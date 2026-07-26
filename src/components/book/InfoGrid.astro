@@ -1,0 +1,63 @@
+---
+interface Props {
+  columns?: 2 | 3 | 4;
+}
+
+const { columns = 2 } = Astro.props;
+---
+
+<div class="info-grid" style={`--info-grid-columns: ${columns}`}>
+  <slot />
+</div>
+
+<style>
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--info-grid-columns), minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+
+  :global(.info-grid__item) {
+    border-top: 0.1875rem solid var(--color-primary);
+    padding-top: var(--space-4);
+  }
+
+  :global(.info-grid__icon) {
+    display: block;
+    margin-bottom: var(--space-2);
+    font-size: 1.5rem;
+  }
+
+  :global(.info-grid__item h3),
+  :global(.info-grid__item h4) {
+    margin: 0;
+    font-size: var(--font-size-md);
+  }
+
+  :global(.info-grid__item p) {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 48rem) {
+    .info-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 35.625rem) {
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media print {
+    .info-grid {
+      grid-template-columns: repeat(
+        min(var(--info-grid-columns), 2),
+        minmax(0, 1fr)
+      );
+      break-inside: avoid;
+    }
+  }
+</style>
