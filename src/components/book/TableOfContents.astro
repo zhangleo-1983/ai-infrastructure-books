@@ -16,6 +16,9 @@ interface Props {
 }
 
 const { items, currentSlug, headings = [] } = Astro.props;
+const completionTotal = items.filter(
+  (item) => item.chapterType === "chapter",
+).length;
 
 function itemLabel(item: BookTocItem): string {
   if (item.chapterType === "introduction") return "开始";
@@ -29,17 +32,25 @@ function itemLabel(item: BookTocItem): string {
   class="table-of-contents"
   open
   data-table-of-contents
+  data-book-id={book02Id}
   data-current-chapter={currentSlug ? "true" : undefined}
 >
   <summary>
     <span>本册目录</span>
-    <small>{items.length} 项可阅读</small>
+    <small data-book-completion-summary aria-live="polite">
+      {completionTotal} 个学习章节
+    </small>
   </summary>
   <nav aria-label="第二册目录">
     <ol>
       {
         items.map((item) => (
-          <li class:list={{ current: item.slug === currentSlug }}>
+          <li
+            class:list={{ current: item.slug === currentSlug }}
+            data-toc-item
+            data-chapter-slug={item.slug}
+            data-completion-eligible={item.chapterType === "chapter" ? "true" : "false"}
+          >
             <div class="table-of-contents__item">
               <span class="table-of-contents__number">{itemLabel(item)}</span>
               <a
@@ -48,6 +59,18 @@ function itemLabel(item: BookTocItem): string {
               >
                 {item.shortTitle}
               </a>
+              {
+                item.chapterType === "chapter" && (
+                  <span
+                    class="table-of-contents__complete"
+                    data-toc-completion-indicator
+                    hidden
+                  >
+                    <span aria-hidden="true">✓</span>
+                    <span class="visually-hidden">已完成</span>
+                  </span>
+                )
+              }
             </div>
             {item.slug === currentSlug && headings.length > 0 && (
               <ol class="table-of-contents__headings">
@@ -67,18 +90,6 @@ function itemLabel(item: BookTocItem): string {
   </nav>
 </details>
 
-<script>
-  const mobileBookLayout = window.matchMedia("(max-width: 64rem)");
-
-  document
-    .querySelectorAll<HTMLDetailsElement>(
-      "[data-table-of-contents][data-current-chapter]",
-    )
-    .forEach((tableOfContents) => {
-      if (mobileBookLayout.matches) tableOfContents.open = false;
-    });
-</script>
-
 <style>
   .table-of-contents {
     font-size: var(--font-size-sm);
@@ -93,6 +104,7 @@ function itemLabel(item: BookTocItem): string {
     cursor: pointer;
     padding: var(--space-3);
     font-weight: 800;
+    min-height: 2.75rem;
   }
 
   summary small {
@@ -127,6 +139,26 @@ function itemLabel(item: BookTocItem): string {
 
   .current > .table-of-contents__item {
     background: var(--color-primary-soft);
+  }
+
+  [data-completed="true"] > .table-of-contents__item a {
+    color: var(--color-success);
+  }
+
+  .table-of-contents__complete {
+    display: inline-grid;
+    width: 1.35rem;
+    height: 1.35rem;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-pill);
+    color: var(--color-success);
+    font-size: var(--font-size-xs);
+    font-weight: 850;
+  }
+
+  .table-of-contents__complete[hidden] {
+    display: none;
   }
 
   .table-of-contents__number {

@@ -1,6 +1,9 @@
 ---
+import ReadingProgress from "../components/common/ReadingProgress.astro";
+import SiteControls from "../components/common/SiteControls.astro";
 import { seriesTitle } from "../data/books";
 import { sitePath } from "../lib/site-path";
+import { THEME_STORAGE_KEY } from "../scripts/constants";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import "../styles/print.css";
@@ -35,8 +38,32 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
     <meta name="robots" content={robots} />
     <meta name="generator" content={Astro.generator} />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f3f6fa" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0c121a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f6fa" data-theme-color />
+    <script is:inline define:vars={{ themeStorageKey: THEME_STORAGE_KEY }}>
+      (() => {
+        let mode = "system";
+        try {
+          const saved = localStorage.getItem(themeStorageKey);
+          if (["system", "light", "dark"].includes(saved)) mode = saved;
+        } catch {
+          // Storage can be unavailable in privacy modes; system remains the default.
+        }
+
+        const root = document.documentElement;
+        root.dataset.themeMode = mode;
+        if (mode === "light" || mode === "dark") root.dataset.theme = mode;
+        else delete root.dataset.theme;
+
+        const resolvedDark =
+          mode === "dark" ||
+          (mode === "system" &&
+            matchMedia("(prefers-color-scheme: dark)").matches);
+        const themeColor = document.querySelector("[data-theme-color]");
+        if (themeColor) {
+          themeColor.content = resolvedDark ? "#0c121a" : "#f3f6fa";
+        }
+      })();
+    </script>
     <meta property="og:locale" content="zh_CN" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={documentTitle} />
@@ -47,6 +74,7 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
     <slot name="head" />
   </head>
   <body>
+    <ReadingProgress />
     <a class="skip-link" href="#main-content">跳到正文</a>
     <header class="site-header">
       <div class="site-header__inner">
@@ -58,6 +86,7 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
           <a href={homeHref} aria-current={onHome ? "page" : undefined}>首页</a>
           <a href={booksHref} aria-current={onBooks ? "page" : undefined}>书目</a>
         </nav>
+        <SiteControls />
       </div>
     </header>
     <main class="site-main" id="main-content">
@@ -66,5 +95,13 @@ const onBooks = Astro.url.pathname.startsWith(booksHref);
     <footer class="site-footer">
       《AI 基础设施从零开始》· 面向零基础读者的中文技术图解书
     </footer>
+    <script>
+      import "../scripts/theme";
+      import "../scripts/search";
+      import "../scripts/reading-progress";
+      import "../scripts/chapter-status";
+      import "../scripts/copy";
+      import "../scripts/mobile-toc";
+    </script>
   </body>
 </html>

@@ -1,0 +1,282 @@
+---
+const baseUrl = import.meta.env.BASE_URL;
+const pagefindUrl = `${baseUrl}pagefind/pagefind.js`;
+---
+
+<div class="site-controls" data-print-hidden>
+  <button
+    class="site-control site-control--search"
+    type="button"
+    aria-label="搜索全书"
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    aria-controls="site-search-dialog"
+    data-search-open
+    hidden
+  >
+    <span aria-hidden="true">⌕</span>
+    <span>搜索</span>
+  </button>
+
+  <label class="theme-control" data-theme-control hidden>
+    <span class="visually-hidden">配色主题</span>
+    <select data-theme-select aria-label="配色主题">
+      <option value="system">系统</option>
+      <option value="light">浅色</option>
+      <option value="dark">深色</option>
+    </select>
+  </label>
+</div>
+
+<dialog
+  class="search-dialog"
+  id="site-search-dialog"
+  aria-labelledby="site-search-title"
+  data-search-dialog
+  data-base-url={baseUrl}
+  data-pagefind-url={pagefindUrl}
+  data-print-hidden
+>
+  <div class="search-dialog__panel">
+    <header>
+      <div>
+        <p class="eyebrow">全书搜索</p>
+        <h2 id="site-search-title">查找章节和正文</h2>
+      </div>
+      <button
+        class="search-dialog__close"
+        type="button"
+        aria-label="关闭搜索"
+        data-search-close
+      >×</button>
+    </header>
+
+    <label class="search-dialog__input">
+      <span class="visually-hidden">搜索关键词</span>
+      <input
+        type="search"
+        placeholder="例如：Reality、SSH、订阅"
+        autocomplete="off"
+        aria-controls="site-search-results"
+        data-search-input
+      />
+    </label>
+
+    <p
+      class="search-dialog__status"
+      role="status"
+      aria-live="polite"
+      data-search-status
+      data-state="idle"
+    >输入章节标题、术语或正文关键词。</p>
+
+    <ol
+      class="search-dialog__results"
+      id="site-search-results"
+      data-search-results
+    ></ol>
+
+    <footer data-print-hidden>
+      <span><kbd>↑</kbd><kbd>↓</kbd> 选择结果</span>
+      <span><kbd>Enter</kbd> 打开</span>
+      <span><kbd>Esc</kbd> 关闭</span>
+    </footer>
+  </div>
+</dialog>
+
+<style>
+  .site-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .site-control,
+  .theme-control select,
+  .search-dialog__close {
+    min-height: 2.75rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .site-control {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .site-control:hover,
+  .theme-control select:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .theme-control select {
+    max-width: 5.25rem;
+    padding: var(--space-2);
+    cursor: pointer;
+  }
+
+  .search-dialog {
+    width: min(calc(100% - 2rem), 44rem);
+    max-height: min(82vh, 48rem);
+    overflow: hidden;
+    border: var(--border-thin);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: 0;
+    box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 28%);
+  }
+
+  .search-dialog::backdrop {
+    background: rgb(7 12 19 / 58%);
+    backdrop-filter: blur(0.2rem);
+  }
+
+  .search-dialog__panel {
+    display: flex;
+    max-height: min(82vh, 48rem);
+    flex-direction: column;
+    padding: var(--space-6);
+  }
+
+  .search-dialog header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+
+  .search-dialog h2 {
+    margin-top: var(--space-1);
+    font-size: var(--font-size-lg);
+  }
+
+  .search-dialog__close {
+    width: 2.75rem;
+    flex: 0 0 auto;
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+  }
+
+  .search-dialog__input {
+    display: block;
+    margin-top: var(--space-5);
+  }
+
+  .search-dialog__input input {
+    width: 100%;
+    min-height: 3rem;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .search-dialog__status {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .search-dialog__status[data-state="error"] {
+    color: var(--color-danger);
+  }
+
+  .search-dialog__results {
+    min-height: 0;
+    overflow-y: auto;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .search-dialog__results li {
+    border-top: var(--border-thin);
+  }
+
+  .search-dialog__results :global(.search-result) {
+    display: grid;
+    gap: var(--space-1);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    padding: var(--space-4) var(--space-2);
+    text-decoration: none;
+  }
+
+  .search-dialog__results :global(.search-result:hover),
+  .search-dialog__results :global(.search-result:focus-visible) {
+    background: var(--color-primary-soft);
+  }
+
+  .search-dialog__results :global(.search-result small) {
+    color: var(--color-primary);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+  }
+
+  .search-dialog__results :global(.search-result p) {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .search-dialog__results :global(mark) {
+    border-radius: 0.2em;
+    background: var(--color-warning-soft);
+    color: var(--color-text);
+    padding-inline: 0.12em;
+  }
+
+  .search-dialog footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    border-top: var(--border-thin);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  .search-dialog footer kbd + kbd {
+    margin-left: var(--space-1);
+  }
+
+  @media (max-width: 48rem) {
+    .site-control--search > span:last-child {
+      display: none;
+    }
+
+    .site-control--search {
+      width: 2.75rem;
+      justify-content: center;
+      padding-inline: 0;
+    }
+  }
+
+  @media (max-width: 35.625rem) {
+    .theme-control select {
+      width: 4.25rem;
+      padding-inline: var(--space-1);
+      font-size: var(--font-size-xs);
+    }
+
+    .search-dialog {
+      width: calc(100% - 1rem);
+      max-height: calc(100vh - 1rem);
+      border-radius: var(--radius-lg);
+    }
+
+    .search-dialog__panel {
+      max-height: calc(100vh - 1rem);
+      padding: var(--space-5) var(--space-4);
+    }
+  }
+</style>

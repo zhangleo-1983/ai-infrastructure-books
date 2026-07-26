@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "node-html-parser";
 
@@ -275,6 +275,7 @@ const builtExpectations = [
   ["术语", ".glossary dt", 12],
   ["提示框", ".callout", 28],
   ["资料来源", ".source-list li", 8],
+  ["Pagefind 正文入口", "[data-pagefind-body]", 15],
 ];
 
 for (const [label, selector, expected] of builtExpectations) {
@@ -305,6 +306,21 @@ const printDocument = parse(
     "utf8",
   ),
 );
+if (printDocument.querySelectorAll("[data-pagefind-body]").length > 0) {
+  failures.push("整册打印页不应进入 Pagefind 索引");
+}
+
+const notFoundDocument = parse(
+  readFileSync(resolve(root, "dist/404.html"), "utf8"),
+);
+if (notFoundDocument.querySelectorAll("[data-pagefind-body]").length > 0) {
+  failures.push("404 页面不应进入 Pagefind 索引");
+}
+
+if (!existsSync(resolve(root, "dist/pagefind/pagefind.js"))) {
+  failures.push("production build 未生成 Pagefind 浏览器索引入口");
+}
+
 const printChapters = printDocument.querySelectorAll("[data-print-chapter]");
 const printOrders = printChapters.map((node) => node.getAttribute("data-order"));
 const printAnchors = printChapters.map((node) =>

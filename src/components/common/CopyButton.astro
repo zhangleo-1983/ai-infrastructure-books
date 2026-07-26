@@ -11,52 +11,13 @@ const { value } = Astro.props;
   type="button"
   data-copy-button
   data-copy-value={value}
-  aria-live="polite"
+  data-copy-state="idle"
+  aria-label="复制命令"
+  hidden
 >
   复制
 </button>
-
-<script>
-  async function copyText(value: string): Promise<void> {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.append(textarea);
-    textarea.select();
-    const legacyDocument = document as unknown as {
-      execCommand(commandId: string): boolean;
-    };
-    const copied = legacyDocument.execCommand("copy");
-    textarea.remove();
-    if (!copied) throw new Error("浏览器拒绝复制");
-  }
-
-  document.querySelectorAll<HTMLButtonElement>("[data-copy-button]").forEach(
-    (button) => {
-      if (button.dataset.copyReady === "true") return;
-      button.dataset.copyReady = "true";
-      button.addEventListener("click", async () => {
-        const originalLabel = button.textContent ?? "复制";
-        try {
-          await copyText(button.dataset.copyValue ?? "");
-          button.textContent = "已复制";
-        } catch {
-          button.textContent = "请手动复制";
-        }
-        window.setTimeout(() => {
-          button.textContent = originalLabel;
-        }, 1400);
-      });
-    },
-  );
-</script>
+<span class="visually-hidden" data-copy-feedback aria-live="polite"></span>
 
 <style>
   .copy-button {
@@ -72,6 +33,16 @@ const { value } = Astro.props;
   .copy-button:hover {
     border-color: #8dc2ff;
     color: white;
+  }
+
+  .copy-button[data-copy-state="success"] {
+    border-color: #71d6a0;
+    color: #a5efc5;
+  }
+
+  .copy-button[data-copy-state="error"] {
+    border-color: #ff9d9d;
+    color: #ffd1d1;
   }
 
   @media print {

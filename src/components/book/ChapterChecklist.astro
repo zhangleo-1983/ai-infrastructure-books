@@ -4,13 +4,29 @@ interface Props {
 }
 
 const { chapterId } = Astro.props;
+const messageId = `${chapterId}-status`;
 ---
 
-<div class="chapter-checklist">
+<div
+  class="chapter-checklist"
+  data-chapter-checklist
+  data-pagefind-ignore
+>
   <label>
-    <input type="checkbox" name={chapterId} value="complete" />
+    <input
+      type="checkbox"
+      name={chapterId}
+      value="complete"
+      aria-describedby={messageId}
+      data-chapter-complete-control
+    />
     <span><slot /></span>
   </label>
+  <small
+    id={messageId}
+    data-chapter-status-message
+    aria-live="polite"
+  ></small>
 </div>
 
 <style>
@@ -37,6 +53,19 @@ const { chapterId } = Astro.props;
     accent-color: var(--color-primary);
   }
 
+  small {
+    display: block;
+    margin: var(--space-2) 0 0 1.875rem;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  [data-completed="true"] {
+    border-style: solid;
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+  }
+
   @media print {
     .chapter-checklist {
       border-color: #888888;
@@ -44,6 +73,10 @@ const { chapterId } = Astro.props;
     }
 
     input {
+      display: none;
+    }
+
+    small {
       display: none;
     }
 

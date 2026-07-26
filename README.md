@@ -40,7 +40,7 @@ source/book02-v1.html
 
 在完成正式项目迁移之前，不应删除或覆盖该文件。
 
-工程迁移按五个里程碑推进。当前已完成 Milestone 3 的内容迁移范围：
+工程迁移按五个里程碑推进。当前已完成 Milestone 4：
 
 - Astro 静态站点骨架
 - TypeScript 严格模式和 MDX 内容集合
@@ -51,9 +51,13 @@ source/book02-v1.html
 - 浅层章节组件、仿真终端、仿真软件界面和代码复制
 - 完整整册打印路由与不依赖 JavaScript 的打印正文
 - 全部内容单元的逐章正文、命令与数量完整性检查
+- Pagefind 中文静态全文搜索
+- system / light / dark 三态主题选择与首屏初始化
+- 正文阅读进度、12 个编号章的本地完成状态
+- 复制反馈与手机目录键盘交互
 - CI、类型检查、Lint、单元测试、内容基线和内部链接检查
 
-搜索、阅读进度、完成状态持久化和手动主题切换留待 Milestone 4；完整浏览器用户路径验收留待 Milestone 5。
+完整浏览器用户路径和最终综合验收留待 Milestone 5。
 
 ------------------------------------------------------------------------
 
@@ -222,7 +226,7 @@ source/book02-v1.html
 
 ``` text
 第二册单文件 HTML 原型：已完成
-工程化项目：Milestone 3 已完成内容迁移
+工程化项目：Milestone 4 已完成基础交互
 设计系统：基础 Token 已提取
 内容迁移：开始之前、第 1—12 章、附录和资料来源已迁移
 整册打印：已完成
@@ -259,6 +263,20 @@ npm run check
 
 `npm run check:content` 和 `npm run check:links` 需要先完成 `npm run build`。
 `npm run check` 会按照正确顺序运行类型检查、Lint、测试、构建、内容完整性和内部链接检查。
+
+Pagefind 索引只在 production build 后生成。`npm run dev` 便于编辑正文，
+但不会生成 `/pagefind/` 索引，因此开发服务器中的搜索会显示明确提示。
+需要验证真实搜索时，请运行：
+
+``` bash
+npm run build
+npm run preview
+```
+
+搜索索引只收录带 `data-pagefind-body` 的独立内容页正文，整册打印页、404、
+站点导航和重复目录不会进入索引。主题与阅读状态只保存在浏览器本机；
+第二册完成率的定义与数据格式见
+`docs/interaction/book02-completion-rules.md`。
 
 部署到 GitHub Pages 项目子路径时，可通过 `.env` 中的 `BASE_PATH` 配置路径前缀；
 设置公开域名 `SITE_URL` 后才会生成 sitemap。参考 `.env.example`。

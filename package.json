@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "npm run build:site && npm run build:search",
+    "build:site": "astro build",
+    "build:search": "pagefind --site dist",
     "preview": "astro preview",
     "typecheck": "astro check",
     "lint": "eslint .",
@@ -32,6 +34,7 @@
     "eslint-plugin-astro": "^1.6.0",
     "globals": "^17.0.0",
     "node-html-parser": "^9.0.0",
+    "pagefind": "1.5.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
