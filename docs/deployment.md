@@ -39,7 +39,7 @@ BASE_PATH=/ai-infrastructure-books/
 ```
 
 `.github/workflows/pages.yml` 使用 GitHub Pages 官方 Actions 构建并发布 `dist/`。
-功能分支用于首次 RC 部署；合并后由 `main` 的后续推送持续发布。
+`main` 是唯一自动触发生产部署的分支；其他分支只运行 CI，不发布到正式站点。
 
 ## Cloudflare Pages 与 Vercel
 

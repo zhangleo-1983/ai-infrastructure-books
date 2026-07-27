@@ -43,8 +43,13 @@ FCP 0.9s、LCP 0.9s、TBT 0ms、CLS 0.017。第二册封面桌面四项均为 10
 项目子路径模拟。章节、Pagefind、print、favicon、robots、sitemap、深层 404、
 canonical 和本地完成状态路径独立性通过。未创建远程仓库、未推送、未正式发布。
 
+后续状态更新（2026-07-27）：第二册已经提交并标记
+`book02-v1.0.0-rc.1`，当前由 `main` 发布到公开 GitHub Pages。上述“未正式发布”
+保留为 Milestone 5 验收当时的历史状态。
+
 ## 已知问题
 
 1. Pagefind 对仅出现在仿真字段中的“私钥”无结果。
 2. Chromium PDF 不带 tagged PDF 语义。
-3. 正式域名、远程仓库与生产部署仍需项目 Owner 决定。
+3. 当前使用 GitHub Pages 项目子路径；自定义域名以及 Cloudflare Pages / Vercel
+   迁移已经明确暂缓。
