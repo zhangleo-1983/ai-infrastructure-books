@@ -29,6 +29,18 @@ npm run build
 将 `dist/` 作为 Pages artifact。不要把 `SITE_URL` 写成包含同一子路径的值，否则可能
 重复 base。正式启用工作流和发布仍需项目 Owner 明确授权。
 
+当前第一册 RC 已由项目 Owner 授权使用以下目标：
+
+```text
+Repository: https://github.com/zhangleo-1983/ai-infrastructure-books
+Site: https://zhangleo-1983.github.io/ai-infrastructure-books/
+SITE_URL=https://zhangleo-1983.github.io
+BASE_PATH=/ai-infrastructure-books/
+```
+
+`.github/workflows/pages.yml` 使用 GitHub Pages 官方 Actions 构建并发布 `dist/`。
+功能分支用于首次 RC 部署；合并后由 `main` 的后续推送持续发布。
+
 ## Cloudflare Pages 与 Vercel
 
 - Build command：`npm run build`
