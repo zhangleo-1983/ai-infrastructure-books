@@ -1,6 +1,6 @@
 # 内容编写指南
 
-校订日期：2026-07-26
+校订日期：2026-07-27
 
 ## 创建新章节
 
@@ -10,20 +10,14 @@
 
 ```yaml
 ---
-book: "02-overseas-network"
-order: 15
-slug: "stable-english-slug"
-title: "页面主标题"
-shortTitle: "目录短标题"
+book: "01-first-vps"
+order: 0
+slug: "start"
+title: "开始之前"
+shortTitle: "开始之前"
 description: "用于页头、搜索摘要和 SEO 的一句话说明。"
-chapterType: "chapter"
-updatedAt: "2026-07-26"
-sourceAnchor: "ch13"
-chapterNumber: 13
-duration: "预计 10 分钟"
-labels:
-  - "实操章节"
-completionId: "book02-chapter-13"
+chapterType: "introduction"
+updatedAt: "2026-07-27"
 draft: true
 ---
 ```
@@ -31,6 +25,10 @@ draft: true
 `chapterType` 可使用 `introduction`、`chapter`、`appendix`、`sources`。排序只看显式
 `order`；不要依赖文件名。`slug` 发布后应视为稳定标识，因为 URL 和本地完成状态都依赖
 它。技术命令、版本或外部事实复核后更新 `updatedAt`。
+
+正式章节可以增加 `chapterNumber`、`duration`、`labels` 和 `completionId`。
+`sourceAnchor` 只用于存在原型迁移锚点的书籍，不是所有新书的必填字段。章节 slug
+`print` 是保留值。
 
 ## 常用正文组件
 
@@ -70,17 +68,20 @@ draft: true
 
 ## 校订与完整性
 
-正文迁移或校订时同步更新 `docs/migration/book02-content-map.md`，记录原型位置、目标
-文件、组件、是否修改文字及原因。运行：
+存在原型的书籍在迁移或校订时同步更新该书迁移台账，记录原型位置、目标文件、组件、
+是否修改文字及原因。第二册使用 `docs/migration/book02-content-map.md`。运行：
 
 ```bash
 npm run build
+npm run check:content:series
 npm run check:content
 npm run check:links
 ```
 
-`check:content` 会对照原型数量、台账、15 个内容单元正文、命令和整册打印顺序。数量
-通过不能替代人工逐段复核。
+`check:content:series` 验证所有书籍的 frontmatter、slug、order 和安全边界。
+`check:content` 还会执行第一册的内容单元、区块、仿真界面、命令与安全边界检查，
+以及第二册原型数量、台账、15 个内容单元正文、命令和整册打印顺序。数量通过不能
+替代人工逐段复核。
 
 ## 禁止写入仓库
 

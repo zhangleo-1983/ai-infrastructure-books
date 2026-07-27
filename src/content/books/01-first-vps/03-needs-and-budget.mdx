@@ -1,0 +1,180 @@
+---
+book: "01-first-vps"
+order: 3
+slug: "03-needs-and-budget"
+title: "先写下用途和预算，再看套餐"
+shortTitle: "需求与预算"
+description: "把第二册需要的服务器条件写成一张可核对的需求卡，并分清套餐费用、充值金额和附加费用。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 3
+duration: "预计 10 分钟"
+labels:
+  - "需求卡"
+  - "预算"
+  - "无购买操作"
+completionId: "book01-chapter-03"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch3-why">
+  ## 为什么先写需求，再看价格
+
+  如果先打开价格表，人很容易被最低价格、限时折扣或更大的数字带着走。需求卡的作用，是在进入结算页前给自己一条清楚的停止线。
+
+  本书的目标不是买到“最强”的服务器，而是买到一台能完成第一册登录、并能进入第二册继续操作的服务器。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🎯</span>
+      <strong>明确任务</strong>
+      <small>第一册登录，第二册继续</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">📝</span>
+      <strong>写需求卡</strong>
+      <small>必需、可选、暂不购买</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💰</span>
+      <strong>设预算上限</strong>
+      <small>包含附加项和汇率余量</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔎</span>
+      <strong>对照套餐</strong>
+      <small>不满足就停止</small>
+    </div>
+  </FlowDiagram>
+</section>
+
+<section className="book-section" id="book01-ch3-requirement-card">
+  ## 把主线要求写成一张卡
+
+  <MockWindow title="我的第一台 VPS · 购买需求卡">
+    <div slot="toolbar"><MockStatusBadge>主线已确认</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="用途" wide>完成首次 SSH 登录，并进入第二册安装 3X-UI / Xray</MockField>
+      <MockField label="产品">Cloud Compute · Shared CPU</MockField>
+      <MockField label="最低计算">1 vCPU</MockField>
+      <MockField label="最低内存">1 GB RAM</MockField>
+      <MockField label="最低系统盘">25 GB</MockField>
+      <MockField label="最低传输额度">1 TB / 计费周期</MockField>
+      <MockField label="公网地址">独立公网 IPv4 · 必需</MockField>
+      <MockField label="系统">Ubuntu 24.04 LTS</MockField>
+      <MockField label="架构">x86_64 / amd64</MockField>
+      <MockField label="地区">东京；洛杉矶备选</MockField>
+      <MockField label="管理员">root 或可 sudo 用户</MockField>
+      <MockField label="认证" wide>SSH 密钥优先；服务器密码路径也必须可用并安全保存</MockField>
+    </div>
+  </MockWindow>
+
+  这张卡不是某一家服务商的促销套餐。它描述的是你必须得到的结果。服务商换了套餐名称，只要这些条件仍然满足，你就能继续判断。
+
+  <Callout type="warning" title="任何一个必需条件不清楚，都先不要付款">
+    尤其是公网 IPv4、持续价格、系统架构和管理员凭证。页面没有写，不代表默认包含；先查官方说明或联系服务商支持。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch3-three-lists">
+  ## 分成“必须有、可以有、现在不要”
+
+  <ComparisonTable>
+
+  | 类别 | 内容 | 处理方式 |
+  | --- | --- | --- |
+  | 必须有 | 主线配置、Ubuntu 24.04 LTS、amd64、独立公网 IPv4、管理员凭证 | 缺一项就停止下单 |
+  | 可以有 | IPv6、按量计费提醒、多因素认证、服务商状态通知 | 不影响主线，可按需要启用 |
+  | 现在不要 | GPU、Dedicated CPU、裸金属、额外块存储、预装应用镜像 | 没有明确用途就不购买 |
+  | 以后再决定 | 自动备份、快照、更多服务器、域名 | 配置稳定并理解费用后再评估 |
+
+  </ComparisonTable>
+
+  第一版暂不在创建实例时启用自动备份，不是因为备份不重要，而是为了让结算页保持可解释。进入长期使用前，你仍需要选择并验证备份方案。
+
+  <Callout type="info" title="关闭自动备份不等于不需要备份">
+    服务器配置、账号和业务数据一旦重要，就应建立备份。第一版只把它从首次购买路径中移出，避免零基础读者在不知道恢复方法时先增加持续费用。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch3-budget">
+  ## 月度预算不只是套餐卡上的一个数字
+
+  购买前至少要看四部分：
+
+  <ComparisonTable>
+
+  | 费用部分 | 可能包含什么 | 你要怎么核对 |
+  | --- | --- | --- |
+  | 实例费用 | vCPU、内存、系统盘和基础传输额度 | 找到小时价、月度上限或计费说明 |
+  | 附加资源 | 自动备份、快照、块存储、额外 IP | 在结算页逐项检查是否开启 |
+  | 超额费用 | 超出流量、额外快照或其他用量 | 找到官方当前计价规则 |
+  | 支付差异 | 汇率、银行卡费用、税费或账户充值 | 以支付页和账单为准，保留余量 |
+
+  </ComparisonTable>
+
+  “向账户充值了多少钱”和“这台服务器每月多少钱”不是同一个概念：
+
+  - 充值金额可能先进入账户余额；
+  - 实例费用可能按小时累积，达到月度上限后不再增加，也可能使用其他规则；
+  - 余额可能同时支付实例、备份、快照和超额流量；
+  - 停止实例不一定停止计费；Vultr 当前规则中，Stopped 实例仍会保留资源并继续计费。
+
+  <Callout type="danger" title="不要用充值金额推断月费">
+    支付页面要求的预授权或充值，只能说明账户资金变化。真正的持续费用要看实例套餐、附加资源和账单明细。正式价格会在下单章按当日页面校订，本章不写一个容易过期的固定金额。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch3-limit">
+  ## 给预算设置三条线
+
+  在密码管理器或纸面笔记中写下：
+
+  1. **目标月费**：你希望基础实例控制在什么范围；
+  2. **可接受上限**：加入汇率波动和必要费用后，最多可以承担多少；
+  3. **停止条件**：超过上限、看不懂费用或出现不认识的附加项时，不付款。
+
+  不要把促销期价格当成永久价格，也不要依赖来源不明的优惠码或返利链接。本书不使用推广链接，也不会根据佣金推荐服务商。
+
+  成功状态：
+
+  - 你已经写下人民币预算上限；
+  - 你知道服务商通常按美元或其他币种展示费用时，需要为汇率留余量；
+  - 你能指出哪些项目是持续费用，哪些只是账户资金操作；
+  - 结算页没有你无法解释的附加项。
+
+  失败判断：
+
+  - 只记住了首页最低价格，却没有看持续计费规则；
+  - 把一次充值金额当成每月费用；
+  - 为了赶促销而忽略公网 IPv4 或系统要求；
+  - 结算页总价超过你的停止线，你仍准备继续。
+</section>
+
+<section className="book-section" id="book01-ch3-check">
+  ## 带着这张卡进入下一章
+
+  下一章会比较 Vultr、AWS Lightsail 和阿里云中国站 ECS。比较时只问：它们是否能清楚地满足你的需求卡，以及你是否能理解其账户、支付和计费路径。
+
+  <ChapterChecklist chapterId="book01-chapter-03">
+    我已经写下主线配置、公网 IPv4 和管理员凭证要求，也写下了人民币预算上限与停止条件，并能区分实例费用、附加费用和账户充值。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch3-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/support/platform/billing" target="_blank" rel="noopener noreferrer">Vultr Billing 文档</a>：核对账单、支付与用量说明入口；
+  - <a href="https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr" target="_blank" rel="noopener noreferrer">Vultr 停止实例计费说明</a>：核对停止实例后仍计费；
+  - <a href="https://docs.vultr.com/support/platform/billing/how-much-does-it-cost-to-enable-automatic-backups" target="_blank" rel="noopener noreferrer">Vultr 自动备份费用说明</a>：核对自动备份属于额外持续费用。
+
+  以上事实校订于 2026-07-27。价格、税费、汇率、支付方式和附加资源费用属于时效性信息，正式下单时必须重新核对。
+</section>

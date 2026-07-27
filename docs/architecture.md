@@ -1,6 +1,6 @@
 # 工程架构
 
-校订日期：2026-07-26
+校订日期：2026-07-27
 
 ## 技术边界
 
@@ -33,14 +33,17 @@ HTML，不依赖客户端 JavaScript 才能阅读。
 
 ## 路由
 
-稳定 URL 由书号、英文书名和章节序号组成：
+稳定 URL 由书籍注册表的 `slug` 和章节 frontmatter 的 `slug` 组成：
 
 ```text
-/books/02-overseas-network/
-/books/02-overseas-network/start/
-/books/02-overseas-network/01-after-vps/
-/books/02-overseas-network/02-login-server/
+/books/[book]/
+/books/[book]/[chapter]/
+/books/[book]/print/
 ```
+
+`src/data/books.ts` 保存书籍级配置，章节标题、顺序和 slug 仍只保存在 MDX。
+只有可阅读且具有内容的书籍生成静态页面，计划书籍不生成空白入口。第二册现有 URL
+保持不变。
 
 `BASE_PATH` 用于 GitHub Pages 子路径部署；业务组件不得自行拼接部署前缀。
 
@@ -67,10 +70,14 @@ Pagefind 只索引章节页中带 `data-pagefind-body` 的正文。打印页、4
 sitemap 声明和 sitemap 文件。`BASE_PATH` 负责 GitHub Pages 项目子路径，所有站内链接
 必须经过 `sitePath()`，客户端状态只使用书号与章节 slug，不依赖部署路径。
 
-章节输出 `TechArticle` 或 `Article` JSON-LD，第二册封面输出 `Book` JSON-LD。整册打印页
+章节输出 `TechArticle` 或 `Article` JSON-LD，书籍封面输出 `Book` JSON-LD。整册打印页
 使用 `noindex,follow`，避免与章节页形成重复索引。
 
 ## 当前状态
 
-Milestone 1—5 已完成；当前工程已经覆盖跨浏览器、打印 PDF、可访问性、性能、部署模拟
-和发布文档。第二册正文仍以 `source/book02-v1.html` 为内容与视觉参考基线。
+Milestone 1—5 已完成；系列级注册表、通用封面、章节、完成率和打印路由已经建立。
+第一册与第二册均已接入公开 Release Candidate。第二册继续作为跨浏览器、打印 PDF、
+可访问性和原型正文的严格回归基线；第一册采用无原型内容基线、教学仿真与时效性事实
+台账。
+
+更完整的多册边界见 `docs/series-architecture.md`。

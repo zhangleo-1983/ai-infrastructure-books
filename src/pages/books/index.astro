@@ -1,6 +1,11 @@
 ---
-import { books } from "../../data/books";
+import {
+  books,
+  bookStatusLabel,
+  isReadableBook,
+} from "../../data/books";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { bookHref } from "../../lib/book-content";
 import { sitePath } from "../../lib/site-path";
 ---
 
@@ -11,7 +16,10 @@ import { sitePath } from "../../lib/site-path";
   <header class="page-heading">
     <p class="eyebrow">Books</p>
     <h1>全部书目</h1>
-    <p class="lede">当前只实施第二册，其他书目仅展示系列规划，不包含正文。</p>
+    <p class="lede">
+      第一册与第二册已开放 Release Candidate 阅读；其他书目只展示系列规划，
+      不创建空白正文页面。
+    </p>
   </header>
 
   <ol class="book-list">
@@ -23,8 +31,8 @@ import { sitePath } from "../../lib/site-path";
           </span>
           <div>
             <h2>
-              {book.status === "current" ? (
-                <a href={sitePath(`/books/${book.slug}/`)}>{book.title}</a>
+              {isReadableBook(book) ? (
+                <a href={sitePath(bookHref(book))}>{book.title}</a>
               ) : (
                 book.title
               )}
@@ -32,7 +40,7 @@ import { sitePath } from "../../lib/site-path";
             <p>{book.description}</p>
           </div>
           <span class="status-label" data-status={book.status}>
-            {book.status === "current" ? "当前维护" : "计划中"}
+            {bookStatusLabel(book.status)}
           </span>
         </li>
       ))

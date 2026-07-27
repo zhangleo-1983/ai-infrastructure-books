@@ -6,6 +6,7 @@ interface Props {
 const { title } = Astro.props;
 const hasSidebar = Astro.slots.has("sidebar");
 const hasToolbar = Astro.slots.has("toolbar");
+const showSimulationLabel = !title.includes("仿真");
 ---
 
 <figure class="mock-window" aria-label={`仿真界面：${title}`}>
@@ -14,6 +15,13 @@ const hasToolbar = Astro.slots.has("toolbar");
       <i></i><i></i><i></i>
     </span>
     <strong>{title}</strong>
+    {
+      showSimulationLabel && (
+        <span class="mock-window__simulation" data-parity-ignore>
+          教学仿真
+        </span>
+      )
+    }
     {hasToolbar && <slot name="toolbar" />}
   </figcaption>
   <div class:list={["mock-window__body", { "mock-window__body--with-sidebar": hasSidebar }]}>
@@ -45,6 +53,16 @@ const hasToolbar = Astro.slots.has("toolbar");
 
   figcaption > :last-child {
     margin-left: auto;
+  }
+
+  .mock-window__simulation {
+    border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+    border-radius: var(--radius-pill);
+    color: var(--color-text-muted);
+    padding: 0.15rem var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: 680;
+    white-space: nowrap;
   }
 
   .mock-window__dots {
@@ -169,6 +187,11 @@ const hasToolbar = Astro.slots.has("toolbar");
 
     .mock-window__dots {
       display: none;
+    }
+
+    .mock-window__simulation {
+      border-color: #999999;
+      color: #333333;
     }
 
     .mock-window__body--with-sidebar {

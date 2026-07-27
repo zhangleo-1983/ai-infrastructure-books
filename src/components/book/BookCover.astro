@@ -1,7 +1,14 @@
 ---
+import type { BookDefinition } from "../../data/books";
+import { seriesTitle } from "../../data/books";
+import {
+  bookHref,
+  printHref as getPrintHref,
+} from "../../lib/book-content";
 import { sitePath } from "../../lib/site-path";
 
 interface Props {
+  book: BookDefinition;
   updatedAt: string;
   startHref?: string;
   printHref?: string;
@@ -10,9 +17,10 @@ interface Props {
 }
 
 const {
+  book,
   updatedAt,
-  startHref = "/books/02-overseas-network/start/",
-  printHref = "/books/02-overseas-network/print/",
+  startHref = bookHref(book),
+  printHref = getPrintHref(book),
   showDetails = true,
   showActions = true,
 } = Astro.props;
@@ -22,26 +30,29 @@ const formattedUpdatedAt = new Intl.DateTimeFormat("zh-CN", {
   day: "numeric",
   timeZone: "Asia/Shanghai",
 }).format(new Date(`${updatedAt}T00:00:00+08:00`));
-const route = [
-  "Ubuntu",
-  "SSH",
-  "3X-UI",
-  "VLESS Reality",
-  "Clash / Shadowrocket",
-];
+const numberLabel = String(book.number).padStart(2, "0");
 ---
 
-<header class="book-cover" id="cover">
+<header class="book-cover" id="cover" data-book-cover data-book-id={book.id}>
   <div class="book-cover__primary" data-prototype-cover>
-    <p class="book-cover__kicker">AI 基础设施从零开始 · 第 02 册</p>
-    <h1>拥有自己的<br />海外网络</h1>
-    <p class="book-cover__subtitle">从 VPS 到 Clash，只需要 30 分钟</p>
+    <p class="book-cover__kicker">{seriesTitle} · 第 {numberLabel} 册</p>
+    <h1>
+      {
+        book.cover.titleLines.map((line, index) => (
+          <>
+            {line}
+            {index < book.cover.titleLines.length - 1 && <br />}
+          </>
+        ))
+      }
+    </h1>
+    <p class="book-cover__subtitle">{book.subtitle}</p>
     <ol class="book-cover__route" aria-label="本册学习路径">
       {
-        route.map((item, index) => (
+        book.cover.learningPath.map((item, index) => (
           <li>
             <span>{item}</span>
-            {index < route.length - 1 && (
+            {index < book.cover.learningPath.length - 1 && (
               <b aria-hidden="true" data-parity-ignore>→</b>
             )}
           </li>
@@ -56,17 +67,17 @@ const route = [
         <div>
           <span aria-hidden="true">👤</span>
           <h2>适合谁阅读</h2>
-          <p>已经购买 VPS，但不知道下一步该做什么的零基础用户。</p>
+          <p>{book.cover.audience}</p>
         </div>
         <div>
           <span aria-hidden="true">🎯</span>
           <h2>完成后能获得什么</h2>
-          <p>电脑和手机可以通过自己管理的节点建立网络连接。</p>
+          <p>{book.cover.outcome}</p>
         </div>
         <div>
           <span aria-hidden="true">☑</span>
           <h2>阅读前准备</h2>
-          <p>Ubuntu VPS 的 IP、用户名和密码，以及 Windows 或 Mac 电脑。</p>
+          <p>{book.cover.prerequisites}</p>
         </div>
       </div>
     )
@@ -78,7 +89,11 @@ const route = [
       内容校订日期：{formattedUpdatedAt}
     </p>
     {showActions && (
-      <nav class="book-cover__actions" aria-label="第二册阅读入口" data-print-hidden>
+      <nav
+        class="book-cover__actions"
+        aria-label={`${book.cover.navigationLabel}阅读入口`}
+        data-print-hidden
+      >
         <a class="book-cover__start" href={sitePath(startHref)}>
           开始阅读 <span aria-hidden="true">→</span>
         </a>
@@ -87,7 +102,7 @@ const route = [
         </a>
       </nav>
     )}
-    <span class="book-cover__number" aria-hidden="true">02</span>
+    <span class="book-cover__number" aria-hidden="true">{numberLabel}</span>
   </div>
 </header>
 

@@ -1,5 +1,10 @@
 <figure class="flow-diagram" aria-label="流程图">
-  <div class="flow-diagram__track"><slot /></div>
+  <div
+    class="flow-diagram__track"
+    tabindex="0"
+    role="region"
+    aria-label="流程图内容，可横向滚动"
+  ><slot /></div>
 </figure>
 
 <style>

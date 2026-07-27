@@ -1,6 +1,6 @@
 # 交互状态与本地数据
 
-校订日期：2026-07-26
+校订日期：2026-07-27
 
 ## localStorage
 
@@ -19,6 +19,9 @@ localStorage.removeItem("ai-infrastructure-books:reading-state:v1");
 
 完成率只计算第二册第 1—12 章；“开始之前”、附录和资料来源不计入。完整规则见
 `docs/interaction/book02-completion-rules.md`。
+
+系列级完成率由 `src/data/books.ts` 中每本书的 completion rules 决定。第二册规则未
+改变，稳定书籍 id 仍为 `02-overseas-network`，因此已有 localStorage 数据继续有效。
 
 ## 渐进增强
 

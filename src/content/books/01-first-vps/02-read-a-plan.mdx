@@ -1,0 +1,276 @@
+---
+book: "01-first-vps"
+order: 2
+slug: "02-read-a-plan"
+title: "套餐页上的 CPU、内存、带宽和流量是什么意思？"
+shortTitle: "读懂套餐"
+description: "分清 vCPU、内存、磁盘、带宽、流量和公网 IPv4，学会在付款前读懂一张 VPS 套餐卡。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 2
+duration: "预计 12 分钟"
+labels:
+  - "套餐字段"
+  - "公网 IPv4"
+  - "无购买操作"
+completionId: "book01-chapter-02"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import ConceptList from "../../../components/book/ConceptList.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch2-goal">
+  ## 这一章先不付款
+
+  套餐页上的数字很多。第一次购买时，人很容易只看最低价格，或者认为数字越大就一定越合适。
+
+  这一章的目标不是背下所有单位，而是学会从套餐卡中找出五类信息：
+
+  1. 服务器有多少计算资源；
+  2. 程序运行时可以使用多少内存；
+  3. 系统和文件有多少存储空间；
+  4. 网络一次能传多快、一个计费周期能传多少；
+  5. 套餐是否提供第二册必需的独立公网 IPv4。
+
+  <Callout type="info" title="页面名称会变化，字段关系更稳定">
+    服务商可能调整版式、套餐名称和价格。本章使用的是教学仿真界面，不是 Vultr 当前版本的像素级截图，也不代表当前报价。你要学会认字段，而不是记按钮位置。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch2-plan-card">
+  ## 先看一张教学套餐卡
+
+  <MockWindow title="Cloud Compute · 教学套餐">
+    <div slot="toolbar"><MockStatusBadge tone="neutral">教学示例</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="CPU 类型">Shared CPU</MockField>
+      <MockField label="计算">1 vCPU</MockField>
+      <MockField label="内存">1 GB RAM</MockField>
+      <MockField label="系统盘">25 GB SSD</MockField>
+      <MockField label="网络速率">最高 1 Gbps</MockField>
+      <MockField label="传输额度">1 TB / 计费周期</MockField>
+      <MockField label="公网地址"><MockStatusBadge>包含 IPv4</MockStatusBadge></MockField>
+      <MockField label="地区">Tokyo</MockField>
+      <MockField label="系统" wide>Ubuntu 24.04 LTS · x86_64 / amd64</MockField>
+    </div>
+  </MockWindow>
+
+  <ComparisonTable>
+
+  | 字段 | 回答的问题 | 第一版主线怎么选 |
+  | --- | --- | --- |
+  | vCPU | 服务器能做多少计算 | 不少于 1 vCPU |
+  | RAM / Memory | 程序运行时有多大的“工作台” | 不少于 1 GB |
+  | Storage / Disk | 系统、软件和文件能放多少 | 不少于 25 GB |
+  | Bandwidth | 网络连接标称能传多快 | 不把标称值当成实测保证 |
+  | Transfer | 一个计费周期包含多少数据传输量 | 不少于 1 TB，并核对超额规则 |
+  | Public IPv4 | 能否从公网用一个独立 IPv4 找到服务器 | 必须明确包含或分配 |
+  | Location | 服务器放在哪个机房地区 | 主线东京，洛杉矶备选 |
+  | OS / Architecture | 安装什么系统和处理器架构 | Ubuntu 24.04 LTS、amd64 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book01-ch2-compute">
+  ## vCPU：服务器用来“算”的部分
+
+  CPU 是 Central Processing Unit 的缩写，中文叫中央处理器。它负责执行程序指令。套餐页里的 vCPU 是 virtual CPU，也就是分配给虚拟服务器的处理器资源。
+
+  本书主线选择 Shared CPU，也就是共享 CPU。服务商会把一台物理服务器的计算能力分给多台 VPS。
+
+  <ConceptList>
+    <section>
+      ### 1 vCPU 能做什么
+
+      运行 Ubuntu、SSH，以及第一、二册需要的轻量服务。它是本书的配置下限。
+    </section>
+    <section>
+      ### 1 vCPU 不代表什么
+
+      它不代表独占一颗完整物理核心，也不适合视频编码、大模型推理或高并发数据库。
+    </section>
+    <section>
+      ### Shared CPU 是什么
+
+      计算资源可能与同一物理服务器上的其他实例共享，因此短时性能可能有波动。
+    </section>
+    <section>
+      ### 哪些产品先不要选
+
+      GPU、Dedicated CPU、CPU Optimized 和 Bare Metal 都不在本书的 15 分钟主线内。
+    </section>
+  </ConceptList>
+
+  成功状态：
+
+  - 你选择的是 Cloud Compute 一类的普通虚拟机；
+  - 配置明确写着 1 vCPU 或更多；
+  - 你没有因为“性能更高”误选价格明显更高的专用产品。
+
+  失败判断：
+
+  - 页面只写宣传语，看不到实际 vCPU 数量；
+  - 你选中了 GPU、专用 CPU 或裸金属服务器；
+  - 你无法说明为什么需要比 1 vCPU 更多的计算资源。
+</section>
+
+<section className="book-section" id="book01-ch2-memory-storage">
+  ## 内存和磁盘：工作台与储物柜
+
+  内存通常写作 RAM 或 Memory。它保存操作系统和程序当前正在使用的数据。磁盘通常写作 Storage、Disk、SSD 或 NVMe，用来长期保存 Ubuntu、软件、日志和配置文件。
+
+  可以把磁盘想成储物柜，把内存想成工作台：
+
+  - 储物柜越大，能长期保存的文件越多；
+  - 工作台越大，能同时展开处理的内容越多；
+  - 普通内存里的临时内容不会像磁盘文件一样在关机后长期保存。
+
+  Ubuntu、SSH、3X-UI 和 Xray 都会使用内存。内存不足时，程序可能被系统终止，安装过程也可能异常变慢。第一版选择不低于 1 GB RAM；512 MB 套餐即使更便宜，也不进入主线。
+
+  系统盘选择不低于 25 GB。SSD 和 NVMe 都属于固态存储相关名称。NVMe 通常代表更高速的存储接口，但对本书的轻量任务而言，容量和可维护性比追逐最高跑分更重要。
+
+  <Callout type="warning" title="不要假设磁盘以后一定能缩小">
+    云服务通常可以升级磁盘，但不一定允许直接缩小。自动备份、快照和额外块存储也不是系统盘容量本身；没有明确用途时，不要在结算页顺手添加。
+  </Callout>
+
+  成功状态：
+
+  - 套餐明确写着至少 1 GB RAM 和 25 GB 系统盘；
+  - 你能区分内存与磁盘；
+  - 你没有额外购买不知道用途的块存储。
+
+  失败判断：
+
+  - 套餐只有 512 MB 内存；
+  - 页面只写“高速 SSD”，却没有标明容量；
+  - 你把快照或自动备份当成系统盘本身。
+</section>
+
+<section className="book-section" id="book01-ch2-network">
+  ## 带宽和流量：一个是速度，一个是总量
+
+  这是套餐页最容易混淆的一组词。
+
+  带宽通常写作 Bandwidth，并使用 Mbps 或 Gbps 作为单位。它描述网络连接在理想条件下单位时间能传输多少数据。这里的小写 `b` 是 bit，也就是“比特”。
+
+  ```text
+  8 bit = 1 byte
+  ```
+
+  因此，1 Gbps 的理论换算上限约为 125 MB/s。但真实速度还会受到共享资源、网络路径、距离、拥塞、对端速度和协议开销影响。看到 1 Gbps，不应该理解成“任何时候下载都能达到 125 MB/s”。
+
+  流量额度常写作 Transfer，并使用 GB 或 TB 作为单位。它描述一个计费周期内包含的数据传输总量。
+
+  - 1 Gbps 回答“这条路标称能跑多快”；
+  - 1 TB 回答“这个计费周期套餐包含多少传输量”。
+
+  不同服务商对入站、出站和超额流量的计算方式并不完全相同。购买前要在当前服务商的 Billing 或 Bandwidth Usage 说明中确认：
+
+  - 套餐包含多少流量；
+  - 计费周期如何计算；
+  - 哪个方向的流量计入；
+  - 超额后是收费、限速还是暂停；
+  - 当前超额价格是多少。
+
+  成功状态：
+
+  - 你能指出网络速率的单位是 Mbps 或 Gbps；
+  - 你能指出传输额度的单位是 GB 或 TB；
+  - 你不会用一次测速结果推断整个月的网络质量。
+
+  失败判断：
+
+  - 把 1 Gbps 当成 1 GB 月流量；
+  - 页面没有说明超额处理方式，你却直接付款；
+  - 因为写着 High Performance 就认为网络永远不会拥塞。
+</section>
+
+<section className="book-section" id="book01-ch2-ipv4">
+  ## 公网 IPv4：第二册必须拿到的地址
+
+  IP 地址用于在网络中找到设备。第一版强制要求一个独立公网 IPv4。开通后，它应当出现在实例详情页，形式类似：
+
+  ```text
+  203.0.113.10
+  ```
+
+  `203.0.113.10` 属于文档示例地址，不是真实服务器，不能照抄。
+
+  “服务器有网络”不等于它拥有独立公网 IPv4。套餐可能只提供 IPv6、NAT 后的共享 IPv4、私网地址，或者要求额外付费分配公网地址。
+
+  你要检查两次：
+
+  1. 下单前，套餐或结算页明确包含或分配公网 IPv4；
+  2. 开通后，实例详情页确实显示一个可复制的公网 IPv4。
+
+  <Callout type="danger" title="以下方案不进入第一版主线">
+    IPv6-only、NAT VPS、共享 IPv4 和只有 VPC 私网地址的实例，都可能让服务器以某种方式联网，但会改变 SSH 与第二册的操作路径。本书不使用这些方案。
+  </Callout>
+
+  成功状态：
+
+  - 购买页明确说明公网 IPv4；
+  - 实例创建后得到一个可复制的 IPv4；
+  - 它不是 `10.x.x.x`、`172.16.x.x`—`172.31.x.x` 或 `192.168.x.x` 这类常见私网地址。
+
+  失败判断：
+
+  - 页面只写 IPv6；
+  - 需要端口映射才能从公网连接；
+  - 只看到 VPC 私网地址；
+  - 公网 IPv4 是额外收费项，但没有进入预算。
+</section>
+
+<section className="book-section" id="book01-ch2-platform">
+  ## 地区、系统和架构也属于套餐选择
+
+  资源数字正确，不代表整台服务器已经选对。
+
+  <ComparisonTable>
+
+  | 项目 | 主线要求 | 为什么 |
+  | --- | --- | --- |
+  | 地区 | 东京演示，洛杉矶备选 | 形成统一操作路径，不承诺网络效果 |
+  | 系统 | Ubuntu 24.04 LTS | 与第二册现有命令和验收环境一致 |
+  | 架构 | x86_64 / amd64 | 减少安装包和命令分支 |
+  | 镜像类型 | 纯操作系统 | 不预装 WordPress、Docker 或第三方面板 |
+
+  </ComparisonTable>
+
+  Ubuntu 24.04 LTS 仍处于标准安全维护期，而且第二册已经使用该版本完成回归，所以第一版先保持一致。3X-UI 官方项目也支持 arm64；这里选择 amd64 不是因为 arm64 一定不能用，而是为了让零基础主线只保留一个已经核对的架构。
+</section>
+
+<section className="book-section" id="book01-ch2-check">
+  ## 用 60 秒检查一张套餐卡
+
+  打开真实购买页面后，按这个顺序读，不要先点击 Deploy：
+
+  1. 找到产品类型，确认是普通 Shared CPU 云服务器；
+  2. 找到 vCPU、RAM 和系统盘；
+  3. 找到带宽速率和传输额度；
+  4. 找到公网 IPv4 是否包含；
+  5. 找到地区、Ubuntu 版本和 CPU 架构；
+  6. 找到持续价格和可能的附加项；
+  7. 把看不懂或没写清的字段记录下来，不凭猜测继续。
+
+  <ChapterChecklist chapterId="book01-chapter-02">
+    我能区分 vCPU、内存、磁盘、带宽和流量，也能确认套餐不少于 1 vCPU、1 GB RAM、25 GB 系统盘，并且提供独立公网 IPv4。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch2-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Vultr Cloud Compute 部署文档</a>：核对 Shared CPU、地区、套餐和操作系统选择流程；
+  - <a href="https://ubuntu.com/about/release-cycle" target="_blank" rel="noopener noreferrer">Ubuntu 发布周期</a>：核对 Ubuntu 24.04 LTS 的支持状态；
+  - <a href="https://github.com/MHSanaei/3x-ui" target="_blank" rel="noopener noreferrer">3X-UI 官方仓库</a>：核对 Ubuntu、amd64 与 arm64 支持；
+  - <a href="https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html" target="_blank" rel="noopener noreferrer">Amazon Lightsail 实例套餐说明</a>：交叉核对 vCPU、RAM、存储、传输额度和公网 IP 的字段关系。
+
+  以上事实校订于 2026-07-27。实际套餐、流量规则、公网 IPv4 费用和价格必须在发布前以服务商当前页面为准。
+</section>

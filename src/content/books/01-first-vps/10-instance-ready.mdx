@@ -1,0 +1,219 @@
+---
+book: "01-first-vps"
+order: 10
+slug: "10-instance-ready"
+title: "支付后怎样确认服务器真的开通了？"
+shortTitle: "确认服务器开通"
+description: "从 Vultr 控制台确认实例状态、公网 IPv4、地区、系统、架构、管理员用户名和认证凭证全部就绪。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 10
+duration: "预计 10 分钟"
+labels:
+  - "实例状态"
+  - "公网 IPv4"
+  - "凭证核对"
+completionId: "book01-chapter-10"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch10-source">
+  ## 以控制台为准，不以邮件为准
+
+  点击 Deploy 后，服务商需要分配资源、安装 Ubuntu、配置网络并写入凭证。付款成功只说明资金步骤完成，不代表服务器已经可以登录。
+
+  主要判断来源是：
+
+  1. Vultr 控制台中的实例列表；
+  2. 目标实例的 Overview 或详情页；
+  3. Billing History 中对应的一条实例记录。
+
+  邮件只作为状态提醒。Vultr 当前官方说明不会通过普通邮件发送 root 密码，密码需要在已登录的实例详情页查看。
+
+  <Callout type="warning" title="不要把实例详情页截图发给他人">
+    详情页可能同时显示公网 IP、实例 ID、登录用户名和密码入口。需要求助时只抄写非敏感状态文字，不要发送完整页面、密码、SSH 私钥或 2FA 信息。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch10-status">
+  ## 先判断实例处于什么状态
+
+  控制台用词可能随版本调整，但可以按含义分成以下几类：
+
+  <ComparisonTable>
+
+  | 状态含义 | 页面可能出现的文字 | 现在怎么做 |
+  | --- | --- | --- |
+  | 正在创建 | Pending、Installing、Provisioning | 等待，不重复 Deploy |
+  | 正常运行 | Running、Active | 继续核对详情 |
+  | 创建失败 | Failed、Error | 记录错误和时间，进入第 11 章 |
+  | 已停止 | Stopped | 不适合首次登录；仍可能继续计费 |
+  | 账户或实例受限 | Suspended、Locked、Review | 检查账户和账单通知，联系官方支持 |
+  | 正在重装或恢复 | Reinstalling、Restoring | 等操作完成，不使用旧凭证反复登录 |
+
+  </ComparisonTable>
+
+  创建通常需要一定时间。页面尚在自动刷新、状态仍在变化时，不要再建第二台服务器。
+
+  成功状态：实例列表中只有一台目标实例，状态最终变为 Running。
+
+  失败判断：长时间没有变化；出现 Failed 或 Suspended；实例数量多于一台；Billing History 出现无法解释的重复资源。
+</section>
+
+<section className="book-section" id="book01-ch10-overview">
+  ## 打开实例 Overview，逐项对照交付物
+
+  <MockWindow title="Cloud Compute Instance · Overview（教学仿真）">
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item mock-sidebar__item--active">Overview</span>
+      <span className="mock-sidebar__item">Settings</span>
+      <span className="mock-sidebar__item">Usage</span>
+      <span className="mock-sidebar__item">IPv4</span>
+      <span className="mock-sidebar__item">Firewall</span>
+    </MockSidebar>
+    <div className="mock-form-grid">
+      <MockField label="Status"><MockStatusBadge>Running</MockStatusBadge></MockField>
+      <MockField label="Label">book01-tokyo</MockField>
+      <MockField label="Main IP">203.0.113.10 · 文档示例</MockField>
+      <MockField label="Location">Tokyo</MockField>
+      <MockField label="Operating System">Ubuntu 24.04 LTS x64</MockField>
+      <MockField label="Architecture">amd64 / x86_64</MockField>
+      <MockField label="Username">root</MockField>
+      <MockField label="Authentication">SSH Key 或 View Root Password</MockField>
+      <MockField label="Firewall">book01-ssh · TCP 22</MockField>
+      <MockField label="Billing">Shared CPU 套餐 · 当前币种与价格已记录</MockField>
+    </div>
+  </MockWindow>
+
+  `203.0.113.10` 是文档保留地址，不能用于登录。你的真实地址必须从自己实例的 Overview 复制。
+
+  <InstructionStep number={1} title="确认状态和实例数量">
+    状态必须为 Running，实例列表里只有你刚刚创建的一台主线服务器。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="复制真实公网 IPv4">
+    找到 Main IP、Public IPv4 或同义字段，复制到交接卡。不要把 IPv6、VPC 私网地址或教程示例当成主线地址。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="核对地区、系统和架构">
+    地区应是东京或你记录的备选；系统应是 Ubuntu 24.04 LTS；架构应是 x64、x86_64 或 amd64。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="核对管理员和认证方式">
+    主线用户名是 root。SSH Key 路径要能对应第 7 章的公钥标签；密码路径要能从官方控制台查看随机生成的服务器密码。
+  </InstructionStep>
+
+  <InstructionStep number={5} title="核对防火墙">
+    实例应绑定 `book01-ssh`，并允许你当前网络通过 TCP 22 连接。
+  </InstructionStep>
+</section>
+
+<section className="book-section" id="book01-ch10-ip">
+  ## “独立公网 IPv4”在这里怎样判断
+
+  本书所说的独立公网 IPv4，是指这台实例具有一个不需要 NAT 端口映射、可以直接用于 SSH 的公网 IPv4。它不表示你永久拥有该地址，也不等同于 Vultr 的 Reserved IP 产品。
+
+  Vultr 当前官方说明，普通 Compute 实例部署后会获得一个来自地址池的公网 IP，它会在实例存在期间保持关联；实例删除后，地址会释放并可能分配给其他用户。
+
+  成功状态：
+
+  - Overview 显示一个点分十进制 IPv4；
+  - 创建配置是 Public IP，而不是 VPC-only 或 NAT；
+  - 地址不属于 `10.x.x.x`、`172.16.x.x`—`172.31.x.x` 或 `192.168.x.x` 私网范围；
+  - TCP 22 防火墙规则面向这个实例生效。
+
+  失败判断：
+
+  - 只有 IPv6；
+  - 只看到 Private IP；
+  - 需要通过 NAT Gateway 或端口映射才能访问；
+  - 地址字段仍在 Pending；
+  - 页面没有任何公网地址，却准备直接进入 SSH。
+</section>
+
+<section className="book-section" id="book01-ch10-credentials">
+  ## 确认凭证没有缺失
+
+  ### SSH Key 路径
+
+  核对创建时选中的公钥名称，并确认本机仍保留与它匹配的私钥。控制台保存的是公钥，不会替你保存或下载私钥。
+
+  成功状态：你知道私钥文件位置和密钥口令，并能说出控制台中的公钥标签。
+
+  失败判断：只看到公钥，却找不到本地私钥；创建时选中了另一台电脑的密钥；准备用“重新安装 SSH Keys”碰运气。
+
+  ### 密码路径
+
+  在已登录的实例 Overview 中使用 View Root Password 或当前等价入口查看随机生成的服务器密码，直接保存到密码管理器。
+
+  成功状态：密码管理器中建立了这台实例的独立条目，并记录用户名 `root`。
+
+  失败判断：邮箱里没有密码就认为凭证丢失；把 Vultr 账户密码当成服务器密码；把详情页截图保存到聊天或相册。
+
+  <Callout type="danger" title="不要为了找凭证点击 Reinstall">
+    Reinstall 会清除实例文件系统、重置配置并重新安装操作系统。Vultr 官方明确警告，未备份的数据将永久丢失。刚创建的实例配置错误时，也要先判断问题，不要把重装当成刷新页面。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch10-controls">
+  ## 认识控制按钮，但现在不要乱点
+
+  <ComparisonTable>
+
+  | 控件 | 用途 | 当前怎么做 |
+  | --- | --- | --- |
+  | View Console | 通过浏览器打开服务商控制台终端 | SSH 失败时用于诊断，不是日常主线 |
+  | Restart / Reboot | 重新启动实例 | 暂不需要；仍继续计费 |
+  | Stop | 暂停运行并保留资源 | 不用于首次登录；仍继续计费 |
+  | Reinstall | 清空文件系统并重装系统 | 不点击 |
+  | Destroy | 永久删除实例并释放资源 | 不点击，除非确认放弃实例 |
+  | View Root Password | 查看当前控制台记录的随机密码 | 仅密码路径使用，查看后安全保存 |
+
+  </ComparisonTable>
+
+  Web Console 是服务商通过浏览器提供的直接控制台，即使公网 SSH 出现问题，也可能用于查看服务器。但它不能替代对公网 IPv4、TCP 22 和真实 SSH 登录的最终验收。
+</section>
+
+<section className="book-section" id="book01-ch10-result">
+  ## 本章结束时应该得到什么
+
+  <ComparisonTable>
+
+  | 交付物 | 记录值 | 通过条件 |
+  | --- | --- | --- |
+  | 实例状态 | Running | 控制台稳定显示运行中 |
+  | 实例名称或 ID | 你的真实值 | 可以唯一找到该实例 |
+  | 地区 | Tokyo 或实际备选 | 与购买记录一致 |
+  | 公网 IPv4 | 你的真实值 | 独立公网 IPv4，不是示例或私网 |
+  | 系统与架构 | Ubuntu 24.04 LTS、amd64 | 没有 Marketplace App |
+  | 管理员用户名 | root | 或明确记录的 sudo 用户 |
+  | 认证方式 | SSH Key 或 Password | 凭证位置已知 |
+  | 云防火墙 | book01-ssh | TCP 22 允许当前可信来源 |
+
+  </ComparisonTable>
+
+  <ChapterChecklist chapterId="book01-chapter-10">
+    我已经在官方控制台确认实例为 Running，并记录真实公网 IPv4、地区、Ubuntu 版本、amd64、管理员用户名、认证方式和 TCP 22 防火墙；我没有通过邮件、截图或猜测获取凭证。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch10-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Vultr Cloud Compute 创建流程</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/how-do-i-get-a-vultr-compute-instance-dedicated-ip-address" target="_blank" rel="noopener noreferrer">Vultr Compute 公网 IP 说明</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/i-did-not-get-an-email-of-my-vultr-compute-instance-root-password" target="_blank" rel="noopener noreferrer">Vultr root 密码获取说明</a>；
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management/reinstall-instance" target="_blank" rel="noopener noreferrer">Vultr Reinstall 数据删除说明</a>；
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management" target="_blank" rel="noopener noreferrer">Vultr 实例管理入口</a>。
+
+  以上事实校订于 2026-07-27。状态名称、Overview 字段、密码入口和控制按钮属于易变界面信息，发布前必须使用测试实例重新核对。
+</section>

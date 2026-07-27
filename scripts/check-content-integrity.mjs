@@ -173,6 +173,19 @@ function differenceSummary(sourceText, targetText) {
 function commandValues(rootNode, selector) {
   return rootNode
     .querySelectorAll(selector)
+    .filter((node) => {
+      let current = node;
+      while (current) {
+        if (
+          typeof current.getAttribute === "function" &&
+          current.getAttribute("data-parity-ignore") !== undefined
+        ) {
+          return false;
+        }
+        current = current.parentNode;
+      }
+      return true;
+    })
     .map((node) =>
       node.innerHTML
         .replace(/<[^>]+>/g, "")
@@ -267,14 +280,14 @@ function builtCount(selector) {
 const builtExpectations = [
   ["章节页面", "[data-migrated-content]", 15],
   ["章节完成项", ".chapter-checklist", 12],
-  ["代码块", ".code-block", 15],
+  ["代码块", ".code-block", 18],
   ["仿真界面", ".mock-window", 10],
   ["终端仿真", ".terminal-mock", 3],
   ["流程图", ".flow-diagram", 4],
-  ["故障排查项", ".troubleshooting-item", 12],
-  ["术语", ".glossary dt", 12],
-  ["提示框", ".callout", 28],
-  ["资料来源", ".source-list li", 8],
+  ["故障排查项", ".troubleshooting-item", 15],
+  ["术语", ".glossary dt", 13],
+  ["提示框", ".callout", 32],
+  ["资料来源", ".source-list li", 10],
   ["Pagefind 正文入口", "[data-pagefind-body]", 15],
 ];
 
@@ -341,6 +354,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    `内容完整性检查通过：${prototypeExpectations.length} 项原型数量基线，${ledgerRefs.length} 个台账区块，${units.length} 个内容单元逐章正文与命令对照，${builtExpectations.length} 项构建数量，封面目录及整册打印顺序。`,
+    `内容完整性检查通过：${prototypeExpectations.length} 项原型数量基线，${ledgerRefs.length} 个台账区块，${units.length} 个内容单元逐章原型正文与原命令基线对照，登记增补由单元与 E2E 测试覆盖，${builtExpectations.length} 项构建数量，封面目录及整册打印顺序。`,
   );
 }

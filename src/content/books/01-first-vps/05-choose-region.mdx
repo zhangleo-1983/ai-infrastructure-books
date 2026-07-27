@@ -1,0 +1,214 @@
+---
+book: "01-first-vps"
+order: 5
+slug: "05-choose-region"
+title: "服务器地区应该怎样选？"
+shortTitle: "选择服务器地区"
+description: "理解服务器地区、网络路径和延迟的关系，用状态页与网络测试选择地区，不把地理距离当成速度承诺。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 5
+duration: "预计 10 分钟"
+labels:
+  - "服务器地区"
+  - "网络路径"
+  - "东京主线"
+completionId: "book01-chapter-05"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch5-definition">
+  ## “地区”指服务器放在哪里
+
+  服务商页面里的 Location、Region 或 Datacenter，指服务器所在的机房地区。它不是你的国籍、账单地址或当前上网位置。
+
+  这几个位置不要混在一起：
+
+  <ComparisonTable>
+
+  | 名称 | 表示什么 | 会不会自动相同 |
+  | --- | --- | --- |
+  | 服务器地区 | VPS 所在的服务商机房 | 不会 |
+  | 你的所在地 | 你操作电脑时所在的网络位置 | 不会 |
+  | 账户或账单地区 | 注册、支付和税务资料对应的地区 | 不会 |
+  | 目标服务所在位置 | 服务器以后要连接的网站或服务 | 不会 |
+
+  </ComparisonTable>
+
+  例如，你可以人在中国，用本人资料注册账户，选择东京机房的服务器，再连接另一个地区的服务。这四个位置共同影响体验，但不能互相替代。
+</section>
+
+<section className="book-section" id="book01-ch5-path">
+  ## 地理距离近，不等于网络一定快
+
+  数据从你的电脑到服务器，不是沿地图画一条直线。它会经过运营商、交换节点和多段网络线路。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💻</span>
+      <strong>你的电脑</strong>
+      <small>当前宽带或移动网络</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🏢</span>
+      <strong>本地运营商</strong>
+      <small>决定第一段出口</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔀</span>
+      <strong>跨网路径</strong>
+      <small>可能绕行或拥塞</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>服务商网络</strong>
+      <small>进入目标机房</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>你的 VPS</strong>
+      <small>实际响应连接</small>
+    </div>
+  </FlowDiagram>
+
+  延迟是数据往返所需的时间，常用毫秒 `ms` 表示。延迟较低通常有利于交互，但它不是唯一指标。丢包、抖动、高峰拥塞、对端速度和线路变化也会影响体验。
+
+  <Callout type="warning" title="一次 ping 不能证明长期网络质量">
+    测试只能反映当时、当前网络到测试节点的路径。工作日与周末、白天与晚高峰、家庭宽带与手机热点的结果都可能不同。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch5-default">
+  ## 第一版为什么用东京，洛杉矶作为备选
+
+  第一版采用以下教学默认值：
+
+  <MockWindow title="创建实例 · 地区选择（教学仿真）">
+    <div slot="toolbar"><MockStatusBadge tone="neutral">尚未部署</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="默认地区">Tokyo · 日本东京</MockField>
+      <MockField label="备选地区">Los Angeles · 美国洛杉矶</MockField>
+      <MockField label="选择依据" wide>账户可用、目标套餐有货、包含公网 IPv4、状态页无相关故障，并完成当时网络测试</MockField>
+      <MockField label="不代表" wide>不承诺固定延迟、长期速度、IP 信誉或任何第三方服务可访问性</MockField>
+    </div>
+  </MockWindow>
+
+  东京作为演示地区，能让正文保持一条统一路径；洛杉矶用于东京缺货、账户不可选，或你从当前网络测试后明确认为不合适的情况。
+
+  这不是一条永久排名。不同城市、运营商、网络时段与用途会得到不同结果。你可以选择其他地区，但需要把实际地区记录下来，后续排错时不能继续照着“东京”判断。
+</section>
+
+<section className="book-section" id="book01-ch5-method">
+  ## 用五步选择地区
+
+  ### 第一步：确认账户允许选择
+
+  打开服务商官方创建页面，查看目标地区是否出现在你的账户中。
+
+  为什么这样做：地区列表、产品类型和账户资格可能不同。
+
+  成功状态：你能选中目标地区，并继续查看 Shared CPU 套餐。
+
+  失败判断：地区没有出现、显示不可用，或者只能选择不符合需求的产品。
+
+  ### 第二步：确认套餐和公网 IPv4
+
+  同一个服务商的不同地区，库存和可售套餐可能不同。选择地区后，再检查 1 vCPU、1 GB RAM、25 GB 系统盘、传输额度和独立公网 IPv4。
+
+  为什么这样做：地区可选不等于需求卡上的资源都有货。
+
+  成功状态：目标地区存在一张完整满足需求卡的套餐。
+
+  失败判断：只有更昂贵产品、没有所需系统，或公网 IPv4 条件不清楚。
+
+  ### 第三步：查看官方状态页
+
+  在付款前打开 Vultr Status，找到目标地点或相关服务。
+
+  为什么这样做：如果服务商正在报告故障或维护，当前测试和部署结果可能失真。
+
+  成功状态：没有与你所选地区、计算或网络相关的未解释故障。
+
+  失败判断：状态页正在报告相关问题。此时先等待或选择已核对的备选地区，不要反复创建实例。
+
+  ### 第四步：使用 Looking Glass 做网络测试
+
+  Looking Glass 是服务商提供的网络测试入口，通常可以帮助测试延迟、下载或查看路由。分别从你实际使用的家庭宽带或办公网络测试东京与备选地区。
+
+  为什么这样做：别人的测速不能代表你的运营商和当前路径。
+
+  成功状态：测试能够完成，结果没有持续的大量丢包或明显异常，并且你记录了测试时间和本地网络。
+
+  失败判断：测试节点无法连接、结果波动很大，或者你只测试了一次就作出长期判断。
+
+  ### 第五步：记录，而不是凭记忆
+
+  记录服务商、地区、测试日期、本地网络和选择原因。服务器创建后，再把实例详情页显示的实际地区补上。
+
+  为什么这样做：后续 SSH 或网络故障需要区分本地网络、跨网路径和服务商机房问题。
+
+  成功状态：你可以用一句话说明“我为什么选这个地区”。
+
+  失败判断：只记得某个博主推荐过，却不知道自己是否测试过。
+</section>
+
+<section className="book-section" id="book01-ch5-limits">
+  ## 地区选择不能承诺什么
+
+  无论选择东京、洛杉矶还是其他地区，都不能只凭地区名称保证：
+
+  - 固定延迟或下载速度；
+  - 晚高峰永远不拥塞；
+  - 分配到的 IP 具有特定信誉；
+  - 某个第三方网站、应用或流媒体一定允许访问；
+  - 网络连接具备匿名性或不可追踪性；
+  - 当地法律、服务条款和组织制度允许你的全部计划用途。
+
+  <Callout type="danger" title="先确认规则，再创建服务器">
+    你需要遵守所在地法律、服务商条款和所访问服务的规则。服务器地区在海外，不会自动改变你的法律责任、账户义务或组织安全要求。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch5-result">
+  ## 做出选择
+
+  如果东京满足需求卡、状态正常，且你从实际网络完成了基本测试，就沿主线选择东京。
+
+  如果东京缺货、状态异常或测试明显不合适，就按同样步骤检查洛杉矶。备选不是“无条件更好”，只是避免在一个不可用选项上停住。
+
+  成功状态：
+
+  - 你已经选定一个服务商当前可用的地区；
+  - 该地区有满足需求卡的套餐和独立公网 IPv4；
+  - 你查看了官方状态页并做了当时的网络测试；
+  - 你记录了地区、测试网络、日期和选择原因。
+
+  失败判断：
+
+  - 只根据地理距离或他人测速选择；
+  - 地区缺货或状态异常，仍准备反复部署；
+  - 没有确认公网 IPv4；
+  - 把地区选择理解成速度、匿名性或第三方访问保证。
+
+  <ChapterChecklist chapterId="book01-chapter-05">
+    我已经按账户可用性、套餐与公网 IPv4、官方状态页和实际网络测试选定地区，并记录了选择原因；我知道东京只是主线默认值，不是网络效果承诺。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch5-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Vultr Cloud Compute 部署文档</a>：核对创建实例时的地区选择步骤；
+  - <a href="https://status.vultr.com/" target="_blank" rel="noopener noreferrer">Vultr Status</a>：部署前核对地点、计算与网络状态；
+  - <a href="https://docs.vultr.com/public/doc-assets/pdfs/article/best-practices-when-migrating-to-vultr.pdf" target="_blank" rel="noopener noreferrer">Vultr 迁移最佳实践</a>：核对通过 Looking Glass、延迟、带宽和路由测试选择地点的建议。
+
+  以上事实校订于 2026-07-27。地区列表、库存、网络状态和线路表现会随时间变化；正文只保留选择方法，不把某次实时状态写成长期结论。
+</section>

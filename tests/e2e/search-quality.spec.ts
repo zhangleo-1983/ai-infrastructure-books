@@ -1,13 +1,19 @@
-import { expect, test } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Page,
+} from "@playwright/test";
+import { book01SearchSamples } from "../fixtures/book01-search-samples";
 import { book02SearchSamples } from "../fixtures/book02-search-samples";
 
-test("16 个中文搜索样本命中预期章节", async ({
-  page,
-  browserName,
-}, testInfo) => {
-  test.skip(browserName !== "chromium");
-  await page.goto("books/02-overseas-network/02-login-server/");
-  await page.getByRole("button", { name: "搜索全书" }).click();
+async function observeSearchSamples(
+  page: Page,
+  samples: readonly {
+    query: string;
+    expectedSlugs: string[];
+    knownLimitation?: string;
+  }[],
+) {
   const input = page.getByRole("searchbox", { name: "搜索关键词" });
   const observations: Array<{
     query: string;
@@ -17,7 +23,7 @@ test("16 个中文搜索样本命中预期章节", async ({
     knownLimitation?: string;
   }> = [];
 
-  for (const sample of book02SearchSamples) {
+  for (const sample of samples) {
     await input.fill(sample.query);
     await page.waitForTimeout(260);
     await expect(page.locator("[data-search-status]")).toHaveAttribute(
@@ -52,6 +58,33 @@ test("16 个中文搜索样本命中预期章节", async ({
       ).toBe(true);
     }
   }
+
+  return observations;
+}
+
+test("第一册 16 个中文搜索样本命中预期章节", async ({
+  page,
+  browserName,
+}, testInfo) => {
+  test.skip(browserName !== "chromium");
+  await page.goto("books/01-first-vps/08-create-server/");
+  await page.getByRole("button", { name: "搜索全书" }).click();
+  const observations = await observeSearchSamples(page, book01SearchSamples);
+
+  await testInfo.attach("book01-search-observations", {
+    body: JSON.stringify(observations, null, 2),
+    contentType: "application/json",
+  });
+});
+
+test("第二册 16 个中文搜索样本命中预期章节", async ({
+  page,
+  browserName,
+}, testInfo) => {
+  test.skip(browserName !== "chromium");
+  await page.goto("books/02-overseas-network/02-login-server/");
+  await page.getByRole("button", { name: "搜索全书" }).click();
+  const observations = await observeSearchSamples(page, book02SearchSamples);
 
   await testInfo.attach("book02-search-observations", {
     body: JSON.stringify(observations, null, 2),

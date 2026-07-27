@@ -1,0 +1,167 @@
+---
+book: "01-first-vps"
+order: 14
+slug: "sources"
+title: "资料来源与校订记录"
+shortTitle: "资料来源"
+description: "按稳定知识、Vultr 主线、AWS Lightsail 和阿里云 ECS 分类列出第一册使用的官方资料及校订边界。"
+chapterType: "sources"
+updatedAt: "2026-07-27"
+labels:
+  - "官方资料"
+  - "校订记录"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book01-sources-scope">
+  ## 本页怎样使用
+
+  第一册把容易变化的事实尽量链接到服务商、操作系统或平台的官方资料。官方页面仍可能更新，因此“链接存在”不等于书中所有按钮名称永远有效。
+
+  当前内容校订日期：**2026-07-27**。
+
+  当前校订状态：
+
+  - 已完成官方文档层面的技术路线复核；
+  - 已完成“开始之前”、第 1—12 章、附录与本页的公开 Release Candidate；
+  - 厂商页面全部使用 HTML 与 CSS 教学仿真，不是当前控制台的像素级截图；
+  - 尚未使用中国大陆测试账户完成 Vultr 注册、支付宝、人工审核、东京库存和双认证登录的实机全流程复核；
+  - AWS Lightsail 与阿里云 ECS 只作为附录中的最小补充选择；
+  - 当前价格、库存、支付方式和验证要求仍以读者自己账户中的实时页面为准，不构成可用性承诺。
+
+  <Callout type="info" title="仿真界面和“校订于”分别表示什么">
+    仿真界面只表达字段关系、操作顺序和成功状态，不声称复刻厂商当前页面；“校订于”表示作者在该日期检查过官方说明，不代表服务商承诺以后不再改变。真正下单前仍需核对当前控制台、结算页、账单说明和服务条款。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-sources-stable">
+  ## 操作系统与 SSH
+
+  <ol className="source-list">
+    <li><a href="https://ubuntu.com/about/release-cycle" target="_blank" rel="noopener noreferrer">Ubuntu Release Cycle</a>：核对 Ubuntu 24.04 LTS 的支持周期。</li>
+    <li><a href="https://ubuntu.com/server/docs/how-to/security/openssh-server/" target="_blank" rel="noopener noreferrer">Ubuntu Server · OpenSSH</a>：核对 SSH 服务、主机密钥和 ED25519 基础。</li>
+    <li><a href="https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse" target="_blank" rel="noopener noreferrer">Microsoft Learn · Windows OpenSSH</a>：核对 Windows OpenSSH Client 的安装与基本使用。</li>
+    <li><a href="https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement" target="_blank" rel="noopener noreferrer">Microsoft Learn · OpenSSH Key Management</a>：核对 Windows 上的密钥生成与管理。</li>
+    <li><a href="https://www.rfc-editor.org/rfc/rfc5737" target="_blank" rel="noopener noreferrer">RFC 5737</a>：核对文档示例 IPv4 地址段；本书使用 `203.0.113.10`，不使用真实服务器地址。</li>
+  </ol>
+</section>
+
+<section className="book-section" id="book01-sources-vultr">
+  ## Vultr 主线资料
+
+  ### 创建、实例与网络
+
+  <ol className="source-list">
+    <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Provision Cloud Compute</a>：Shared CPU、地区、套餐、镜像、SSH Key、Firewall、Public IPv4、Automatic Backups 与 Limited User。</li>
+    <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management" target="_blank" rel="noopener noreferrer">Cloud Compute Management</a>：实例 Overview、状态和管理操作。</li>
+    <li><a href="https://docs.vultr.com/products/network/firewall-groups/management/rules" target="_blank" rel="noopener noreferrer">Vultr Firewall Rules</a>：协议、端口、来源 IPv4 与规则管理。</li>
+    <li><a href="https://docs.vultr.com/support/products/compute/how-do-i-get-a-vultr-compute-instance-dedicated-ip-address" target="_blank" rel="noopener noreferrer">实例公网地址说明</a>：核对普通实例 IP 与可独立管理地址的边界。</li>
+    <li><a href="https://status.vultr.com/" target="_blank" rel="noopener noreferrer">Vultr Status</a>：创建或连接异常时核对平台与地区状态。</li>
+    <li><a href="https://docs.vultr.com/public/doc-assets/pdfs/article/best-practices-when-migrating-to-vultr.pdf" target="_blank" rel="noopener noreferrer">Vultr Migration Practices</a>：Looking Glass 与部署前网络测试入口。</li>
+  </ol>
+
+  ### 账户、支付与账单
+
+  <ol className="source-list">
+    <li><a href="https://docs.vultr.com/support/platform/authentication/what-are-the-password-requirements-for-a-vultr-account" target="_blank" rel="noopener noreferrer">账户密码要求</a>：当前账户密码最低要求；正文额外建议使用更长的唯一密码。</li>
+    <li><a href="https://docs.vultr.com/support/platform/authentication/what-is-two-factor-authentication" target="_blank" rel="noopener noreferrer">Two-factor Authentication</a>：TOTP、FIDO2/WebAuthn 与恢复码。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/what-payment-methods-do-you-accept" target="_blank" rel="noopener noreferrer">Accepted Payment Methods</a>：官方列出的支付方式；实际可用性仍取决于账户和地区。</li>
+    <li><a href="https://docs.vultr.com/platform/billing/make-account-payments" target="_blank" rel="noopener noreferrer">Make Account Payments</a>：账户支付入口与支付流程。</li>
+    <li><a href="https://docs.vultr.com/platform/billing/faq" target="_blank" rel="noopener noreferrer">Billing FAQ</a>：美元账单、预授权、账户余额、税务和计费常见问题。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/how-is-my-tax-location-determined" target="_blank" rel="noopener noreferrer">Tax Location</a>：账单地址、主要支付方式与税务地区。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/why-was-my-credit-card-declined" target="_blank" rel="noopener noreferrer">Declined Credit Card</a>：银行卡失败的官方排查边界。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/what-if-im-unable-to-pay-my-invoice" target="_blank" rel="noopener noreferrer">Unable to Pay Invoice</a>：未完成账单的官方处理入口。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/why-do-i-see-an-unexpected-charge-on-my-invoice" target="_blank" rel="noopener noreferrer">Unexpected Charges</a>：通过发票和 Billing History 排查意外费用。</li>
+  </ol>
+
+  ### 认证、登录与故障排查
+
+  <ol className="source-list">
+    <li><a href="https://docs.vultr.com/platform/security-best-practices/vultr-cloud-instances" target="_blank" rel="noopener noreferrer">Cloud Instance Security Practices</a>：SSH 密钥、ED25519 和实例安全基础。</li>
+    <li><a href="https://docs.vultr.com/products/orchestration/ssh-keys/add-ssh-keys" target="_blank" rel="noopener noreferrer">Add SSH Keys</a>：账户控制台保存公钥与部署时选择。</li>
+    <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/connection/openssh" target="_blank" rel="noopener noreferrer">Connect with OpenSSH</a>：密码和指定私钥登录方式。</li>
+    <li><a href="https://docs.vultr.com/support/products/compute/how-to-troubleshoot-ssh-connectivity-issues" target="_blank" rel="noopener noreferrer">Troubleshoot SSH Connectivity</a>：实例状态、防火墙、网络、用户名和认证材料的分层检查。</li>
+    <li><a href="https://docs.vultr.com/support/products/compute/i-did-not-get-an-email-of-my-vultr-compute-instance-root-password" target="_blank" rel="noopener noreferrer">Root Password Email</a>：实例密码不通过普通邮件发送，应在实例页面查看。</li>
+    <li><a href="https://docs.vultr.com/support/products/compute/i-lost-the-ssh-key-for-my-vultr-compute-instance" target="_blank" rel="noopener noreferrer">Lost SSH Key</a>：丢失私钥后的恢复边界。</li>
+    <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management/reinstall-instance" target="_blank" rel="noopener noreferrer">Reinstall Instance</a>：重装会清除实例文件系统和数据。</li>
+  </ol>
+
+  ### 附加资源与持续费用
+
+  <ol className="source-list">
+    <li><a href="https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr" target="_blank" rel="noopener noreferrer">Stopped Instances Billing</a>：停止实例后仍计费，删除实例才释放实例资源。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/how-much-does-it-cost-to-enable-automatic-backups" target="_blank" rel="noopener noreferrer">Automatic Backups Pricing</a>：自动备份属于附加持续费用。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/does-vultr-charge-for-stored-snapshots" target="_blank" rel="noopener noreferrer">Snapshot Charges</a>：快照按存储量单独计费，并可在实例删除后继续存在。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/what-is-the-bandwidth-overage-rate" target="_blank" rel="noopener noreferrer">Bandwidth Overage</a>：流量超额规则与 Bandwidth Usage 入口。</li>
+  </ol>
+</section>
+
+<section className="book-section" id="book01-sources-alternatives">
+  ## 备选服务商资料
+
+  ### Amazon Lightsail
+
+  <ol className="source-list">
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/what-is-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">What is Amazon Lightsail?</a>：实例、固定套餐与内置防火墙的产品边界。</li>
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/getting-started-with-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">Create a Lightsail Instance</a>：操作系统、套餐、地区与实例创建入口。</li>
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/lightsail-create-static-ip.html" target="_blank" rel="noopener noreferrer">Create and Attach a Static IP</a>：动态公网地址与 Static IP 的差异。</li>
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-ssh-in-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">SSH Key Pairs</a>：默认密钥、自定义密钥、上传公钥和私钥保存规则。</li>
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-firewall-and-port-mappings-in-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">Lightsail Firewalls</a>：IPv4/IPv6 防火墙与默认规则。</li>
+    <li><a href="https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-firewall-rules-reference.html" target="_blank" rel="noopener noreferrer">Firewall Rules Reference</a>：SSH TCP 22 与可信来源地址。</li>
+  </ol>
+
+  ### 阿里云中国站 ECS
+
+  <ol className="source-list">
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/public-ip-address" target="_blank" rel="noopener noreferrer">使用固定公网 IP 访问公网</a>：创建时分配公网 IPv4、带宽计费与地址回收条件。</li>
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/instance-logon-credential-management" target="_blank" rel="noopener noreferrer">实例登录名、密码、密钥对管理</a>：`root`、`ecs-user`、密码和密钥的管理边界。</li>
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/start-using-security-groups" target="_blank" rel="noopener noreferrer">使用安全组</a>：TCP 22、可信来源与最小权限建议。</li>
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/default-security-groups/" target="_blank" rel="noopener noreferrer">默认安全组及预设规则</a>：默认公开 SSH 规则的风险与修改入口。</li>
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/stop-an-instance" target="_blank" rel="noopener noreferrer">停止实例</a>：普通停机、节省停机、持续费用和公网地址变化风险。</li>
+    <li><a href="https://help.aliyun.com/zh/ecs/user-guide/release-an-instance" target="_blank" rel="noopener noreferrer">释放实例</a>：数据删除、公网地址回收与独立资源持续计费风险。</li>
+  </ol>
+</section>
+
+<section className="book-section" id="book01-sources-matrix">
+  ## 易变信息的复核频率
+
+  <ComparisonTable>
+
+  | 信息类型 | 示例 | 当前状态 | 最晚何时复核 |
+  | --- | --- | --- | --- |
+  | 长期稳定知识 | VPS、RAM、SSH、公钥与私钥 | 已完成文档核对 | 每次大版本 |
+  | 厂商界面 | 按钮、状态、字段顺序 | 已提供教学仿真；尚待真实账户复核 | 每个发布候选 |
+  | 套餐与价格 | 规格、币种、流量、附加费 | 不写固定长期价格 | 每个发布候选 |
+  | 支付与验证 | Alipay、银行卡、PayPal、KYC | 尚待中国账户试走 | 每个发布候选 |
+  | 地区与库存 | Tokyo、Los Angeles | 不作库存承诺 | 发布当天 |
+  | SSH 登录 | Windows/macOS、密码/密钥 | 文档路径与自动回归已完成 | 每个发布候选抽样实测 |
+  | 第二册兼容 | Ubuntu、管理员、认证方式 | 跨册正文和自动回归已完成 | 两册任一登录流程变化时 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book01-sources-boundary">
+  ## 不阻塞公开阅读、但仍需继续复核的事项
+
+  - 使用中国大陆网络与测试账户完整试走 Vultr 主线；
+  - 核对注册、邮箱验证、两因素认证和恢复码；
+  - 核对当前 Alipay、银行卡和 PayPal 分支；
+  - 核对额外身份验证与人工审核的实际提示；
+  - 核对 Tokyo 和 Los Angeles 当前库存、套餐字段与结算金额；
+  - 分别创建密码实例和 ED25519 密钥实例；
+  - 在 Windows 与 macOS 完成首次 SSH 登录和错误分支；
+  - 核对实例状态、Overview、Firewall、Billing History 和销毁流程；
+  - 在厂商界面或登录路径变化时，再校订第二册“开始之前”、首次登录、重新登录和故障排查内容；
+  - 每个发布候选继续运行内容、安全、链接、响应式、打印、搜索与跨浏览器验收。
+
+  详细执行记录维护在 `docs/qa/01-first-vps/fact-check.md`。该文件可能包含作者工作状态，不作为读者操作步骤。
+
+  这些项目用于提高下一版的实机置信度，不会阻止当前 Release Candidate 使用仿真界面公开阅读。读者遇到与仿真界面不同的真实页面时，应按字段含义判断，并以官方控制台和官方支持为准。
+
+  <Callout type="warning" title="不使用推广或绕过渠道">
+    第一版不使用返利、推广、邀请码、代付、共享账户或非官方充值链接，也不提供绕过支付验证、身份审核、地区限制或服务条款的方法。
+  </Callout>
+</section>

@@ -1,0 +1,318 @@
+---
+book: "01-first-vps"
+order: 7
+slug: "07-login-method"
+title: "使用密码还是 SSH 密钥？"
+shortTitle: "选择登录方式"
+description: "理解 SSH、公钥、私钥和密码之间的关系，在 Windows 或 macOS 生成并保存登录密钥，同时保留完整密码路径。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 7
+duration: "预计 18 分钟"
+labels:
+  - "SSH 密钥"
+  - "密码路径"
+  - "Windows / macOS"
+completionId: "book01-chapter-07"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+<section className="book-section" id="book01-ch7-map">
+  ## 登录方式决定“你怎样证明自己是管理员”
+
+  SSH 是 Secure Shell 的缩写。它是一种加密的远程连接协议，让你从自己的电脑登录服务器并输入命令。
+
+  登录时至少需要三部分：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>公网 IPv4</strong>
+      <small>找到哪一台服务器</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">👤</span>
+      <strong>用户名</strong>
+      <small>以哪个账户登录</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>认证凭证</strong>
+      <small>密码或 SSH 私钥</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">⌨️</span>
+      <strong>终端会话</strong>
+      <small>远程执行命令</small>
+    </div>
+  </FlowDiagram>
+
+  第一版主线管理员用户名使用 `root`。`root` 是 Linux 中权限最高的管理员账户。某些创建选项会改为普通用户，并允许它通过 `sudo` 临时执行管理员命令；如果你选择了这种路径，必须记录实际用户名，不能继续照抄 `root`。
+</section>
+
+<section className="book-section" id="book01-ch7-compare">
+  ## 密码和 SSH 密钥有什么区别
+
+  <ComparisonTable>
+
+  | 项目 | 密码认证 | SSH 密钥认证 |
+  | --- | --- | --- |
+  | 你持有什么 | 一段保密文字 | 本地私钥，以及服务器上的匹配公钥 |
+  | 登录时怎样证明 | 输入正确密码 | 本地私钥完成加密认证 |
+  | 主要风险 | 弱密码、重复使用、钓鱼或泄露 | 私钥丢失、被复制、误传或没有备份 |
+  | 本书处理 | 完整保留 | 推荐主线 |
+  | 保存位置 | 密码管理器 | 私钥文件留在本人电脑；可另做加密备份 |
+  | 可否公开 | 不可以 | 公钥可以提交给服务商；私钥绝对不可以 |
+
+  </ComparisonTable>
+
+  SSH 密钥由一对互相关联的文件组成：
+
+  - **公钥**可以放到服务器或服务商控制台，用来识别允许登录的钥匙；
+  - **私钥**只留在你的设备，用来证明你持有这把钥匙；
+  - **密钥口令**也叫 passphrase，用来加密保护本地私钥文件；
+  - 公钥和私钥不是“两份相同密码”，也不能互相替代。
+
+  <Callout type="danger" title="私钥泄露相当于钥匙被复制">
+    不要打开、截图、粘贴或上传没有 `.pub` 后缀的私钥内容。不要把私钥放进教程、聊天、网盘共享链接或 Git 仓库。怀疑泄露时，应移除对应公钥、生成新密钥并检查服务器访问记录。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch7-choice">
+  ## 本书怎样选择
+
+  推荐顺序是：
+
+  1. 优先生成一对 ED25519 SSH 密钥；
+  2. 把公钥加入 Vultr 账户，并在创建服务器时选中；
+  3. 把私钥保留在本人电脑，并设置密钥口令；
+  4. 同时知道在哪里查看服务商生成的服务器密码；
+  5. 第 12 章分别完成密钥与密码登录路径。
+
+  ED25519 是一种现代数字签名算法名称。你不需要理解其中数学原理；只需要知道 `ssh-keygen` 可以用它生成一对 OpenSSH 密钥，而当前 Windows 和 macOS 的 OpenSSH 客户端均支持它。
+
+  <Callout type="info" title="“推荐密钥”不等于隐藏密码路径">
+    Vultr 当前官方文档说明，实例默认仍可支持密码认证，并能从控制台查看随机生成的 `root` 或 `linuxuser` 密码。但控制台与镜像行为可能变化，本书会在实例创建后重新核对，而不是提前假设。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch7-generate">
+  ## 在自己的电脑上生成密钥
+
+  Windows 与 macOS 使用同一条生成命令：
+
+  <CodeBlock label="Windows PowerShell 或 macOS 终端" code={'ssh-keygen -t ed25519 -C "book01-vps"'} />
+
+  命令中的三部分：
+
+  - `ssh-keygen`：OpenSSH 自带的密钥生成工具；
+  - `-t ed25519`：选择 ED25519 密钥类型；
+  - `-C "book01-vps"`：写入一个便于辨认的备注，不是密码。
+
+  <PlatformTabs id="book01-key-generation" firstPlatform="windows">
+    <div slot="windows">
+      <InstructionStep number={1} title="打开 PowerShell 或 Windows Terminal">
+        在开始菜单搜索 PowerShell 或 Windows Terminal。不要使用网页里的模拟终端。
+      </InstructionStep>
+
+      <InstructionStep number={2} title="确认 OpenSSH 可用">
+        输入下面的命令。看到版本信息表示可以继续。
+        <CodeBlock label="PowerShell" code="ssh -V" />
+        如果提示找不到命令，不要下载来源不明的安装包；使用 Windows“可选功能”安装官方 OpenSSH Client，完成后重新打开终端。
+      </InstructionStep>
+
+      <InstructionStep number={3} title="运行生成命令">
+        粘贴本节上方的 `ssh-keygen` 命令并按回车。
+      </InstructionStep>
+    </div>
+
+    <div slot="mac">
+      <InstructionStep number={1} title="打开终端">
+        按 <kbd>Command</kbd> + <kbd>空格</kbd>，搜索“终端”或 Terminal。
+      </InstructionStep>
+
+      <InstructionStep number={2} title="确认 OpenSSH 可用">
+        输入下面的命令。macOS 通常已经包含 SSH 客户端。
+        <CodeBlock label="macOS 终端" code="ssh -V" />
+      </InstructionStep>
+
+      <InstructionStep number={3} title="运行生成命令">
+        粘贴本节上方的 `ssh-keygen` 命令并按回车。
+      </InstructionStep>
+    </div>
+  </PlatformTabs>
+
+  接下来终端会依次询问：
+
+  1. **保存位置**：第一次创建时按回车接受默认位置；
+  2. **密钥口令**：输入一段由密码管理器保存的强口令；
+  3. **再次输入口令**：重复输入以确认。
+
+  输入口令时，屏幕通常不会显示字符或星号。这不是键盘失效。
+
+  <TerminalMock title="生成 ED25519 密钥 · 教学输出">
+    {"Generating public/private ed25519 key pair."}<br />
+    {"Enter file in which to save the key (.../.ssh/id_ed25519):"}<br />
+    {"Enter passphrase (empty for no passphrase):"}<br />
+    {"Enter same passphrase again:"}<br />
+    <span className="term-green">{"Your public key has been saved in .../id_ed25519.pub"}</span><br />
+    <span className="term-green">{"The key fingerprint is: SHA256:教学示例指纹"}</span>
+  </TerminalMock>
+
+  <Callout type="warning" title="如果出现“文件已经存在”，不要直接覆盖">
+    `id_ed25519 already exists` 表示默认位置已有密钥。覆盖会让旧私钥丢失，并可能影响其他服务器或 Git 服务。输入 `n` 取消，然后确认旧密钥用途，或使用新的明确文件名重新生成。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch7-files">
+  ## 辨认公钥和私钥
+
+  默认生成后会出现两个文件：
+
+  <ComparisonTable>
+
+  | 系统 | 私钥 | 公钥 |
+  | --- | --- | --- |
+  | Windows | `%USERPROFILE%\.ssh\id_ed25519` | `%USERPROFILE%\.ssh\id_ed25519.pub` |
+  | macOS | `~/.ssh/id_ed25519` | `~/.ssh/id_ed25519.pub` |
+
+  </ComparisonTable>
+
+  只有带 `.pub` 后缀的文件可以复制到 Vultr。
+
+  <PlatformTabs id="book01-view-public-key" firstPlatform="windows">
+    <div slot="windows">
+      在 PowerShell 中显示公钥：
+      <CodeBlock label="PowerShell · 只显示公钥" code={'Get-Content "$env:USERPROFILE\\.ssh\\id_ed25519.pub"'} />
+    </div>
+
+    <div slot="mac">
+      在终端中显示公钥：
+      <CodeBlock label="macOS · 只显示公钥" code="cat ~/.ssh/id_ed25519.pub" />
+    </div>
+  </PlatformTabs>
+
+  正常公钥是一行以 `ssh-ed25519` 开头的长文本，末尾可能带有 `book01-vps` 备注。
+
+  成功状态：
+
+  - 你看到的是以 `.pub` 结尾的公钥文件；
+  - 公钥以 `ssh-ed25519` 开头；
+  - 不带 `.pub` 的私钥仍只存在于本人设备；
+  - 密钥口令已经保存在密码管理器中。
+
+  失败判断：
+
+  - 两个文件只剩一个；
+  - 你打开的是不带 `.pub` 的私钥；
+  - 为了“备份”把私钥粘贴进聊天或公开云文档；
+  - 忘记密钥口令，也没有测试过私钥。
+</section>
+
+<section className="book-section" id="book01-ch7-upload">
+  ## 把公钥加入 Vultr 账户
+
+  当前官方路径位于 Vultr 控制台的 Account / SSH Keys 区域，界面名称以后可能变化。你要找的是“把一个 OpenSSH 公钥保存到账户，供新实例部署时选择”的功能。
+
+  <MockWindow title="Add SSH Key · 教学仿真">
+    <div slot="toolbar"><MockStatusBadge tone="neutral">只提交公钥</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="Name">book01-my-computer</MockField>
+      <MockField label="Type">ED25519 / OpenSSH</MockField>
+      <MockField label="SSH Public Key" wide>ssh-ed25519 AAAA…教学省略… book01-vps</MockField>
+    </div>
+  </MockWindow>
+
+  做什么：
+
+  1. 打开账户中的 SSH Keys；
+  2. 选择 Add SSH Key；
+  3. 名称写成能辨认设备的标签，不要写身份证号或真实地址；
+  4. 粘贴完整的一行公钥；
+  5. 保存后核对列表中出现该名称；
+  6. 第 8 章创建实例时选中它。
+
+  为什么这样做：部署时选择账户中的公钥，服务商会把它安装到新服务器允许登录的位置。私钥从始至终不需要上传。
+
+  成功状态：控制台列出密钥名称，公钥类型和指纹可辨认。
+
+  失败判断：页面要求上传私钥；粘贴内容带有 `OPENSSH PRIVATE KEY` 标记；保存后没有出现在列表；你不知道密钥属于哪台电脑。
+
+  <Callout type="danger" title="实例创建后不要用“重装密钥”碰运气">
+    Vultr 官方警告，通过控制台为运行中的服务器重装 SSH 密钥可能触发重装并清除实例数据。第 8 章要在部署前选对密钥；运行后的密钥变更应使用明确、经过验证的维护流程。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch7-password">
+  ## 密码路径也要准备完整
+
+  如果你决定使用密码认证：
+
+  1. 创建服务器后，从实例详情页查看服务商生成的服务器管理员密码；
+  2. 在密码管理器中为这台实例建立独立条目；
+  3. 记录服务商、实例标签和管理员用户名；
+  4. 不把服务器密码设置成 Vultr 账户密码；
+  5. 第 12 章首次登录时完整走密码路径；
+  6. 登录成功后，再按后续安全章节评估更换密码和限制认证方式。
+
+  <ComparisonTable>
+
+  | 密码 | 用在哪里 | 能否互换 |
+  | --- | --- | --- |
+  | Vultr 账户密码 | 登录服务商网站 | 不能 |
+  | 2FA 动态码 | 服务商账户的第二因素 | 不能 |
+  | SSH 密钥口令 | 解锁本地私钥文件 | 不能 |
+  | 服务器管理员密码 | SSH 登录 Ubuntu | 不能 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="控制台查看密码时不要截图">
+    服务商不会通过普通邮件安全地发送完整 root 密码。需要查看时，在已登录的官方控制台中操作，并直接保存到密码管理器，不要把带密码的实例页面发给他人。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch7-decision">
+  ## 写下你的认证决定
+
+  <MockWindow title="登录凭证记录 · 不填写秘密内容">
+    <div slot="toolbar"><MockStatusBadge>可进入创建页</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="管理员用户名">root</MockField>
+      <MockField label="主认证方式">SSH 密钥</MockField>
+      <MockField label="公钥标签">book01-my-computer</MockField>
+      <MockField label="私钥位置">本机默认 `.ssh` 目录；不记录私钥内容</MockField>
+      <MockField label="密钥口令">已保存到密码管理器</MockField>
+      <MockField label="密码备选">创建后从官方控制台核对并保存</MockField>
+    </div>
+  </MockWindow>
+
+  如果你选择密码作为主认证方式，把“主认证方式”改为密码，并确认创建后从实例详情页安全保存。不要在这张普通记录卡里填写密码正文。
+
+  <ChapterChecklist chapterId="book01-chapter-07">
+    我能解释 SSH、公钥、私钥和密钥口令的区别；我已在自己的 Windows 或 Mac 上生成并辨认密钥，只有公钥被加入 Vultr，私钥没有离开本人设备，同时我也理解服务器密码路径。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch7-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/platform/security-best-practices/vultr-cloud-instances" target="_blank" rel="noopener noreferrer">Vultr Cloud Instance 安全实践</a>；
+  - <a href="https://docs.vultr.com/products/orchestration/ssh-keys/add-ssh-keys" target="_blank" rel="noopener noreferrer">Vultr 添加 SSH Key</a>；
+  - <a href="https://docs.vultr.com/how-to-add-and-delete-ssh-keys" target="_blank" rel="noopener noreferrer">Vultr SSH Key 管理说明</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/i-lost-the-ssh-key-for-my-vultr-compute-instance" target="_blank" rel="noopener noreferrer">Vultr 密钥丢失与密码恢复路径</a>；
+  - <a href="https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement" target="_blank" rel="noopener noreferrer">Microsoft Learn：Windows OpenSSH 密钥认证</a>。
+
+  以上事实校订于 2026-07-27。OpenSSH 命令属于稳定知识；Vultr 控制台入口、默认用户、密码显示方式和实例重装行为必须在发布前重新实测。
+</section>

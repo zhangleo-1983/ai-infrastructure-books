@@ -1,0 +1,294 @@
+---
+book: "01-first-vps"
+order: 13
+slug: "appendix"
+title: "附录：购买清单、交接卡与术语表"
+shortTitle: "附录"
+description: "集中提供可打印的购买决策表、费用核对表、服务器交接卡、备选服务商检查项和零基础术语解释。"
+chapterType: "appendix"
+updatedAt: "2026-07-27"
+labels:
+  - "购买清单"
+  - "服务器交接卡"
+  - "术语表"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Glossary from "../../../components/book/Glossary.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-appendix-use">
+  ## 怎样使用这份附录
+
+  这份附录把购买前、下单前和交接前最容易遗漏的信息集中在一起。它适合打印或复制到自己的安全笔记中，但不能代替第 1—12 章的解释。
+
+  使用顺序：
+
+  1. 打开服务商页面前，填写“购买决策表”；
+  2. 点击 Deploy 前，逐项核对“费用核对表”；
+  3. 实例进入 Running 后，填写“服务器交接卡”；
+  4. 完成首次 SSH 登录后，再判断第一册是否完成。
+
+  <Callout type="warning" title="表格中只记录必要信息">
+    可以记录公网 IP、地区、系统、用户名和凭证保存位置；不得写入服务器密码、SSH 私钥正文、银行卡完整号码、身份证件、动态验证码或账户恢复码。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-appendix-decision">
+  ## 空白购买决策表
+
+  在浏览套餐前填写“我的选择”。如果某一项还无法确认，先回到对应章节，不要靠猜测完成下单。
+
+  <ComparisonTable>
+
+  | 项目 | 第一版要求 | 我的选择 | 从哪里再次核对 |
+  | --- | --- | --- | --- |
+  | 主要用途 | 继续学习第二册 | ______ | 第 3 章需求卡 |
+  | 主线服务商 | Vultr Cloud Compute / Shared CPU | ______ | 服务商官方控制台 |
+  | 首选地区 | Tokyo | ______ | 创建页与状态页 |
+  | 备选地区 | Los Angeles | ______ | 创建页与状态页 |
+  | CPU | 不低于 1 vCPU | ______ | 套餐卡与结算摘要 |
+  | 内存 | 不低于 1 GB RAM | ______ | 套餐卡与结算摘要 |
+  | 系统盘 | 不低于 25 GB | ______ | 套餐卡与结算摘要 |
+  | 月流量 | 不低于 1 TB | ______ | 套餐卡与官方计费说明 |
+  | 操作系统 | Ubuntu 24.04 LTS | ______ | 创建页与实例详情页 |
+  | CPU 架构 | x86_64 / amd64 | ______ | 套餐或实例详情 |
+  | 公网地址 | 必须有独立公网 IPv4 | ______ | 创建页与实例 Overview |
+  | 管理员用户 | `root`；或明确可 sudo 的用户 | ______ | 登录凭证区域 |
+  | 认证方式 | SSH Key 推荐；Password 也完整支持 | ______ | 创建页 |
+  | 云防火墙 | TCP 22；优先只允许自己的公网 IP | ______ | Firewall Group |
+  | 自动备份 | 首次练习默认关闭 | ______ | 附加项与结算摘要 |
+  | 月度预算上限 | 由读者预先确定 | ______ | 第 3、9 章 |
+
+  </ComparisonTable>
+
+  成功状态：每一项都能指向服务商页面中的具体字段，并且月度预算上限明确。
+
+  失败判断：只记住套餐名称或促销价格，却无法确认公网 IPv4、系统、架构、流量、认证方式和持续费用。
+</section>
+
+<section className="book-section" id="book01-appendix-before-deploy">
+  ## 点击 Deploy 前的最后检查
+
+  只有每一项都能打勾时才创建实例：
+
+  - □ 当前账户属于自己，邮箱和两因素认证仍可用；
+  - □ 没有同时在多个账户或多个浏览器窗口重复下单；
+  - □ 产品是普通 Cloud Compute，不是 Marketplace App 或预装面板；
+  - □ 地区是自己记录的首选或备选地区；
+  - □ 套餐满足 CPU、内存、磁盘和流量下限；
+  - □ 镜像是 Ubuntu 24.04 LTS；
+  - □ 架构是 x86_64 / amd64；
+  - □ Public IPv4 已启用，不是 IPv6-only、Private 或 NAT；
+  - □ 登录方式与第 7 章准备的凭证一致；
+  - □ SSH Key 路径只上传公钥，没有上传私钥；
+  - □ 云防火墙只开放当前需要的 TCP 22；
+  - □ 自动备份和其他附加项符合自己的预算；
+  - □ 最终金额、币种和持续计费方式已经看懂；
+  - □ 已经知道怎样停止后续计费，而不只是怎样关机。
+
+  <Callout type="danger" title="不要连续点击 Deploy">
+    点击一次后先等待控制台出现实例或订单记录。页面反应慢不代表第一次点击失败；重复点击可能创建多台持续计费的实例。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-appendix-cost">
+  ## 空白费用核对表
+
+  “费用”不是只有购买页上最大字号的一个数字。至少把下面几项分别写清楚。
+
+  <ComparisonTable>
+
+  | 费用项目 | 当前页面显示 | 是否持续收费 | 停止收费的方法 |
+  | --- | --- | --- | --- |
+  | 实例基础费用 | ______ | 是 / 否 / 待确认 | ______ |
+  | 小时价 | ______ | 是 / 否 / 待确认 | ______ |
+  | 月度参考价或上限 | ______ | 是 / 否 / 待确认 | ______ |
+  | 首笔充值或验证金额 | ______ | 是 / 否 / 待确认 | ______ |
+  | 税费 | ______ | 是 / 否 / 待确认 | ______ |
+  | Public IPv4 | ______ | 是 / 否 / 已包含 | ______ |
+  | Automatic Backups | ______ | 是 / 否 / 未启用 | ______ |
+  | Snapshot | ______ | 是 / 否 / 尚未创建 | ______ |
+  | 额外存储或 Reserved IP | ______ | 是 / 否 / 未创建 | ______ |
+  | 流量超额 | ______ | 按实际使用 | ______ |
+
+  </ComparisonTable>
+
+  成功状态：你能解释正常月份可能产生哪些费用，以及删除实例后还要检查哪些独立资源。
+
+  失败判断：认为 Stop、关机或不登录服务器就一定停止计费，或者不知道快照、存储和 Reserved IP 是否仍然存在。
+</section>
+
+<section className="book-section" id="book01-appendix-handoff">
+  ## 可打印的服务器交接卡
+
+  <MockWindow title="第一册 → 第二册服务器交接卡">
+    <div slot="toolbar"><MockStatusBadge>不填写秘密正文</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="服务商">________________</MockField>
+      <MockField label="实例名称或 ID">________________</MockField>
+      <MockField label="服务器地区">________________</MockField>
+      <MockField label="公网 IPv4">________________</MockField>
+      <MockField label="公网 IPv6（如有）">________________</MockField>
+      <MockField label="操作系统与版本">________________</MockField>
+      <MockField label="CPU 架构">________________</MockField>
+      <MockField label="管理员用户名">________________</MockField>
+      <MockField label="认证方式">Password / SSH Key</MockField>
+      <MockField label="凭证保存位置">________________</MockField>
+      <MockField label="云防火墙名称">________________</MockField>
+      <MockField label="SSH 规则">TCP 22 · 来源：________</MockField>
+      <MockField label="创建日期">________________</MockField>
+      <MockField label="持续费用与币种">________________</MockField>
+      <MockField label="停止计费的方法" wide>________________</MockField>
+      <MockField label="首次 SSH 验证" wide>`whoami` 返回：________　验证日期：________</MockField>
+    </div>
+  </MockWindow>
+
+  交接通过条件：
+
+  - 实例状态为 Running；
+  - 公网 IPv4 来自当前实例详情页；
+  - 系统、架构和地区与下单选择一致；
+  - 管理员用户名明确；
+  - 密码或私钥至少有一种已经实际登录成功；
+  - `whoami` 返回预期管理员身份；
+  - 已用 `exit` 正常返回本地终端；
+  - 卡片中没有密码、私钥、恢复码或支付资料。
+
+  任意一项不满足，就回到第 10—12 章继续核对，不要把未验证的服务器交给第二册。
+</section>
+
+<section className="book-section" id="book01-appendix-support">
+  ## 联系官方支持时的非敏感信息模板
+
+  遇到支付、审核或创建异常时，可以向官方支持提供：
+
+  ```text
+  账户邮箱：只提供已脱敏形式，例如 z***@example.com
+  问题发生时间：YYYY-MM-DD HH:mm，注明时区
+  产品：Cloud Compute / Shared CPU
+  目标地区：
+  实例或订单 ID：如已生成
+  控制台状态：
+  页面错误原文：
+  已经做过的检查：
+  希望确认的问题：
+  ```
+
+  不要提供：
+
+  - 服务器密码或 SSH 私钥；
+  - Vultr 账户密码；
+  - 两因素认证动态码或恢复码；
+  - 银行卡完整号码、安全码或支付宝登录信息；
+  - 与官方要求无关的完整身份证件图片；
+  - 未经脱敏的控制台截图。
+
+  如果支持人员要求验证身份，只能在服务商官方工单或官方验证流程中操作。不要转到私人聊天软件，也不要安装对方发来的远程控制程序。
+</section>
+
+<section className="book-section" id="book01-appendix-alternatives">
+  ## 主线不可用时的两个补充选择
+
+  下面只提供“是否满足第一册交付条件”的最小检查，不维护三套并行教程。只有在 Vultr 无法合法注册、无法完成支付、地区无库存，或官方支持确认账户无法继续时，才考虑切换。
+
+  切换前先关闭未完成的付款流程，确认没有已创建实例和待处理订单。一次只尝试一家服务商。
+
+  ### 备选 A：Amazon Lightsail
+
+  Lightsail 是 AWS 中更接近固定套餐 VPS 的产品。不要把本书步骤直接套到 EC2 控制台。
+
+  最小检查：
+
+  - 选择 Linux/Unix 与纯 Ubuntu 操作系统模板，不选择 WordPress 等应用模板；
+  - 套餐满足本书的 CPU、内存、磁盘和流量下限；
+  - 实例拥有公网 IPv4；
+  - 为需要稳定地址的实例创建并绑定 Static IP；
+  - 确认实际 SSH 用户名和所用 Key Pair；
+  - 下载的私钥只保存在本地安全位置；
+  - 防火墙保留 TCP 22，并把来源限制为自己的可信公网 IP；
+  - 删除当前用途不需要的公开 HTTP/HTTPS 规则；
+  - 从最终结算页核对币种、税费和持续费用。
+
+  成功状态：实例 Running，Static IP 已绑定，SSH 登录成功，交接卡中记录真实用户名和私钥位置。
+
+  失败判断：只保存了会在停止和重新启动后变化的动态公网 IPv4；不知道 Key Pair 对应哪一个私钥；或把 Vultr 的 `root` 用户名直接用于 Lightsail。
+
+  <Callout type="info" title="Lightsail 的地址和密钥规则不同">
+    AWS 官方说明，默认动态公网 IPv4 可能在停止并重新启动实例后改变；Static IP 才用于保持固定地址。Lightsail 的默认密钥、自定义密钥和上传公钥也有不同的私钥保存规则，必须在创建时确认。
+  </Callout>
+
+  ### 备选 B：阿里云中国站 ECS
+
+  ECS 的地域、实例规格、网络、带宽和计费选项比主线更多。第一版只把它作为中国大陆用户能够访问官方支持和账单体系时的补充选择。
+
+  最小检查：
+
+  - 使用官方中国站 ECS 控制台，不通过非官方代购；
+  - 选择用途允许、当前可售的境外地域；
+  - 选择 Ubuntu 24.04 LTS 与 x86_64 / amd64；
+  - 规格满足本书下限；
+  - 在 Public IP 区域明确勾选分配公网 IPv4；
+  - 看懂按固定带宽和按使用流量的差异；
+  - 明确实际登录用户是 `root` 还是 `ecs-user`；
+  - 创建时选择自己能够保管的密码或 SSH Key；
+  - 安全组只允许 TCP 22，来源优先限制为自己的可信公网 IP；
+  - 核对停机模式、释放实例、云盘、快照和公网地址的计费与回收规则。
+
+  成功状态：控制台显示 Running 和公网 IPv4，SSH 登录成功，交接卡能说明带宽计费方式、登录用户与停止计费方法。
+
+  失败判断：实例只有私网 IP；安全组没有 TCP 22 或向公网开放了不需要的管理端口；选择节省停机模式后仍把原公网 IP 当作固定地址。
+
+  <Callout type="warning" title="固定公网 IP 不等于永远保留">
+    阿里云官方说明，实例释放、带宽改为 0 Mbps 或部分节省停机情形可能回收固定公网 IP。需要可迁移的长期地址时，应另行了解 EIP，并单独核对费用。
+  </Callout>
+
+  备选路径只要能够交付 Running 的 Ubuntu VPS、独立公网 IPv4、管理员用户、有效凭证和一次成功 SSH 登录，就可以进入第二册。不要为了让界面与本书一模一样而反复重建实例。
+</section>
+
+<section className="book-section" id="book01-appendix-glossary">
+  ## 核心术语表
+
+  <Glossary>
+    <dt>VPS</dt><dd>Virtual Private Server，虚拟专用服务器。它是运行在远程物理服务器上的一套隔离计算资源。</dd>
+    <dt>实例</dt><dd>服务商控制台中一台已经创建或正在创建的虚拟服务器。账户可以拥有多个实例，并分别计费。</dd>
+    <dt>vCPU</dt><dd>分配给虚拟服务器的虚拟处理器资源。相同数量不保证不同套餐具有相同性能。</dd>
+    <dt>RAM</dt><dd>内存。正在运行的系统和程序会占用它；不足时程序可能变慢或被系统终止。</dd>
+    <dt>系统盘</dt><dd>保存 Ubuntu、软件和文件的磁盘。删除实例或重装系统可能清除其中的数据。</dd>
+    <dt>带宽</dt><dd>网络传输速率上限，常用 Mbps 或 Gbps 表示。它描述“多快”，不是一个月可以传多少。</dd>
+    <dt>流量</dt><dd>一段计费周期内传输的数据总量，常用 GB 或 TB 表示。超出套餐可能收费或限速。</dd>
+    <dt>公网 IPv4</dt><dd>可以从互联网访问的 IPv4 地址。第一册要求实例获得独立公网 IPv4，不使用 IPv6-only、NAT 或共享 IPv4 主线。</dd>
+    <dt>私网 IP</dt><dd>只在服务商内部网络或私有网络中使用的地址，通常不能直接从家中电脑通过互联网连接。</dd>
+    <dt>NAT / 共享 IPv4</dt><dd>多台设备或服务器共用一个公网地址，并通过端口映射区分连接。它不符合第一册主线交付条件。</dd>
+    <dt>地区 / Region</dt><dd>服务商部署资源的地理区域。地区会影响库存、价格、延迟、政策和可用服务。</dd>
+    <dt>机房 / 数据中心</dt><dd>放置物理服务器和网络设备的设施。地区名称不等于某条固定网络线路。</dd>
+    <dt>Ubuntu</dt><dd>本书服务器使用的 Linux 操作系统发行版。第一版校订环境为 Ubuntu 24.04 LTS。</dd>
+    <dt>root</dt><dd>Linux 中权限最高的管理员用户。误操作可能影响整个系统，因此只能执行已经理解的命令。</dd>
+    <dt>sudo</dt><dd>让获得授权的普通用户临时以管理员权限执行某条命令的工具。</dd>
+    <dt>SSH</dt><dd>Secure Shell，用于从本地终端加密登录远程服务器的协议。默认端口通常是 TCP 22。</dd>
+    <dt>密码认证</dt><dd>通过用户名和服务器密码证明登录权限。网站账户密码与服务器密码不是同一个密码。</dd>
+    <dt>公钥</dt><dd>SSH 密钥对中可以放到服务器或服务商控制台的一部分。只有公钥通常不能直接冒充你登录。</dd>
+    <dt>私钥</dt><dd>SSH 密钥对中必须留在自己设备上的秘密部分。获得私钥的人可能直接登录服务器。</dd>
+    <dt>主机密钥指纹</dt><dd>用于识别服务器 SSH 身份的摘要。它不是读者自己的登录私钥。</dd>
+    <dt>端口</dt><dd>同一 IP 上区分网络服务的数字入口。SSH 默认使用 TCP 22。</dd>
+    <dt>云防火墙 / 安全组</dt><dd>服务商平台在实例外部控制网络流量的规则集合。它与 Ubuntu 内部防火墙是两层不同控制。</dd>
+    <dt>快照</dt><dd>某个时间点的磁盘副本，常用于恢复或复制。快照可能独立保留并持续收费。</dd>
+    <dt>自动备份</dt><dd>由服务商按计划创建和保留恢复点的附加服务。它不一定包含所有独立资源，也不能替代重要资料的多份备份。</dd>
+    <dt>Stop / 停止</dt><dd>让实例停止运行。是否停止计费、是否保留公网 IP，要按服务商与停机模式分别确认。</dd>
+    <dt>Destroy / Release / 删除 / 释放</dt><dd>永久删除实例资源的操作。它通常会造成数据丢失，但快照、独立磁盘或独立地址可能仍需另行删除。</dd>
+    <dt>两因素认证</dt><dd>除账户密码外再使用动态码或安全密钥验证登录，可降低账户密码泄露后的风险。</dd>
+    <dt>身份验证 / KYC</dt><dd>服务商或支付机构为确认账户身份而要求的流程。只能如实通过官方渠道完成，不能绕过或借用他人身份。</dd>
+  </Glossary>
+</section>
+
+<section className="book-section" id="book01-appendix-calibration">
+  ## 附录校订说明
+
+  AWS Lightsail 与阿里云 ECS 的地址、密钥、防火墙和停机规则依据官方资料校订于 2026-07-27。它们尚未完成中国大陆测试账户的发布级全流程试走，因此当前只作为选择检查，不作为逐按钮购买教程。
+
+  所有价格、套餐库存、支付方式、身份验证要求和页面按钮都必须以读者操作时的官方控制台与结算页为准。
+</section>

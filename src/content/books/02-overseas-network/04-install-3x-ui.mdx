@@ -6,7 +6,7 @@ title: "安装 3X-UI"
 shortTitle: "安装 3X-UI"
 description: "使用项目官方安装脚本。安装器会生成随机用户名、密码、面板端口和网页路径，请完整保存。"
 chapterType: "chapter"
-updatedAt: "2026-07-25"
+updatedAt: "2026-07-27"
 sourceAnchor: "ch4"
 chapterNumber: 4
 duration: "预计 10 分钟"
@@ -31,7 +31,7 @@ import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
   ## 执行安装
 
   <InstructionStep number={1} title="登录服务器">
-    重新使用 `ssh root@你的IP` 进入 VPS。
+    重新使用 `ssh root@你的IP` 进入 VPS。<span data-parity-ignore>如果交接卡记录的是其他管理员用户名或 SSH 私钥，请沿用第 2 章已经成功的用户名和 `ssh -i 私钥路径 用户名@你的IP`，不要为了照抄示例而切换认证方式。</span>
   </InstructionStep>
 
   <InstructionStep number={2} title="更新软件索引并安装 curl" />

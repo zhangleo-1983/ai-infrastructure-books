@@ -6,7 +6,7 @@ title: "开始之前"
 shortTitle: "开始之前"
 description: "这不是一本要求你先学会 Linux 的技术书。它是一条可以照着完成的学习路径。"
 chapterType: "introduction"
-updatedAt: "2026-07-25"
+updatedAt: "2026-07-27"
 sourceAnchor: "intro"
 labels: []
 draft: false
@@ -33,7 +33,13 @@ import Callout from "../../../components/common/Callout.astro";
 
 <ul className="preparation-list">
   <li>☑ 一台已经运行的 Ubuntu VPS</li>
-  <li>☑ VPS 的 IP、用户名和密码</li>
+  <li>☑ VPS 的 IP、用户名和密码<span data-parity-ignore>；如果使用 SSH Key，则准备与服务器匹配的私钥位置和私钥保护密码，不要求同时拥有服务器密码</span></li>
   <li>☑ Windows 或 Mac 电脑</li>
   <li>☑ 稳定的本地网络</li>
 </ul>
+
+<div data-parity-ignore>
+  <Callout type="tip" title="已经完成第一册？">
+    你已经做过一次真实 SSH 登录。第 2 章现在是“重新登录与复习”：仍然完整保留密码和 SSH 密钥两条路径，因此没有阅读第一册的读者也能独立完成。
+  </Callout>
+</div>

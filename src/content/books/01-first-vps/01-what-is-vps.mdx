@@ -1,0 +1,197 @@
+---
+book: "01-first-vps"
+order: 1
+slug: "01-what-is-vps"
+title: "你买到的 VPS 到底是什么？"
+shortTitle: "VPS 到底是什么"
+description: "先分清服务商账户、服务器实例和管理员账户，理解持续计费、运行状态与自己的管理责任。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 1
+duration: "预计 8 分钟"
+labels:
+  - "认知章节"
+  - "预计 8 分钟"
+  - "无购买操作"
+completionId: "book01-chapter-01"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import ConceptList from "../../../components/book/ConceptList.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book01-ch1-definition">
+  ## 先说结论：你租到的是一台远程虚拟电脑
+
+  VPS 是 Virtual Private Server 的缩写，中文通常叫“虚拟专用服务器”。
+
+  它不是送到你家里的实体电脑，也不是一次性买断的软件。你向服务商持续租用一部分计算、内存、磁盘和网络资源，服务商把这些资源组合成一台可以远程管理的虚拟服务器。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🏢</span>
+      <strong>服务商</strong>
+      <small>维护机房和物理服务器</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🖥️</span>
+      <strong>物理服务器</strong>
+      <small>承载多台虚拟服务器</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>你的 VPS</strong>
+      <small>拥有自己的系统与凭证</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💻</span>
+      <strong>你的电脑</strong>
+      <small>通过 SSH 远程登录</small>
+    </div>
+  </FlowDiagram>
+
+  你可以把 VPS 想成办公楼里的一间独立办公室：
+
+  - 服务商负责楼体、电力和公共设施；
+  - 你租用其中一个独立空间；
+  - 你决定房间里放什么、谁可以进入；
+  - 租约存在时，这个空间持续占用资源并产生费用。
+
+  这个比喻只能帮助你建立地图。准确地说，VPS 是通过虚拟化技术从物理服务器中分配出来的计算环境，它有自己的操作系统、磁盘、网络地址和登录权限。
+</section>
+
+<section className="book-section" id="book01-ch1-three-layers">
+  ## 三个“账户”不要混在一起
+
+  第一次购买 VPS 时，你会接触三个不同层级。
+
+  <ConceptList>
+    <section>
+      ### 服务商账户
+
+      你用邮箱、密码和多因素认证登录 Vultr。它管理支付、账单、服务器列表和支持工单。
+    </section>
+    <section>
+      ### 服务器实例
+
+      实例是控制台里那台具体 VPS。它有地区、配置、运行状态、公网 IP 和系统。
+    </section>
+    <section>
+      ### 服务器管理员
+
+      `root` 或可使用 sudo 的用户存在于 Ubuntu 里面。它不是 Vultr 网站账户。
+    </section>
+    <section>
+      ### 登录凭证
+
+      服务器密码或 SSH 私钥证明你有权进入实例。它们不等于网站支付密码。
+    </section>
+  </ConceptList>
+
+  <ComparisonTable>
+
+  | 你正在做什么 | 使用哪种身份 |
+  | --- | --- |
+  | 查看账单、创建或删除实例 | Vultr 服务商账户 |
+  | 查看 Running、IP 和地区 | Vultr 服务商账户 |
+  | 通过 SSH 进入 Ubuntu | `root` 或实际 sudo 用户 |
+  | 使用 SSH 密钥登录 | 本地私钥 + 服务器中的对应公钥 |
+  | 使用密码登录 | 服务器管理员密码 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="不要把 Vultr 网站密码输入 SSH">
+    网站账户密码用于登录 Vultr 控制台。服务器密码用于登录 Ubuntu。两者即使都叫“密码”，也不应该设置成相同内容。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch1-responsibility">
+  ## 服务商负责什么，你负责什么
+
+  购买 VPS 不等于购买“全托管服务”。
+
+  <ComparisonTable>
+
+  | 范围 | 通常由谁负责 | 本书如何处理 |
+  | --- | --- | --- |
+  | 机房、电力、物理服务器 | 服务商 | 查看状态页与服务条款 |
+  | 虚拟机创建和基础网络 | 服务商 | 在控制台选择地区、配置和公网 IP |
+  | Ubuntu 中的软件与配置 | 你 | 第二册开始安装和管理 |
+  | 登录密码、SSH 私钥 | 你 | 使用密码管理器并禁止公开 |
+  | 开放哪些端口 | 你 | 第一册只准备 SSH，后续按实际服务增加 |
+  | 数据备份 | 你决定 | 第一册说明风险，配置稳定后再选择方案 |
+  | 持续费用与资源删除 | 你 | 下单前核对，停止使用时逐项清理 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="VPS 不会自动替你保证安全">
+    服务商提供基础设施，不会替你判断弱密码、错误端口、过期软件或公开私钥。拥有管理员权限意味着你能控制服务器，也意味着错误配置需要由你处理。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch1-state">
+  ## Running、Stopped 和 Destroy 分别是什么
+
+  服务商控制台会显示实例状态。按钮名称可能变化，但三个动作的意义必须分清。
+
+  <ComparisonTable>
+
+  | 状态或动作 | 发生了什么 | 数据通常怎样 | 计费怎样判断 |
+  | --- | --- | --- | --- |
+  | Running | 服务器正在运行 | 保留 | 正常计费 |
+  | Restart / Reboot | 重新启动系统 | 保留 | 继续计费 |
+  | Stop | 暂停运行，资源仍被保留 | 保留 | Vultr 当前规则仍继续计费 |
+  | Destroy | 释放并永久删除实例 | 删除 | 该实例停止继续占用资源；其他独立资源要另查 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="关机不等于停止账单">
+    截至 2026-07-27，Vultr 官方说明停止实例后仍会计费，因为 CPU、内存、磁盘和 IP 仍被保留。真正停止该实例继续占用资源需要 Destroy，但它会永久删除服务器数据。核对来源：<a href="https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr" target="_blank" rel="noopener noreferrer">Vultr 停止实例计费说明</a>。
+  </Callout>
+
+  你现在不需要点击 Stop 或 Destroy。这一节的目标是让你在未来看到这些按钮时，知道哪个只是暂停，哪个会删除数据。
+</section>
+
+<section className="book-section" id="book01-ch1-fit">
+  ## VPS 适合做什么，又不适合承诺什么
+
+  一台基础 VPS 适合：
+
+  - 学习远程服务器和 Linux；
+  - 运行轻量网页、自动化工具或个人服务；
+  - 为第二册准备 3X-UI/Xray 的运行环境；
+  - 建立一套自己能够检查和维护的配置。
+
+  它不自动提供：
+
+  - 无限计算能力；
+  - 无限流量；
+  - 任何第三方服务的访问保证；
+  - 绝对匿名或不可追踪；
+  - 企业级高可用和自动运维；
+  - 服务商替你完成的软件安全更新。
+
+  <Callout type="info" title="租到服务器，不等于购买网络效果">
+    地区、网络路径、IP 信誉、目标服务政策和高峰拥塞都会影响实际体验。购买页面上的地区和带宽数字，只是判断的一部分。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch1-success">
+  ## 怎样判断这一章已经理解
+
+  请用自己的话完成下面四句话：
+
+  1. VPS 是我向服务商持续租用的远程虚拟服务器；
+  2. Vultr 账户管理账单和实例，`root` 或 sudo 用户管理 Ubuntu；
+  3. Stop 通常只是暂停运行，不能假设它会停止计费；
+  4. 密码和 SSH 私钥由我保管，不能公开。
+
+  如果其中任何一句仍然说不清，回到对应小节再看一次。下一章会出现更多套餐字段，这四个关系是后续所有选择的基础。
+
+  <ChapterChecklist chapterId="book01-chapter-01">
+    我已经能区分服务商账户、服务器实例和管理员账户，也理解 VPS 会持续计费并需要自己管理。
+  </ChapterChecklist>
+</section>

@@ -9,3 +9,7 @@ export type ThemeMode = (typeof THEME_MODES)[number];
 export const COPY_FEEDBACK_DURATION_MS = 1800;
 export const SEARCH_DEBOUNCE_MS = 180;
 export const SEARCH_RESULT_LIMIT = 8;
+export const SEARCH_QUERY_ALIASES: Readonly<Record<string, string>> = {
+  实名认证: "额外审核",
+  端口: "Port",
+};

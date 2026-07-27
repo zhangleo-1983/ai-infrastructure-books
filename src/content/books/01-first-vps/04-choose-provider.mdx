@@ -1,0 +1,213 @@
+---
+book: "01-first-vps"
+order: 4
+slug: "04-choose-provider"
+title: "怎样选择 VPS 服务商？"
+shortTitle: "选择服务商"
+description: "用产品、账户、支付、网络和支持五个维度选择服务商，并理解 Vultr 主线与 AWS、阿里云备选的差异。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 4
+duration: "预计 12 分钟"
+labels:
+  - "服务商选择"
+  - "Vultr 主线"
+  - "无推广链接"
+completionId: "book01-chapter-04"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import ConceptList from "../../../components/book/ConceptList.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch4-principle">
+  ## 不是找“全网最好”，而是找“你能管理”
+
+  VPS 服务商很多，没有一家在所有地区、所有时间、所有用途下都一定最好。第一台服务器更重要的标准是：
+
+  - 需求卡上的字段能否看清；
+  - 账户和支付是否由你本人控制；
+  - 服务器创建后能否得到独立公网 IPv4；
+  - 账单、状态和删除入口是否容易找到；
+  - 出现问题时，是否有官方文档、状态页和支持渠道。
+
+  <Callout type="info" title="本书选择主线，不发布服务商排行榜">
+    Vultr 是这本书的完整演示主线，因为 Cloud Compute 的产品路径与本书的轻量需求较接近。它不等于对速度、价格、可用性或第三方访问效果作出“最佳”承诺。本书不使用返利链接。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch4-five-questions">
+  ## 先问五个问题
+
+  <ConceptList>
+    <section>
+      ### 1. 产品是否匹配
+
+      能否选择普通云服务器、Ubuntu 24.04 LTS、amd64，以及不少于需求卡的资源。
+    </section>
+    <section>
+      ### 2. 公网 IPv4 是否清楚
+
+      是创建时自动分配、需要单独勾选，还是创建后再绑定；是否产生额外费用。
+    </section>
+    <section>
+      ### 3. 账户是否可长期控制
+
+      邮箱、密码、多因素认证、实名资料和支持工单是否都由你本人管理。
+    </section>
+    <section>
+      ### 4. 费用是否可解释
+
+      能否找到持续价格、附加资源、超额费用和删除资源后的账单规则。
+    </section>
+    <section>
+      ### 5. 故障时去哪里确认
+
+      是否有官方文档、服务状态页、账单说明和支持渠道，而不是只能依赖第三方教程。
+    </section>
+    <section>
+      ### 6. 地区是否可验证
+
+      所需地区是否有货，并能用状态页、Looking Glass 或后续实测判断网络路径。
+    </section>
+  </ConceptList>
+</section>
+
+<section className="book-section" id="book01-ch4-main-route">
+  ## 三条路线怎样分工
+
+  <ComparisonTable>
+
+  | 路线 | 本书覆盖深度 | 优点 | 需要额外注意 |
+  | --- | --- | --- | --- |
+  | Vultr Cloud Compute | 完整主线 | 创建字段集中，适合演示一台普通 Shared CPU VPS | 支付与审核因账户而异；套餐、IPv4 和地区库存需当场核对 |
+  | Amazon Lightsail | 备选映射 | 套餐把计算、磁盘和传输额度组合展示，官方文档完整 | 默认公网 IPv4 可能在停止并重新启动后变化，长期使用应绑定 Static IP |
+  | 阿里云 ECS | 备选映射 | 中国用户对账户与支付环境可能更熟悉，产品和支持体系完整 | 实名、地区、带宽计费、安全组和公网 IPv4 选项较多，不能照抄 Vultr 步骤 |
+
+  </ComparisonTable>
+
+  “备选映射”表示本书告诉你应当核对哪些等价字段，但不会复制三套完整、容易过期的购买界面。无论使用哪一家，最终都必须交付同一组结果：运行中的 Ubuntu VPS、独立公网 IPv4、管理员账户和可用登录凭证。
+</section>
+
+<section className="book-section" id="book01-ch4-vultr">
+  ## 为什么完整主线采用 Vultr
+
+  第一版把 Vultr 的 Cloud Compute / Shared CPU 作为主线，是一个编辑与教学决定：
+
+  1. 产品类型能与“普通虚拟服务器”直接对应；
+  2. 创建流程会依次出现地区、套餐、系统和认证方式；
+  3. 实例创建后可在详情页查看状态、IP 和凭证；
+  4. 官方文档提供部署、SSH、计费和支持说明；
+  5. 后续第二册只需要标准 Ubuntu 与公网 SSH，不依赖厂商专有运行环境。
+
+  <MockWindow title="服务商选择记录 · 教学仿真">
+    <div slot="toolbar"><MockStatusBadge>采用主线</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="服务商">Vultr</MockField>
+      <MockField label="产品">Cloud Compute · Shared CPU</MockField>
+      <MockField label="目标系统">Ubuntu 24.04 LTS · amd64</MockField>
+      <MockField label="目标地址">独立公网 IPv4</MockField>
+      <MockField label="官方文档">已找到部署、SSH、账单说明</MockField>
+      <MockField label="待现场确认">地区库存、套餐价格、支付与审核状态</MockField>
+    </div>
+  </MockWindow>
+
+  这张记录并不代表你现在已经注册或付款。它只确认后续正文要沿哪条路线讲解。
+</section>
+
+<section className="book-section" id="book01-ch4-aws">
+  ## 如果使用 AWS Lightsail
+
+  Lightsail 是 AWS 提供的简化虚拟服务器产品。它的套餐会组合 vCPU、内存、磁盘和传输额度，适合作为备选路线。
+
+  但要特别理解动态公网 IP 与 Static IP：
+
+  - 实例创建后会有公网 IPv4；
+  - 默认动态公网 IPv4 在实例停止并重新启动后可能变化；
+  - Static IP 是可以绑定到实例的固定公网地址；
+  - 长期连接或进入第二册前，应核对 Static IP 已经绑定；
+  - 删除实例后，独立保留的 Static IP 等资源也要逐项检查并释放。
+
+  <Callout type="warning" title="Restart 与 Stop/Start 不要混为一谈">
+    AWS 官方说明的关键风险是实例停止后再启动可能更换默认公网 IPv4。无论控制台按钮如何翻译，都要在操作后回到实例详情页核对实际地址。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch4-aliyun">
+  ## 如果使用阿里云 ECS
+
+  ECS 是 Elastic Compute Service 的缩写，中文产品名是云服务器 ECS。中国用户可能更熟悉其账户、实名和支付环境，但它的购买页会同时出现更多网络与安全选项。
+
+  作为本书备选路线，至少要把这些字段映射到需求卡：
+
+  <ComparisonTable>
+
+  | 阿里云字段 | 对应需求 | 通过条件 |
+  | --- | --- | --- |
+  | 实例规格 | vCPU 与内存 | 不少于 1 vCPU、1 GB RAM |
+  | 镜像 | 操作系统与架构 | Ubuntu 24.04 LTS、64 位、非应用镜像 |
+  | 系统盘 | 持久存储 | 不少于 25 GB |
+  | 公网 IP / 公网带宽 | 独立公网 IPv4 与网络计费 | 创建后确实分配 IPv4，并理解按带宽或按流量规则 |
+  | 安全组 | 云端入口规则 | SSH 使用 TCP 22；来源范围由你理解并确认 |
+  | 登录凭证 | 管理员认证 | 密码或 SSH 密钥已由本人安全保存 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="默认安全组不等于最安全设置">
+    阿里云官方提示，允许 `0.0.0.0/0` 访问 TCP 22 会让任何公网地址都能尝试 SSH 登录。第一册需要先保证本人可以连接；长期使用时应在网络条件允许的情况下，把来源限制到可信地址或网络范围。
+  </Callout>
+
+  实名要求、可购买地区、跨境网络表现和备案要求可能随账户、产品与用途而不同。不要把其他人的账户截图当成自己的实际条件，也不要使用代实名或虚假资料。
+</section>
+
+<section className="book-section" id="book01-ch4-red-flags">
+  ## 看到这些情况，先停下来
+
+  不要继续使用：
+
+  - 来源不明的转售商、合租账户或共享控制台；
+  - 要求你交出邮箱验证码、多因素认证或完整身份证件给陌生人的代购；
+  - 只承诺“高速”“稳定”，却不写配置、公网 IP 和计费规则的套餐；
+  - 提供破解客户端、共享 Apple ID 或绕过平台政策教程的所谓一站式服务；
+  - 只能通过私聊付款，没有官方账单、服务条款和支持入口的卖家。
+
+  成功状态：
+
+  - 你使用服务商官方站点注册；
+  - 邮箱、密码、多因素认证、支付和实名资料由你本人控制；
+  - 你已经找到产品文档、状态页、账单和支持入口；
+  - 你能解释为什么主线使用 Vultr，也知道 AWS 和阿里云需要额外核对什么。
+
+  失败判断：
+
+  - 你只根据第三方测速或优惠幅度选择；
+  - 购买页面没有公开配置与费用；
+  - 账户实际由卖家控制；
+  - 你无法确定公网 IPv4、管理员凭证或删除资源的方法。
+</section>
+
+<section className="book-section" id="book01-ch4-check">
+  ## 本章检查
+
+  <ChapterChecklist chapterId="book01-chapter-04">
+    我选择从 Vultr 官方站点沿主线继续，理解这不是“最佳服务商”承诺；如果改用 AWS Lightsail 或阿里云 ECS，我也能按需求卡重新核对公网 IPv4、凭证、安全组与费用。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch4-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Vultr Cloud Compute 部署文档</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing" target="_blank" rel="noopener noreferrer">Vultr Billing 文档</a>；
+  - <a href="https://docs.aws.amazon.com/lightsail/latest/userguide/getting-started-with-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">Amazon Lightsail 入门文档</a>；
+  - <a href="https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-static-ip-addresses-in-amazon-lightsail.html" target="_blank" rel="noopener noreferrer">Amazon Lightsail Static IP 说明</a>；
+  - <a href="https://help.aliyun.com/zh/ecs/user-guide/public-ip-address" target="_blank" rel="noopener noreferrer">阿里云 ECS 公网 IPv4 说明</a>；
+  - <a href="https://help.aliyun.com/zh/ecs/user-guide/start-using-security-groups" target="_blank" rel="noopener noreferrer">阿里云 ECS 安全组说明</a>。
+
+  以上事实校订于 2026-07-27。服务可用地区、支付与实名流程、套餐价格、公网 IPv4 规则和控制台界面属于时效性内容，发布前必须重新核对。
+</section>

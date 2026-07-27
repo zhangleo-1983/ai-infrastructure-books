@@ -1,0 +1,323 @@
+---
+book: "01-first-vps"
+order: 9
+slug: "09-order-and-billing"
+title: "下单前最后核对费用"
+shortTitle: "费用与下单"
+description: "区分套餐价格、账户余额、附加服务、税费和流量超额，理解停止与销毁的计费差异，再提交一次 Deploy。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 9
+duration: "预计 12 分钟"
+labels:
+  - "费用核对"
+  - "持续计费"
+  - "Deploy"
+completionId: "book01-chapter-09"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch9-goal">
+  ## 把“我以为”变成“我能解释”
+
+  你已经选择了地区、套餐、Ubuntu 和登录方式。先不要点击 Deploy。
+
+  这一章只做一件事：把“我以为要付多少钱”变成“我知道哪些项目会计费，以及怎样停止继续计费”。
+
+  VPS 是持续占用资源的服务。最危险的误解不是暂时多花一点，而是把账户充值金额当成服务器月费，或者以为关机就会停止账单。
+
+  <Callout type="warning" title="本章不是固定报价或财务建议">
+    套餐、附加服务、税费、汇率和超额价格都会变化。所有金额都必须以你自己账户中的当前结算摘要、Billing History 和官方条款为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch9-four-amounts">
+  ## 先区分四种金额
+
+  <ComparisonTable>
+
+  | 金额 | 它是什么 | 最容易发生的误解 |
+  | --- | --- | --- |
+  | 套餐价格 | 实例的计算、内存、磁盘和基础网络费用 | 把小时价、月度参考价或促销价混为一谈 |
+  | 账户充值或余额 | 进入服务商账户、用于以后结算的资金 | 把充值金额当成单台服务器月费 |
+  | 附加服务费用 | 备份、快照、额外存储、额外 IP 等 | 没看到默认勾选或独立资源 |
+  | 税费与支付差异 | 税、汇率和支付机构可能产生的差异 | 用教程截图推断自己的人民币实付金额 |
+
+  </ComparisonTable>
+
+  ### 套餐价格
+
+  Vultr 页面可能同时显示小时价格和月度参考价格。你要记录页面当前显示的两个值，但最后仍以结算摘要和 Billing History 为准。
+
+  ### 账户充值或余额
+
+  支付页面要求存入账户的金额，不一定等于一台服务器一个月的价格。它更像向账户钱包充值，资源费用再按实际规则从余额或付款方式中结算。
+
+  看到“支付了某个金额”，不能直接推断服务器每月就是这个金额。
+
+  ### 附加服务
+
+  常见附加项目包括自动备份、快照、额外公网 IPv4、DDoS 防护、块存储和负载均衡。第一册主线只需要一台 Cloud Compute 实例、一个独立公网 IPv4 和用于 SSH 的最小防火墙规则。
+
+  ### 税费、汇率和支付机构费用
+
+  Vultr 当前以美元出具账单。中国用户最终看到的人民币金额可能受支付机构换算、汇率和其他费用影响。税费也可能在账单中单独列出。
+</section>
+
+<section className="book-section" id="book01-ch9-summary-card">
+  ## 用教学结算卡逐项核对
+
+  <MockWindow title="Deploy Summary / Billing · 教学仿真">
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item">Instance</span>
+      <span className="mock-sidebar__item">Network</span>
+      <span className="mock-sidebar__item">Features</span>
+      <span className="mock-sidebar__item mock-sidebar__item--active">Billing</span>
+    </MockSidebar>
+    <div className="mock-form-grid">
+      <MockField label="Cloud Compute">1 台 · Shared CPU</MockField>
+      <MockField label="Location">Tokyo 或已记录的备选地区</MockField>
+      <MockField label="Image">Ubuntu 24.04 LTS x64</MockField>
+      <MockField label="Primary IPv4">Enabled · 费用状态已核对</MockField>
+      <MockField label="Automatic Backups">Off</MockField>
+      <MockField label="Additional Storage">None</MockField>
+      <MockField label="DDoS / Load Balancer">Off / None</MockField>
+      <MockField label="Currency">USD</MockField>
+      <MockField label="Hourly / Monthly" wide>抄写你自己页面当前显示的小时价和月度参考价</MockField>
+      <MockField label="Estimated Total" wide><MockStatusBadge tone="neutral">必须与预算卡一致</MockStatusBadge></MockField>
+    </div>
+  </MockWindow>
+
+  做什么：从上往下读一遍，不要只看最后一个总价。
+
+  为什么这样做：相同总价可能来自不同组合；一个页面可能只显示服务器价格，另一个页面可能已经加入备份或额外存储。
+
+  成功状态：
+
+  - 只有一台你需要的 Cloud Compute 实例；
+  - 自动备份、额外存储和额外服务没有被选中；
+  - 公网 IPv4 的状态和费用明确；
+  - 你能说出金额的币种和计费周期；
+  - 最终估算没有超过第 3 章写下的预算停止线。
+
+  失败判断：
+
+  - 总价比套餐卡高，但不知道高在哪里；
+  - 页面显示多个实例或多个地区；
+  - 出现 Windows License、Block Storage 或 Load Balancer；
+  - 自动备份已经打开，但你不知道它会增加多少费用；
+  - 结算摘要没有币种或计费周期。
+
+  遇到任何一种情况，都返回上一页逐项检查，不要付款。
+</section>
+
+<section className="book-section" id="book01-ch9-stopped">
+  ## 关机不等于停止计费
+
+  这是本章最重要的规则。
+
+  截至 2026-07-27，Vultr 官方明确说明：实例处于 Stopped 状态时，CPU、RAM、SSD 和 IP 等资源仍被保留，因此继续计费。要停止该实例继续占用这些资源，需要 Destroy。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔄</span>
+      <strong>Restart</strong>
+      <small>重新启动，继续计费</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">⏸️</span>
+      <strong>Stop</strong>
+      <small>暂停运行，仍然计费</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🗑️</span>
+      <strong>Destroy</strong>
+      <small>永久删除实例数据</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔎</span>
+      <strong>检查其他资源</strong>
+      <small>快照和存储可能仍收费</small>
+    </div>
+  </FlowDiagram>
+
+  Destroy 是破坏性操作，不是暂停按钮。销毁前必须确认：
+
+  1. 目标确实是要删除的实例；
+  2. 需要的数据已经有可验证的备份；
+  3. 交接卡不再被后续章节使用；
+  4. 账户里没有需要保留或另外删除的快照、磁盘、保留地址；
+  5. 你理解销毁后不能再用原密码或私钥登录这台实例。
+
+  本章不要求你销毁服务器。这里是让你在下单前先知道未来怎样停止该实例继续计费。
+</section>
+
+<section className="book-section" id="book01-ch9-backup">
+  ## 自动备份为什么默认关闭
+
+  截至 2026-07-27，Vultr 官方说明，Automatic Backups 会在实例基础小时或月度价格之外增加 20%，并按实例实际计费情况折算。
+
+  自动备份有价值，但第一册刚创建的是练习服务器：
+
+  - 还没有重要业务数据；
+  - 还没有安装第二册的配置；
+  - 目标是先确认购买和登录路径；
+  - 打开备份会让第一张账单增加一个持续费用项目。
+
+  因此第一册默认关闭 Automatic Backups。
+
+  <Callout type="danger" title="关闭备份意味着服务商不会替你自动保留恢复副本">
+    这不是“备份没用”。进入第二册、配置开始具有价值后，应根据数据价值重新选择自动备份、快照或其他方案，并实际验证恢复步骤。
+  </Callout>
+
+  成功状态：创建摘要显示 Automatic Backups 为 Off，你知道当前没有服务商自动恢复副本，也已经计划以后重新评估。
+
+  失败判断：备份被默认选中但你没有看到；你准备存放重要资料，却仍没有任何备份方案；你因为关闭备份而误以为服务器数据不会丢失。
+</section>
+
+<section className="book-section" id="book01-ch9-snapshots">
+  ## 销毁实例后，其他资源可能继续收费
+
+  快照是某个时间点的磁盘副本。它可以在实例销毁后继续存在并产生存储费用。Vultr 当前官方页面给出了按快照存储量计费的单价，但这个数字属于易变价格，本书不要求你背。
+
+  以后不再使用服务器时，要分别检查：
+
+  <ComparisonTable>
+
+  | 资源页面 | 要检查什么 |
+  | --- | --- |
+  | Compute Instances | 是否仍有 Running 或 Stopped 实例 |
+  | Snapshots | 是否保留了不再需要的磁盘副本 |
+  | Block Storage | 是否存在独立磁盘 |
+  | Reserved IP / 额外地址 | 是否有脱离实例后仍保留的地址 |
+  | Load Balancers | 是否存在独立负载均衡资源 |
+  | Billing History | 是否还有无法解释的活动费用 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="实例列表为空，不等于账户一定没有费用">
+    每种独立资源都需要在对应产品页面检查。删除实例也不会抹去已经产生的账单或流量超额费用。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch9-bandwidth">
+  ## 流量额度用完后会怎样
+
+  套餐包含的 Transfer 不是无限流量。截至 2026-07-27，Vultr 官方说明，超过套餐额度的带宽用量会按 GB 产生超额费用，并可在 Bandwidth Usage 页面查看当前与之前计费周期的出站传输统计。
+
+  本书不要求你预测第二册一定会使用多少流量，但必须建立两个习惯：
+
+  1. 知道套餐包含多少 Transfer；
+  2. 定期查看实际用量和是否出现 overage，也就是超额用量。
+
+  不要把“1 TB”理解成：
+
+  - 每秒 1 TB；
+  - 永远不会用完；
+  - 所有服务商都使用相同的入站、出站计算方式；
+  - 删除实例后，已经产生的超额费用会消失。
+
+  当前官方超额单价属于易变价格，应以 Billing 文档和你自己的账单为准。
+</section>
+
+<section className="book-section" id="book01-ch9-payment-state">
+  ## 支付成功后仍要检查账单
+
+  无论使用支付宝、银行卡还是 PayPal，都要保存：
+
+  - 支付成功状态或合法账单记录；
+  - Vultr Billing History；
+  - 实例创建时间；
+  - 当前活动服务列表；
+  - 服务商提供的官方发票。
+
+  如果支付机构显示扣款，但 Vultr 余额或创建状态没有更新：
+
+  1. 判断支付状态是成功、处理中还是失败；
+  2. 查看 Billing History 是否有对应记录；
+  3. 查看注册邮箱是否有额外验证；
+  4. 银行卡路径确认是否只是临时预授权；
+  5. 等待合理处理时间或联系支付机构、Vultr 官方支持；
+  6. 不要立即重复支付或重复点击 Deploy。
+
+  不要在截图、聊天或普通文档中保存完整银行卡号、支付密码、身份文件、PayPal 登录信息、2FA 恢复码、服务器密码或 SSH 私钥。
+</section>
+
+<section className="book-section" id="book01-ch9-final-check">
+  ## 下单前的 60 秒检查
+
+  ### 服务器
+
+  - 只有一台 Cloud Compute / Shared CPU 实例；
+  - 地区是东京，或你已经记录使用备选地区的原因；
+  - 配置不低于 1 vCPU、1 GB RAM、25 GB 系统盘和 1 TB Transfer；
+  - 系统是 Ubuntu 24.04 LTS x64；
+  - 实例明确获得独立公网 IPv4。
+
+  ### 附加项
+
+  - Automatic Backups 为 Off；
+  - 没有额外块存储和额外公网 IP；
+  - 没有误选 DDoS、负载均衡或其他服务；
+  - 云防火墙只为首次登录准备 TCP 22。
+
+  ### 费用
+
+  - 你知道页面使用的币种；
+  - 你已经看到小时价格和月度参考价格；
+  - 你知道充值金额不一定等于月费；
+  - 当前估算没有超过预算上限；
+  - 你知道停止实例仍会计费；
+  - 你知道 Destroy 会永久删除实例；
+  - 你知道快照等独立资源可能继续收费；
+  - 你知道以后在 Billing History 查看明细。
+
+  任何一项不能确认，都不要点击 Deploy。
+</section>
+
+<section className="book-section" id="book01-ch9-deploy">
+  ## 全部通过后，只提交一次
+
+  <InstructionStep number={1} title="再读一遍最终摘要">
+    核对产品、地区、系统、公网 IPv4、认证方式、防火墙、附加项、币种和费用。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="点击一次 Deploy">
+    确认无误后点击一次，不要连续双击，也不要在页面仍然处理中时重复提交。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="等待明确反馈">
+    页面应进入实例列表、详情页或显示创建中状态。如果出现错误，完整记录非敏感错误文字和时间，进入第 11 章分层排查。
+  </InstructionStep>
+
+  成功状态：页面只出现一台新实例，并显示创建中或其他明确状态；Billing History 没有重复资源。
+
+  失败判断：没有任何反馈；出现两台实例；支付或创建状态不明；页面要求重新付款。此时停止操作，不要再次 Deploy。
+
+  <ChapterChecklist chapterId="book01-chapter-09">
+    我能解释套餐价格、账户余额、附加服务、税费和超额流量，也理解 Stop 仍计费、Destroy 会永久删除实例；最终摘要符合预算后，我只提交了一次 Deploy。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch9-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr" target="_blank" rel="noopener noreferrer">Vultr：停止实例后的计费</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/how-much-does-it-cost-to-enable-automatic-backups" target="_blank" rel="noopener noreferrer">Vultr：Automatic Backups 费用</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/does-vultr-charge-for-stored-snapshots" target="_blank" rel="noopener noreferrer">Vultr：快照费用</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/what-is-the-bandwidth-overage-rate" target="_blank" rel="noopener noreferrer">Vultr：带宽超额费用</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/why-do-i-see-an-unexpected-charge-on-my-invoice" target="_blank" rel="noopener noreferrer">Vultr：意外账单费用检查</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing" target="_blank" rel="noopener noreferrer">Vultr Billing 资料中心</a>。
+
+  以上事实校订于 2026-07-27。20% 自动备份费率、快照与流量单价、税费、币种、套餐价格和页面名称都必须在正式发布前重新核对。
+</section>

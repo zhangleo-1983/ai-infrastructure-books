@@ -21,9 +21,10 @@
 
 ## 当前状态
 
-当前优先开发第二册：
+当前已有两册 Release Candidate：
 
-> **《拥有自己的海外网络：从 VPS 到 Clash，只需要 30 分钟》**
+1. **《15分钟搞定你的VPS》**
+2. **《拥有自己的海外网络：从 VPS 到 Clash，只需要 30 分钟》**
 
 当前已有一份完整的单文件 HTML 原型：
 
@@ -40,16 +41,16 @@ source/book02-v1.html
 
 在完成正式项目迁移之前，不应删除或覆盖该文件。
 
-工程迁移的五个里程碑已经完成，当前版本可作为第二册发布候选：
+工程迁移的五个里程碑已经完成，系列工程目前提供第一册与第二册发布候选：
 
 - Astro 静态站点骨架
 - TypeScript 严格模式和 MDX 内容集合
 - 设计 Token 与基础 Layout
-- 系列首页、书目页、第二册正式封面与完整目录
-- “开始之前”、第 1—12 章、附录和资料来源的独立页面
+- 系列首页、书目页、两册正式封面与完整目录
+- 两册“开始之前”、第 1—12 章、附录和资料来源的独立页面
 - 以 MDX frontmatter 为单一来源的章节元数据与显式排序
 - 浅层章节组件、仿真终端、仿真软件界面和代码复制
-- 完整整册打印路由与不依赖 JavaScript 的打印正文
+- 两册完整打印路由与不依赖 JavaScript 的打印正文
 - 全部内容单元的逐章正文、命令与数量完整性检查
 - Pagefind 中文静态全文搜索
 - system / light / dark 三态主题选择与首屏初始化
@@ -58,6 +59,8 @@ source/book02-v1.html
 - CI、类型检查、Lint、单元测试、内容基线和内部链接检查
 - Chromium、Firefox、WebKit 发布关键路径与 axe 可访问性检查
 - SEO、结构化数据、静态部署与 PDF 发布准备
+- 系列级书籍注册表、通用封面、章节和打印路由
+- 通用内容规范、新书脚手架和分层内容检查
 
 ------------------------------------------------------------------------
 
@@ -74,7 +77,11 @@ source/book02-v1.html
 9.  AI 开发环境
 10. 服务器安全与运维
 
-当前阶段只开发第二册。
+第一册与第二册均为公开 Release Candidate；第二册继续保留 HTML 原型逐段严格回归。
+第一册厂商页面使用 HTML 与 CSS 教学仿真，并把价格、库存、支付和验证流程作为
+时效性信息管理。第一册 RC 范围、验收结果与后续边界记录在
+[`docs/qa/01-first-vps/release-candidate.md`](docs/qa/01-first-vps/release-candidate.md)。
+第三册及后续正文尚未开始。
 
 ------------------------------------------------------------------------
 
@@ -227,9 +234,12 @@ source/book02-v1.html
 ``` text
 第二册单文件 HTML 原型：已完成
 工程化项目：Milestone 5 已完成最终验收与发布准备
+系列工程：已完成多册注册表和通用路由抽象
+第一册：15 个内容单元已接入公开 Release Candidate
+第二册：15 个内容单元保持 Release Candidate 与严格原型回归
 设计系统：基础 Token 已提取
-内容迁移：开始之前、第 1—12 章、附录和资料来源已迁移
-整册打印：已完成
+内容迁移：两册的开始之前、第 1—12 章、附录和资料来源已接入
+整册打印：两册均已完成
 正式部署：待项目 Owner 确认域名与发布平台
 ```
 
@@ -260,6 +270,10 @@ npm run check:content
 npm run check:links
 npm run check:release
 npm run test:e2e
+npm run book:new -- --id 01-first-vps
+npm run check:content:series
+npm run check:content:book01
+npm run check:content:book02
 npm run check
 npm run check:all
 ```
@@ -284,6 +298,9 @@ npm run preview
 完整工程说明见：
 
 - `docs/architecture.md`
+- `docs/series-architecture.md`
+- `docs/new-book-workflow.md`
+- `docs/book-release-checklist.md`
 - `docs/design-system.md`
 - `docs/content-authoring.md`
 - `docs/search.md`

@@ -1,0 +1,164 @@
+---
+book: "01-first-vps"
+order: 0
+slug: "start"
+title: "开始之前"
+shortTitle: "开始之前"
+description: "先看清从读懂套餐到完成首次 SSH 登录的整条路径，并准备账户、支付和凭证保存工具。"
+chapterType: "introduction"
+updatedAt: "2026-07-27"
+duration: "阅读约 5 分钟"
+labels:
+  - "阅读地图"
+  - "中国用户"
+  - "无购买操作"
+draft: false
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<LearningGoals
+  audience="从未购买过 VPS、不熟悉 Linux，希望为第二册准备一台可登录服务器的中国用户。"
+  duration="条件顺利时，购买与首次登录的页面操作约 15 分钟；第一次阅读建议预留 30—60 分钟。"
+  outcome="获得一台运行中的 Ubuntu VPS、独立公网 IPv4 和管理员凭证，并完成首次 SSH 登录。"
+/>
+
+<Callout type="warning" title="“15 分钟”不包括人工审核和等待">
+  书名中的 15 分钟，指资料已经准备好、支付与自动审核顺利时的操作时间。实名认证人工审核、支付失败、地区缺货和服务器开通等待可能需要更久。遇到等待状态时，不要为了赶时间重复付款或创建多台服务器。
+</Callout>
+
+<Callout type="info" title="书中的厂商页面都是教学仿真">
+  本书不使用真实账户截图。所有注册、支付、创建实例和账单界面都由 HTML 与 CSS 绘制，用来解释字段关系、操作顺序和成功状态，不声称复刻 Vultr 当前版本。真实页面的按钮名称和顺序可能变化，请按字段含义判断，并以你自己账户中的当前页面为准。
+</Callout>
+
+<section className="book-section" id="book01-start-map">
+  ## 你将完成的整条路径
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🧭</span>
+      <strong>读懂需求</strong>
+      <small>知道自己要买什么</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🏢</span>
+      <strong>选择服务商</strong>
+      <small>Vultr 为完整主线</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💳</span>
+      <strong>注册与支付</strong>
+      <small>核对费用和验证状态</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>创建 VPS</strong>
+      <small>东京 · Ubuntu · amd64</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>准备凭证</strong>
+      <small>SSH 密钥或强密码</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">⌨️</span>
+      <strong>首次登录</strong>
+      <small>确认管理员身份</small>
+    </div>
+  </FlowDiagram>
+
+  <p className="book-lead">付款不是终点。只有当你从自己的电脑成功登录服务器，并确认管理员身份，这本书的任务才算完成。</p>
+</section>
+
+<section className="book-section" id="book01-start-result">
+  ## 完成后，你手里应该有什么
+
+  <ComparisonTable>
+
+  | 交付物 | 成功状态 | 失败时先看哪里 |
+  | --- | --- | --- |
+  | 正在运行的 VPS | 控制台明确显示 Running | 实例是否仍在创建、审核或停止状态 |
+  | 独立公网 IPv4 | 实例详情页显示可复制的 IPv4 | 是否误选 IPv6-only、NAT 或私网地址 |
+  | Ubuntu 系统 | Ubuntu 24.04 LTS、amd64 | 是否误选应用镜像、Windows 或其他架构 |
+  | 管理员账户 | `root`，或能够使用 sudo 的用户 | 默认用户名和 Limited User 选择 |
+  | 登录凭证 | 已安全保存密码，或知道私钥文件位置 | 不要把公钥和私钥混为一谈 |
+  | 首次 SSH 登录 | `whoami` 返回预期管理员身份 | IP、22 端口、用户名和认证方式 |
+  | 服务器地区 | 已记录东京或实际选择的备选地区 | 不要把账单地址当成服务器地区 |
+
+  </ComparisonTable>
+
+  <Callout type="info" title="独立公网 IPv4 是第一版的必需条件">
+    第一版不使用 IPv6-only、NAT VPS 或共享 IPv4。第二册需要通过公网地址登录、配置和验证服务器，因此下单前与开通后都要核对 IPv4。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-start-prepare">
+  ## 开始前准备
+
+  请在打开购买页面前准备：
+
+  <ul className="preparation-list">
+    <li>☑ 一台 Windows 或 Mac 电脑</li>
+    <li>☑ 一个长期可用、能够接收验证邮件的邮箱</li>
+    <li>☑ 一个由你本人控制的手机或身份验证设备</li>
+    <li>☑ 密码管理器，或其他不会公开同步的凭证保存位置</li>
+    <li>☑ 本人可以合法使用的支付宝；银行卡或 PayPal 作为可选分支</li>
+    <li>☑ 一个你能接受的月度费用上限</li>
+    <li>☑ 一段不被打断的时间和稳定的本地网络</li>
+  </ul>
+
+  你不需要提前准备域名、Linux 知识、现成的 SSH 密钥或任何代理软件。书中会分别解释密码和 SSH 密钥路径。
+
+  <Callout type="info" title="支付方式校订于 2026-07-27">
+    Vultr 官方当前列出银行卡、PayPal 和 Alipay 等支付方式，但实际选项仍可能因账户和地区而不同。请以自己账户中的支付页面为准。核对来源：<a href="https://docs.vultr.com/support/platform/billing/why-do-i-need-to-enter-a-payment-method" target="_blank" rel="noopener noreferrer">Vultr 支付方式说明</a>。
+  </Callout>
+
+  <Callout type="danger" title="账户、支付和实名认证必须使用真实信息">
+    不要使用共享账户、代认证、虚假账单地址、来源不明的礼品卡或绕过风控的方法。支付与身份验证能否通过，取决于服务商、支付机构、账户状态和所在地政策；本书不承诺每种支付方式都能成功。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-start-route">
+  ## 本书采用哪条路线
+
+  主线使用 Vultr Cloud Compute / Shared CPU，并采用下面的教学默认值：
+
+  <ComparisonTable>
+
+  | 项目 | 第一版默认值 | 为什么 |
+  | --- | --- | --- |
+  | 地区 | 日本东京 | 形成统一演示路径，不代表对每位中国用户都是最佳网络 |
+  | 地区备选 | 美国洛杉矶 | 东京缺货或实测不合适时的备选 |
+  | 配置下限 | 1 vCPU、1 GB RAM、25 GB 系统盘、至少 1 TB 月流量 | 足以支撑第一、二册的轻量学习路径，并留出基础余量 |
+  | 系统 | Ubuntu 24.04 LTS | 与第二册已经验收的系统一致 |
+  | 架构 | x86_64 / amd64 | 减少零基础读者遇到的安装分支 |
+  | 公网地址 | 独立公网 IPv4 | 保持 SSH 和第二册配置路径清晰 |
+  | 登录方式 | SSH 密钥优先，密码路径完整保留 | 兼顾安全建议和不同账户、镜像的实际选择 |
+
+  </ComparisonTable>
+
+  AWS Lightsail 和阿里云中国站 ECS 只在附录中提供选择映射与最低核对项，不会在正文中复制三套完整购买步骤。
+
+  <Callout type="warning" title="东京只是演示地区，不是网络承诺">
+    物理距离、网络路径、高峰拥塞、IP 信誉和第三方服务政策都会影响实际体验。不要因为书中选择东京，就推断东京在任何时间、任何地区或任何用途下都一定更快。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-start-boundary">
+  ## 这本书不做什么
+
+  本书不会：
+
+  - 安装 3X-UI、Xray、Docker 或业务软件；
+  - 配置 VLESS、Reality、Clash Verge Rev 或 Shadowrocket；
+  - 购买域名或配置 Cloudflare；
+  - 提供服务商价格排行、长期有效优惠券或返利链接；
+  - 指导绕过支付、实名、地区或平台安全限制；
+  - 承诺某个 IP 可以访问特定第三方服务；
+  - 承诺自建 VPS 能带来匿名性或不可追踪性。
+
+  完成首次 SSH 登录后，你会进入第二册《拥有自己的海外网络》。第二册将从已经可登录的 Ubuntu VPS 继续，而不是让你再次购买服务器。
+</section>
