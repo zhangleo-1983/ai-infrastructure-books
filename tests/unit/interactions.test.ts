@@ -9,10 +9,12 @@ import {
 } from "../../src/scripts/chapter-status";
 import {
   READING_STATE_STORAGE_KEY,
+  SEARCH_QUERY_ALIASES,
   THEME_STORAGE_KEY,
 } from "../../src/scripts/constants";
 import { copyText, getCopyFeedback } from "../../src/scripts/copy";
 import { calculateReadingProgress } from "../../src/scripts/reading-progress";
+import { normalizeSearchQuery } from "../../src/scripts/search";
 import { isThemeMode, resolveTheme } from "../../src/scripts/theme";
 import { sitePath } from "../../src/lib/site-path";
 
@@ -155,7 +157,7 @@ describe("Milestone 4 基础交互", () => {
     const printRoute = readFileSync(
       resolve(
         root,
-        "src/pages/books/02-overseas-network/print/index.astro",
+        "src/pages/books/[book]/print/index.astro",
       ),
       "utf8",
     );
@@ -166,12 +168,23 @@ describe("Milestone 4 基础交互", () => {
     expect(search).toContain('event.key === "Enter"');
     expect(search).toContain("appendSafeExcerpt");
     expect(search).not.toContain("excerptElement.innerHTML");
-    expect(copyButton).toContain("data-copy-value={value}");
+    expect(copyButton).not.toContain("data-copy-value");
+    expect(copyButton).toContain("data-copy-button");
     expect(copyButton).toMatch(/data-copy-button[\s\S]*hidden/);
     expect(mobileToc).toContain('event.key !== "Escape"');
     expect(mobileToc).toContain('link.addEventListener("click"');
     expect(chapterRoute).toContain("data-pagefind-body");
     expect(printRoute).not.toContain("data-pagefind-body");
+  });
+
+  it("中文搜索只对已确认的 Pagefind 分词边界使用轻量别名", () => {
+    expect(SEARCH_QUERY_ALIASES).toEqual({
+      实名认证: "额外审核",
+      端口: "Port",
+    });
+    expect(normalizeSearchQuery(" 实名认证 ")).toBe("额外审核");
+    expect(normalizeSearchQuery("端口")).toBe("Port");
+    expect(normalizeSearchQuery("SSH 密钥")).toBe("SSH 密钥");
   });
 
   it("子路径链接保留页面尾斜杠，但不破坏静态文件路径", () => {

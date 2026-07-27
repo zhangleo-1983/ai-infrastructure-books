@@ -221,7 +221,8 @@
     font-weight: 750;
   }
 
-  .status-label[data-status="current"] {
+  .status-label[data-status="release-candidate"],
+  .status-label[data-status="published"] {
     background: var(--color-primary-soft);
     color: var(--color-primary);
   }

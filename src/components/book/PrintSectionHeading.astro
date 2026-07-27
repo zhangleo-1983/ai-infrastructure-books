@@ -1,0 +1,12 @@
+---
+type Props = Record<string, unknown> & {
+  id?: string;
+};
+
+const attributes = { ...Astro.props };
+delete attributes.id;
+---
+
+<h2 {...attributes}>
+  <slot />
+</h2>

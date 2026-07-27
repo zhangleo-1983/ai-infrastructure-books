@@ -1,6 +1,6 @@
 # 第二册迁移台账
 
-校订日期：2026-07-25
+校订日期：2026-07-27
 
 本台账以 `source/book02-v1.html` 为内容基准。每次迁移必须更新“迁移状态”、
 “文字修改”和“原因”。正文不要求逐字符一致，但任何删减、合并或重写都必须显式记录。
@@ -13,17 +13,17 @@
 
 | 原型锚点或区块 | 区块名称 | 目标章节文件 | 目标组件 | 迁移状态 | 文字修改 | 原因 | 校验结果 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `#cover` | 第二册封面 | 正式封面页 / 整册打印页 | `BookCover` | 已核对 | 有替换和新增 | 工程化后将“完整 HTML v1.0”改为“在线版”，并从内容集合显示精确到日的校订日期；按 Milestone 3 验收补充“适合谁、完成收获、阅读准备、开始阅读、整册打印”。原型书名、副标题、技术路径与册号均保留 | 核心文案核对通过 |
-| `#intro` | 开始之前 | `00-introduction.mdx` | MDX、`LearningGoals`、`Callout` | 已核对 | 否 | — | 正文对照通过 |
+| `#cover` | 第二册封面 | 正式封面页 / 整册打印页 | `BookCover` | 已核对 | 有替换和新增 | 工程化后将“完整 HTML v1.0”改为“在线版”，并从内容集合显示精确到日的校订日期；按 Milestone 3 验收补充“适合谁、完成收获、阅读准备、开始阅读、整册打印”；第一册交接校订后把准备条件从仅密码扩展为“密码或 SSH 私钥” | 核心文案核对通过；跨册准备条件已复核 |
+| `#intro` | 开始之前 | `00-introduction.mdx` | MDX、`LearningGoals`、`Callout` | 已核对 | 有增补 | 保留原型准备清单，补充 SSH Key 私钥路径及“完成第一册后作为重新登录复习”的连续阅读说明 | 原型正文保留，登记增补对照通过 |
 | `#ch1` | 第 1 章章首 | `01-after-vps.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch1-map` | 完整工作链路 | `01-after-vps.mdx` | `FlowDiagram`、`ConceptList`、`Callout`、`ChapterChecklist` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch2` | 第 2 章章首 | `02-login-server.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
-| `#ch2-ssh` | SSH 与 Terminal | `02-login-server.mdx` | `FlowDiagram`、`ComparisonTable`、`Callout` | 已核对 | 否 | — | 正文对照通过 |
-| `#ch2-login` | 第一次登录 | `02-login-server.mdx` | `PlatformTabs`、`InstructionStep`、`TerminalMock`、`CodeBlock`、`Callout`、`ChapterChecklist` | 已核对 | 否 | — | 正文与命令对照通过 |
+| `#ch2-ssh` | SSH 与 Terminal | `02-login-server.mdx` | `FlowDiagram`、`ComparisonTable`、`Callout` | 已核对 | 有增补 | 保留原型密码信息表，说明 SSH Key 路径不要求同时拥有服务器密码 | 原型正文保留，登记增补对照通过 |
+| `#ch2-login` | 第一次登录 | `02-login-server.mdx` | `PlatformTabs`、`InstructionStep`、`TerminalMock`、`CodeBlock`、`Callout`、`TroubleshootingItem`、`ChapterChecklist` | 已核对 | 有增补 | 按第一册交接规则增加 Windows/macOS 私钥命令、连续阅读定位、主机身份判断、sudo 用户验证和密钥错误分支；原有密码路径、命令与完成项不删除 | 原型正文和原命令保留，双路径增补对照通过 |
 | `#ch3` | 第 3 章章首 | `03-understand-3x-ui.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch3-panel` | 3X-UI、Xray 与节点 | `03-understand-3x-ui.mdx` | `InfoGrid`、`MockWindow`、`MockSidebar`、`MockStatusBadge`、`Callout`、`ChapterChecklist` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch4` | 第 4 章章首 | `04-install-3x-ui.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
-| `#ch4-install` | 执行安装 | `04-install-3x-ui.mdx` | `CodeBlock`、`TerminalMock`、`Callout` | 已核对 | 否 | — | 正文与命令对照通过 |
+| `#ch4-install` | 执行安装 | `04-install-3x-ui.mdx` | `CodeBlock`、`TerminalMock`、`Callout` | 已核对 | 有增补 | 在原有 `ssh root@你的IP` 后补充按交接卡沿用实际用户名和私钥路径，不要求读者切换已经成功的认证方式 | 原型正文和原命令保留，登记增补对照通过 |
 | `#ch4-login` | 登录面板 | `04-install-3x-ui.mdx` | `MockWindow`、`MockField`、`Callout`、`ChapterChecklist` | 已核对 | 否 | — | 正文与命令对照通过 |
 | `#ch5` | 第 5 章章首 | `05-create-reality-node.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch5-fields` | Reality 字段 | `05-create-reality-node.mdx` | `MockWindow`、`MockField`、`MockToolbar`、`ComparisonTable`、`Callout` | 已核对 | 否 | — | 正文与命令对照通过 |
@@ -40,12 +40,12 @@
 | `#ch10` | 第 10 章章首 | `10-daily-use.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
 | `ch10-body` | 多设备与日常使用正文（紧随 `#ch10`） | `10-daily-use.mdx` | `MockWindow`、`MockToolbar`、`InfoGrid`、`ChapterChecklist` | 已核对 | 否 | — | 正文对照通过 |
 | `#ch11` | 第 11 章章首 | `11-troubleshooting.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
-| `ch11-body` | 故障排查正文（紧随 `#ch11`） | `11-troubleshooting.mdx` | `FlowDiagram`、`TroubleshootingItem`、`Callout`、`ChapterChecklist` | 已核对 | 否 | — | 正文对照通过 |
+| `ch11-body` | 故障排查正文（紧随 `#ch11`） | `11-troubleshooting.mdx` | `FlowDiagram`、`TroubleshootingItem`、`Callout`、`ChapterChecklist` | 已核对 | 有增补 | 在 Permission denied 原排查后增加 publickey、私钥路径和 Identity file 分支 | 原型正文保留，登记增补对照通过 |
 | `#ch12` | 第 12 章章首 | `12-security-maintenance.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
 | `ch12-body` | 安全与维护正文（紧随 `#ch12`） | `12-security-maintenance.mdx` | `InfoGrid`、`CodeBlock`、`Callout`、`ChapterChecklist`、`BookCompletion` | 已核对 | 否 | — | 正文与命令对照通过 |
 | `#appendix` | 附录章首 | `13-appendix.mdx` | `ChapterHeader` | 已核对 | 否 | — | 正文对照通过 |
-| `appendix-body` | 命令速查与术语（紧随 `#appendix`） | `13-appendix.mdx` | `ComparisonTable`、`Glossary` | 已核对 | 否 | — | 正文与术语对照通过 |
-| `#sources` | 版本说明与官方资料 | `14-sources.mdx` | 资料列表、`Callout` | 已核对 | 否 | — | 正文与链接对照通过 |
+| `appendix-body` | 命令速查与术语（紧随 `#appendix`） | `13-appendix.mdx` | `ComparisonTable`、`Glossary` | 已核对 | 有增补 | 保留原密码命令速查，新增 Windows/macOS 私钥命令与 SSH 私钥术语 | 原型正文和术语保留，登记增补对照通过 |
+| `#sources` | 版本说明与官方资料 | `14-sources.mdx` | 资料列表、`Callout` | 已核对 | 有更新和增补 | 将旧 Vultr SSH 链接更新为当前产品文档与安全实践入口，并增加 Vultr SSH 排错、Microsoft OpenSSH 官方来源 | 原型来源文字保留，官方链接与增补对照通过 |
 
 ## Milestone 3 说明
 

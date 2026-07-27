@@ -25,17 +25,29 @@ test.describe("第二册发布候选关键路径", () => {
     await page.getByRole("link", { name: "登录服务器" }).click();
     await expect(page).toHaveURL(/\/02-login-server\/$/);
 
-    const windowsTab = page.getByRole("tab", { name: "Windows" });
-    const macTab = page.getByRole("tab", { name: "Mac" });
+    const windowsTab = page.locator("#ssh-platform-tab-windows");
+    const macTab = page.locator("#ssh-platform-tab-mac");
     await windowsTab.click();
     await expect(windowsTab).toHaveAttribute("aria-selected", "true");
-    await expect(
-      page.locator("[data-platform-panel='windows']"),
-    ).toBeVisible();
+    await expect(page.locator("#ssh-platform-windows")).toBeVisible();
     await macTab.click();
     await expect(macTab).toHaveAttribute("aria-selected", "true");
 
-    const firstCopyButton = page.locator("[data-copy-button]").first();
+    const keyWindowsTab = page.locator("#ssh-key-platform-tab-windows");
+    const keyMacTab = page.locator("#ssh-key-platform-tab-mac");
+    await keyWindowsTab.click();
+    await expect(
+      page.locator("#ssh-key-platform-windows .code-block pre"),
+    ).toContainText("USERPROFILE");
+    await keyMacTab.click();
+    await expect(
+      page.locator("#ssh-key-platform-mac .code-block pre"),
+    ).toContainText("~/.ssh/id_ed25519");
+
+    await keyWindowsTab.click();
+    const firstCopyButton = page.locator(
+      "#ssh-key-platform-windows [data-copy-button]",
+    );
     await expect(firstCopyButton).toHaveAccessibleName("复制命令");
     await firstCopyButton.click();
     await expect(firstCopyButton).toHaveText(/已复制|复制失败/);
@@ -82,9 +94,31 @@ test.describe("第二册发布候选关键路径", () => {
 
     await page.goto(`${bookPath}print/`);
     await expect(page.locator("[data-print-chapter]")).toHaveCount(15);
+    const printButton = page.getByRole("button", {
+      name: "打印或导出 PDF",
+    });
+    await expect(printButton).toBeVisible();
+    await page.emulateMedia({ media: "print" });
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("beforeprint")),
+    );
     await expect(
-      page.getByRole("button", { name: "打印或导出 PDF" }),
+      page.locator(
+        "[data-source-anchor='ch2'] .troubleshooting-item",
+      ).first(),
+    ).toHaveAttribute("open", "");
+    await expect(
+      page.locator(
+        "[data-source-anchor='ch2'] .troubleshooting-item__body",
+      ).first(),
     ).toBeVisible();
+    await expect(page.locator("body")).toContainText(
+      '~/.ssh/id_ed25519 root@203.0.113.10',
+    );
+    await expect(page.locator("body")).toContainText(
+      "ssh root@203.0.113.10",
+    );
+    await expect(printButton).toBeHidden();
     expect(consoleErrors).toEqual([]);
   });
 
@@ -100,16 +134,58 @@ test.describe("第二册发布候选关键路径", () => {
       "open",
       "",
     );
-    await expect(page.locator("[data-platform-panel='mac']")).toBeVisible();
-    await expect(page.locator("[data-platform-panel='windows']")).toBeVisible();
-    await expect(page.locator(".code-block pre")).toHaveCount(3);
-    await expect(page.locator("[data-copy-button]")).toHaveCount(3);
+    await expect(page.locator("[data-platform-panel='mac']")).toHaveCount(2);
+    await expect(page.locator("[data-platform-panel='windows']")).toHaveCount(
+      2,
+    );
+    expect(
+      await page.locator("[data-platform-panel]").evaluateAll((panels) =>
+        panels.every(
+          (panel) => getComputedStyle(panel).display !== "none",
+        ),
+      ),
+    ).toBe(true);
+    await expect(page.locator(".code-block pre")).toHaveCount(6);
+    await expect(page.locator("[data-copy-button]")).toHaveCount(6);
+    await expect(
+      page.locator(".troubleshooting-item__body").first(),
+    ).toBeVisible();
     expect(
       await page.locator("[data-copy-button]").evaluateAll((buttons) =>
         buttons.every((button) => (button as HTMLElement).hidden),
       ),
     ).toBe(true);
     await context.close();
+  });
+
+  test("带引号和反斜杠的 Windows SSH 命令可完整复制", async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== "chromium");
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "clipboard", {
+        configurable: true,
+        get: () => ({
+          writeText: (value: string) => {
+            document.documentElement.dataset.copiedCommand = value;
+            return Promise.resolve();
+          },
+        }),
+      });
+    });
+
+    await page.goto(`${bookPath}02-login-server/`);
+    const copyButton = page.locator(
+      "#ssh-key-platform-windows [data-copy-button]",
+    );
+    await expect(copyButton).toHaveAccessibleName("复制命令");
+    await copyButton.click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-copied-command",
+      'ssh -i "$env:USERPROFILE\\.ssh\\id_ed25519" root@203.0.113.10',
+    );
+    await expect(copyButton).toHaveText("已复制");
   });
 });
 
@@ -150,6 +226,32 @@ test.describe("响应式与无障碍", () => {
       }
     });
   }
+
+  test("SSH 密钥双平台内容在手机与平板宽度无页面级横向溢出", async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== "chromium");
+
+    for (const viewport of [
+      { width: 375, height: 667 },
+      { width: 768, height: 1024 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto(`${bookPath}02-login-server/`);
+      await page.locator("#ssh-key-platform-tab-windows").click();
+      await expect(
+        page.locator("#ssh-key-platform-windows .code-block"),
+      ).toBeVisible();
+
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow, `${viewport.width}px`).toBeLessThanOrEqual(1);
+    }
+  });
 
   test("WCAG A/AA 自动扫描和页面语义", async ({ page }) => {
     await page.goto(`${bookPath}02-login-server/`);

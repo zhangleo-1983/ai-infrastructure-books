@@ -6,7 +6,7 @@ title: "登录你的第一台服务器"
 shortTitle: "登录服务器"
 description: "从自己的电脑建立一条 SSH 加密通道，进入远程 VPS。输入密码时什么都看不见，是正常现象。"
 chapterType: "chapter"
-updatedAt: "2026-07-25"
+updatedAt: "2026-07-27"
 sourceAnchor: "ch2"
 chapterNumber: 2
 duration: "预计 10 分钟"
@@ -23,6 +23,7 @@ import ComparisonTable from "../../../components/book/ComparisonTable.astro";
 import FlowDiagram from "../../../components/book/FlowDiagram.astro";
 import InstructionStep from "../../../components/book/InstructionStep.astro";
 import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
 import Callout from "../../../components/common/Callout.astro";
 import CodeBlock from "../../../components/common/CodeBlock.astro";
 import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
@@ -58,9 +59,13 @@ import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
   | --- | --- | --- |
   | IP Address | `203.0.113.10` | 必须替换成你的真实 IP |
   | Username | `root` | 若部署时启用了 Limited User，请用实际用户名 |
-  | Password | Vultr 页面提供 | 不要截图或分享 |
+  | Password | Vultr 页面提供<span data-parity-ignore>；仅密码认证需要</span> | 不要截图或分享 |
 
   </ComparisonTable>
+
+  <div data-parity-ignore>
+    使用 SSH Key 时，不需要为了跟随本章而重置服务器密码。你需要的是实际用户名、与服务器匹配的本地私钥文件，以及私钥保护密码（如果创建密钥时设置过）。
+  </div>
 
   <Callout type="warning" title="本书示例 IP 不可使用">
     `203.0.113.10` 是文档示例地址，不是真实服务器。
@@ -83,6 +88,43 @@ import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
     </div>
   </PlatformTabs>
 
+  <div data-parity-ignore>
+    <Callout type="info" title="连续阅读与独立阅读都从这里继续">
+      已完成第一册的读者：重新使用已经验证过的认证方式登录。直接阅读第二册的读者：先判断自己拿到的是服务器密码还是 SSH 私钥，再选择下面对应路径。
+    </Callout>
+
+    ### 路径 A：使用 SSH 私钥
+
+    私钥是保存在自己电脑上的秘密文件。不要选择以 `.pub` 结尾的公钥，也不要把私钥上传到服务商控制台、聊天或网页表单。
+
+    <PlatformTabs id="ssh-key-platform" firstPlatform="windows">
+      <div slot="windows">
+        默认 ED25519 私钥通常位于 Windows 用户目录下的 `.ssh` 文件夹。PowerShell 示例：
+
+        <CodeBlock
+          label="Windows · 把示例 IP 换成真实 IP"
+          code={'ssh -i "$env:USERPROFILE\\.ssh\\id_ed25519" root@203.0.113.10'}
+        />
+
+        如果私钥名称或管理员用户名不同，同时替换文件名和 `root`。
+      </div>
+      <div slot="mac">
+        默认 ED25519 私钥通常位于 `~/.ssh/id_ed25519`。终端示例：
+
+        <CodeBlock
+          label="macOS · 把示例 IP 换成真实 IP"
+          code="ssh -i ~/.ssh/id_ed25519 root@203.0.113.10"
+        />
+
+        如果私钥名称或管理员用户名不同，同时替换文件名和 `root`。
+      </div>
+    </PlatformTabs>
+
+    成功后可能只要求输入私钥保护密码，不会要求服务器密码。这个保护密码由你创建密钥时设置，不是 Vultr 账户密码。
+
+    ### 路径 B：使用服务器密码
+  </div>
+
   <CodeBlock
     label="把示例 IP 换成你的真实 IP"
     code="ssh root@203.0.113.10"
@@ -96,9 +138,17 @@ import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
     {"Are you sure you want to continue connecting (yes/no/[fingerprint])?"}
   </TerminalMock>
 
+  <div data-parity-ignore>
+    <Callout type="warning" title="主机身份提示不能只看见就确认">
+      先确认命令中的 IP 与当前实例详情页一致，而且这是第一次连接该实例。若已经连接过同一 IP，却突然出现主机密钥变化警告，先停止并核对实例是否重装或 IP 是否被新实例复用。
+    </Callout>
+  </div>
+
   核对 IP 后输入：
 
   <CodeBlock code="yes" />
+
+  <span data-parity-ignore>只有密码路径会继续出现下面的密码提示。</span>
 
   <Callout type="warning" title="输入密码时不会显示星号">
     复制密码、粘贴、直接按回车。屏幕没有变化并不代表没有输入。
@@ -112,9 +162,33 @@ import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
     <span className="term-green">root@vultr</span><span className="term-white">{":~#"}</span>{" ▌"}
   </TerminalMock>
 
-  看到 `root@……:~#` 即表示成功。退出时输入：
+  看到 `root@……:~#` 即表示成功。<span data-parity-ignore>若实际使用 Limited User，提示符和 `whoami` 可能显示该用户名；继续执行 `sudo whoami`，返回 `root` 才说明它具备后续章节需要的管理员权限。</span>退出时输入：
+
+  <div data-parity-ignore>
+    <CodeBlock code="sudo whoami" />
+
+    <Callout type="info" title="不要在本章切换认证方式">
+      只要密码或 SSH 私钥其中一种已经登录成功，就继续使用它。不要为了让画面与示例完全一致而重装实例、覆盖密钥或强行开启 root 密码登录。
+    </Callout>
+  </div>
 
   <CodeBlock code="exit" />
+
+  <div data-parity-ignore>
+    ### 登录失败时先读错误文字
+
+    <TroubleshootingItem title="Connection timed out / Connection refused">
+      先检查实例是否 Running、IP 是否正确、Vultr Firewall 是否允许 TCP 22，以及防火墙来源是否仍包含你当前公网 IP。这类错误发生在认证之前，反复输入密码或换私钥不会解决网络问题。
+    </TroubleshootingItem>
+
+    <TroubleshootingItem title="Permission denied / Permission denied (publickey)">
+      密码路径检查实际用户名、服务器密码和实例 IP；密钥路径检查私钥文件、对应公钥和实际用户名。不要使用 Vultr 网站账户密码，也不要把 `.pub` 公钥当作私钥。
+    </TroubleshootingItem>
+
+    <TroubleshootingItem title="Identity file ... not accessible">
+      这是本地私钥路径或文件名错误。先在自己的电脑上确认文件位置，不要修改服务器、防火墙或重装实例。
+    </TroubleshootingItem>
+  </div>
 
   <ChapterChecklist chapterId="book02-chapter-02">
     我已经成功登录、执行 whoami，并使用 exit 退出。

@@ -87,48 +87,127 @@ for (const file of htmlFiles) {
   }
 }
 
-const printFile = resolve(
-  outputDirectory,
-  "books/02-overseas-network/print/index.html",
+const parsedPages = htmlFiles.map((file) => ({
+  file,
+  html: readFileSync(file, "utf8"),
+  document: parse(readFileSync(file, "utf8")),
+}));
+
+const printPages = parsedPages.filter(({ document }) =>
+  document.querySelector("[data-print-book]"),
 );
-const printDocument = parse(readFileSync(printFile, "utf8"));
-if (
-  !printDocument
-    .querySelector('meta[name="robots"]')
-    ?.getAttribute("content")
-    ?.includes("noindex")
-) {
-  failures.push("整册打印页必须 noindex");
-}
-if (printDocument.querySelector("[data-pagefind-body]")) {
-  failures.push("整册打印页不得进入 Pagefind");
-}
-if (printDocument.querySelectorAll("[data-print-chapter]").length !== 15) {
-  failures.push("整册打印页必须包含 15 个内容单元");
+const printBookIds = new Set();
+for (const { file, document } of printPages) {
+  const fileLabel = relative(root, file);
+  const printBook = document.querySelector("[data-print-book]");
+  const bookId = printBook?.getAttribute("data-book-id") ?? "";
+  if (!bookId) failures.push(`${fileLabel}：打印页缺少稳定书籍 id`);
+  if (printBookIds.has(bookId)) {
+    failures.push(`${fileLabel}：书籍 ${bookId} 生成了重复打印页`);
+  }
+  printBookIds.add(bookId);
+
+  if (
+    !document
+      .querySelector('meta[name="robots"]')
+      ?.getAttribute("content")
+      ?.includes("noindex")
+  ) {
+    failures.push(`${fileLabel}：整册打印页必须 noindex`);
+  }
+  if (document.querySelector("[data-pagefind-body]")) {
+    failures.push(`${fileLabel}：整册打印页不得进入 Pagefind`);
+  }
+  if (document.querySelectorAll("[data-print-chapter]").length === 0) {
+    failures.push(`${fileLabel}：整册打印页没有内容单元`);
+  }
 }
 
-const coverFile = resolve(
-  outputDirectory,
-  "books/02-overseas-network/index.html",
-);
-const coverHtml = readFileSync(coverFile, "utf8");
-if (!coverHtml.includes('"@type":"Book"')) {
-  failures.push("第二册封面缺少 Book 结构化数据");
+const coverPages = parsedPages.filter(({ document }) =>
+  document.querySelector("[data-book-cover]"),
+).filter(({ document }) => !document.querySelector("[data-print-book]"));
+for (const { file, html, document } of coverPages) {
+  const fileLabel = relative(root, file);
+  if (!document.querySelector("[data-book-id]")) {
+    failures.push(`${fileLabel}：书籍封面缺少稳定书籍 id`);
+  }
+  if (!html.includes('"@type":"Book"')) {
+    failures.push(`${fileLabel}：书籍封面缺少 Book 结构化数据`);
+  }
 }
 
-const chapterFiles = htmlFiles.filter((file) =>
-  /books\/02-overseas-network\/(?:start|0\d-|1[0-2]-|appendix|sources)\/index\.html$/.test(
-    file,
-  ),
+const chapterPages = parsedPages.filter(({ document }) =>
+  document.querySelector("[data-chapter-status-root]"),
 );
-for (const file of chapterFiles) {
-  const html = readFileSync(file, "utf8");
+for (const { file, html } of chapterPages) {
   if (
     !html.includes('"@type":"TechArticle"') &&
     !html.includes('"@type":"Article"')
   ) {
     failures.push(`${relative(root, file)}：缺少章节结构化数据`);
   }
+}
+
+const book01PrintFile = resolve(
+  outputDirectory,
+  "books/01-first-vps/print/index.html",
+);
+if (!existsSync(book01PrintFile)) {
+  failures.push("第一册缺少整册打印页");
+} else {
+  const book01PrintDocument = parse(readFileSync(book01PrintFile, "utf8"));
+  if (
+    book01PrintDocument.querySelectorAll("[data-print-chapter]").length !== 15
+  ) {
+    failures.push("第一册整册打印页必须包含 15 个内容单元");
+  }
+}
+const book01ChapterPages = chapterPages.filter(
+  ({ document }) =>
+    document
+      .querySelector("[data-chapter-status-root]")
+      ?.getAttribute("data-book-id") === "01-first-vps",
+);
+if (book01ChapterPages.length !== 15) {
+  failures.push(
+    `第一册必须生成 15 个独立内容页，实际 ${book01ChapterPages.length}`,
+  );
+}
+const book01IndexedPages = book01ChapterPages.filter(({ document }) =>
+  document.querySelector("[data-pagefind-body]"),
+);
+if (book01IndexedPages.length !== 15) {
+  failures.push(
+    `第一册必须生成 15 个 Pagefind 正文入口，实际 ${book01IndexedPages.length}`,
+  );
+}
+
+const book02PrintFile = resolve(
+  outputDirectory,
+  "books/02-overseas-network/print/index.html",
+);
+const book02PrintDocument = parse(readFileSync(book02PrintFile, "utf8"));
+if (book02PrintDocument.querySelectorAll("[data-print-chapter]").length !== 15) {
+  failures.push("第二册整册打印页必须包含 15 个内容单元");
+}
+const book02ChapterPages = chapterPages.filter(
+  ({ document }) =>
+    document
+      .querySelector("[data-chapter-status-root]")
+      ?.getAttribute("data-book-id") === "02-overseas-network",
+);
+if (book02ChapterPages.length !== 15) {
+  failures.push(
+    `第二册必须生成 15 个独立内容页，实际 ${book02ChapterPages.length}`,
+  );
+}
+const book02IndexedPages = book02ChapterPages.filter(({ document }) =>
+  document.querySelector("[data-pagefind-body]"),
+);
+if (book02IndexedPages.length !== 15) {
+  failures.push(
+    `第二册必须保留 15 个 Pagefind 正文入口，实际 ${book02IndexedPages.length}`,
+  );
 }
 
 const configuredSite = process.env.SITE_URL?.trim();
@@ -176,6 +255,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    `发布准备检查通过：${htmlFiles.length} 个 HTML、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界。`,
+    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一册与第二册各 15 个正文索引页，第二册严格原型回归保持通过。`,
   );
 }

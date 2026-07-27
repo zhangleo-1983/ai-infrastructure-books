@@ -1,0 +1,421 @@
+---
+book: "01-first-vps"
+order: 12
+slug: "12-first-login-and-handoff"
+title: "完成首次 SSH 登录，进入第二册"
+shortTitle: "首次登录与交接"
+description: "分别使用 SSH 密钥或密码从 Windows、macOS 登录 Ubuntu，验证管理员身份、安全退出并整理第二册交接卡。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 12
+duration: "预计 20 分钟"
+labels:
+  - "首次 SSH 登录"
+  - "双认证路径"
+  - "第二册交接"
+completionId: "book01-chapter-12"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import { sitePath } from "../../../lib/site-path";
+
+<section className="book-section" id="book01-ch12-goal">
+  ## 付款成功不是本书的终点
+
+  这一章要完成真正的交付验证：从自己的电脑进入刚刚创建的服务器，确认管理员身份，再安全退出。
+
+  你只需要实际完成创建时选择的认证路径：
+
+  - 创建服务器时选择了 SSH Key，就完成密钥路径；
+  - 创建服务器时使用密码，就完成密码路径。
+
+  另一条路径仍完整展示，方便你理解差异。不要为了测试第二条路径，重装或重置一台已经可以正常登录的服务器。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💻</span>
+      <strong>本地终端</strong>
+      <small>Windows 或 macOS</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>SSH</strong>
+      <small>加密连接</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>公网 IPv4:22</strong>
+      <small>通过云防火墙</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>Ubuntu VPS</strong>
+      <small>验证管理员身份</small>
+    </div>
+  </FlowDiagram>
+</section>
+
+<section className="book-section" id="book01-ch12-prepare">
+  ## 开始前准备六项信息
+
+  先打开 Vultr 实例详情页和第一册交接卡。
+
+  <ComparisonTable>
+
+  | 项目 | 教学示例 | 你的真实信息在哪里 |
+  | --- | --- | --- |
+  | 实例状态 | Running | Vultr 实例详情页 |
+  | 公网 IPv4 | `203.0.113.10` | 实例 Overview |
+  | 地区 | Tokyo | 实例 Overview |
+  | 系统 | Ubuntu 24.04 LTS x64 | 实例系统信息 |
+  | 管理员用户名 | `root` | 实例登录信息 |
+  | 认证方式 | Password 或 SSH Key | 创建实例时的选择 |
+
+  </ComparisonTable>
+
+  `203.0.113.10` 是文档保留地址，不能用来登录。所有命令中的示例 IP 都必须替换成你自己实例的真实公网 IPv4。
+
+  同时确认：
+
+  - 本地网络可以访问普通网站；
+  - 云防火墙允许 TCP 22；
+  - 防火墙来源仍包含你当前的公网 IP；
+  - 实例不是 Pending、Stopped、Reinstalling 或 Suspended；
+  - 密码路径已经在密码管理器中保存服务器密码；
+  - 密钥路径知道本地私钥文件位置和密钥口令。
+
+  <Callout type="warning" title="实例还不是 Running，就先不要 SSH">
+    返回第 10、11 章判断创建状态。不要因为等待而重复创建实例，也不要尝试教程示例 IP。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch12-terminal">
+  ## 打开本地终端
+
+  终端是输入文字命令的窗口。SSH 是在终端中运行的远程连接工具。打开终端时，你仍在自己的电脑上。
+
+  <PlatformTabs id="book01-first-login-terminal" firstPlatform="windows">
+    <div slot="windows">
+      <InstructionStep number={1} title="打开 PowerShell 或 Windows Terminal">
+        点击开始菜单，搜索 PowerShell 或 Windows Terminal，打开普通窗口，不需要“以管理员身份运行”。
+      </InstructionStep>
+
+      <TerminalMock title="Windows 本地终端">
+        <span className="term-green">{"PS C:\\Users\\YourName>"}</span>{" ▌"}
+      </TerminalMock>
+
+      如果输入 `ssh` 后提示无法识别命令，先到 Windows Optional Features 安装官方 OpenSSH Client，不要从陌生网站下载所谓 SSH 工具。
+    </div>
+
+    <div slot="mac">
+      <InstructionStep number={1} title="打开终端">
+        按 <kbd>Command</kbd> + <kbd>空格</kbd>，搜索“终端”或 Terminal，按回车打开。
+      </InstructionStep>
+
+      <TerminalMock title="macOS 本地终端">
+        <span className="term-green">yourname@Mac</span>{" "}
+        <span className="term-white">~ %</span>{" ▌"}
+      </TerminalMock>
+    </div>
+  </PlatformTabs>
+</section>
+
+<section className="book-section" id="book01-ch12-host-key">
+  ## 第一次出现的主机提示
+
+  无论使用密码还是密钥，第一次连接一个 IP 时都可能看到：
+
+  <TerminalMock title="第一次连接的主机身份提示">
+    {"The authenticity of host '203.0.113.10' can't be established."}<br />
+    {"ED25519 key fingerprint is SHA256:教学示例指纹"}<br />
+    {"Are you sure you want to continue connecting (yes/no/[fingerprint])?"}
+  </TerminalMock>
+
+  这里显示的是服务器的主机密钥指纹，不是你的登录私钥。
+
+  做什么：
+
+  1. 再次核对命令中的 IP 与 Vultr Overview 完全一致；
+  2. 确认这是第一次连接这台新实例；
+  3. 如果服务商控制台提供主机指纹，进一步核对；
+  4. 确认无误后输入：
+
+  <CodeBlock code="yes" />
+
+  SSH 会把主机记录到本地 `known_hosts` 文件，然后继续密码或密钥认证。
+
+  不能直接输入 `yes` 的情况：
+
+  - IP 与实例详情页不同；
+  - 这不是第一次连接，却突然提示主机身份变化；
+  - 你刚删除旧实例，而新实例可能复用了相同 IP；
+  - 提示中的地址不是你准备连接的服务器。
+
+  如果出现 `WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!`，先停止。确认当前 IP 确实属于重装后的实例或新实例后，才可以删除本地旧记录：
+
+  <CodeBlock label="替换成已经重新核对的真实 IP" code="ssh-keygen -R 203.0.113.10" />
+
+  这条命令只修改本机 `known_hosts`，不会修改服务器。如果无法确认 IP、重装或复用情况，不要删除记录，也不要继续输入密码或密钥口令。
+</section>
+
+<section className="book-section" id="book01-ch12-key-login">
+  ## 路径 A：使用 SSH 密钥登录
+
+  第 7 章已经生成 ED25519 密钥，并在创建实例前把公钥加入 Vultr。现在使用的是本机私钥，而不是 `.pub` 公钥文件。
+
+  <PlatformTabs id="book01-key-login" firstPlatform="windows">
+    <div slot="windows">
+      默认私钥通常位于：
+
+      ```text
+      C:\Users\你的用户名\.ssh\id_ed25519
+      ```
+
+      在 PowerShell 输入：
+
+      <CodeBlock
+        label="PowerShell · 把示例 IP 换成真实 IP"
+        code={'ssh -i "$env:USERPROFILE\\.ssh\\id_ed25519" root@203.0.113.10'}
+      />
+
+      如果私钥使用了不同名称，需要把路径替换成真实文件。
+    </div>
+
+    <div slot="mac">
+      默认私钥通常位于：
+
+      ```text
+      ~/.ssh/id_ed25519
+      ```
+
+      在终端输入：
+
+      <CodeBlock
+        label="macOS · 把示例 IP 换成真实 IP"
+        code="ssh -i ~/.ssh/id_ed25519 root@203.0.113.10"
+      />
+    </div>
+  </PlatformTabs>
+
+  如果密钥设置了口令，终端可能显示：
+
+  ```text
+  Enter passphrase for key '.../.ssh/id_ed25519':
+  ```
+
+  这里输入的是第 7 章设置的私钥口令，不是 Vultr 账户密码，也不是服务器 root 密码。输入时屏幕可能不会显示字符。
+
+  密钥路径成功状态：没有要求服务器密码，直接进入 Ubuntu；或者只要求一次本地私钥口令。
+
+  <TerminalMock title="SSH 密钥登录成功">
+    {"Welcome to Ubuntu 24.04 LTS"}<br /><br />
+    <span className="term-green">root@book01-vps</span>
+    <span className="term-white">{":~#"}</span>{" ▌"}
+  </TerminalMock>
+
+  <TroubleshootingItem title="Warning: Identity file ... not accessible">
+    这是本地私钥路径错误，或者文件被移动。不要修改服务器、防火墙或公钥，先确认本机文件名称和位置。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Permission denied (publickey)">
+    依次检查真实 IP、用户名、私钥文件、公钥标签和创建实例时是否选中该公钥。不要把私钥上传到 SSH Key 文本框，也不要通过 Reinstall SSH Keys 碰运气。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="macOS 提示私钥文件权限过宽">
+    确认目标确实是自己的私钥文件后，收紧本地权限：
+    <CodeBlock label="macOS 本地文件权限" code="chmod 600 ~/.ssh/id_ed25519" />
+    这条命令只修改本地文件权限，不会修改服务器。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch12-password-login">
+  ## 路径 B：使用密码登录
+
+  Windows 和 macOS 使用同一条命令：
+
+  <CodeBlock
+    label="把示例 IP 换成实例 Overview 中的真实 IP"
+    code="ssh root@203.0.113.10"
+  />
+
+  终端可能显示：
+
+  ```text
+  root@203.0.113.10's password:
+  ```
+
+  从密码管理器复制这台服务器的 root 密码，粘贴一次，然后按回车。
+
+  <Callout type="warning" title="输入密码时什么都看不到是正常的">
+    终端通常不显示字母、圆点、星号或光标移动。不要连续粘贴多次。粘贴一次、按回车并等待结果。
+  </Callout>
+
+  密码路径成功状态：看到 Ubuntu 欢迎信息和 `root@book01-vps:~#` 一类提示符。
+
+  <TroubleshootingItem title="Permission denied, please try again.">
+    依次检查用户名是否为 root、IP 是否来自当前实例、复制时是否带入空格、实例是否重装，以及当前镜像是否允许密码认证。不要输入 Vultr 网站账户密码，也不要高速重复尝试。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch12-identity">
+  ## 验证你以什么身份登录
+
+  登录成功后输入：
+
+  <CodeBlock code="whoami" />
+
+  主线预期返回：
+
+  <TerminalMock title="管理员身份验证">
+    <span className="term-green">root@book01-vps</span>
+    <span className="term-white">{":~#"}</span>{" "}
+    <span className="term-blue">whoami</span><br />
+    {"root"}<br />
+    <span className="term-green">root@book01-vps</span>
+    <span className="term-white">{":~#"}</span>{" ▌"}
+  </TerminalMock>
+
+  如果第 8 章明确选择了 Limited User，`whoami` 可能返回 `linuxuser`。继续验证它是否拥有 sudo 管理权限：
+
+  <CodeBlock code="sudo whoami" />
+
+  预期返回 `root`。如果 sudo 不存在、用户不在 sudoers 中，或你不知道它要求哪个密码，这台服务器尚未满足第二册需要的管理员交付条件。
+
+  <Callout type="info" title="先验证，不在本章安装软件">
+    现在不要运行网上找到的安装脚本，也不要提前安装 3X-UI、Docker 或面板。本章只确认服务器身份和登录能力。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch12-exit">
+  ## 正常退出服务器
+
+  验证完成后输入：
+
+  <CodeBlock code="exit" />
+
+  成功后，你会回到本地提示符：
+
+  <PlatformTabs id="book01-exit-result" firstPlatform="windows">
+    <div slot="windows">
+      ```text
+      PS C:\Users\YourName>
+      ```
+    </div>
+    <div slot="mac">
+      ```text
+      yourname@Mac ~ %
+      ```
+    </div>
+  </PlatformTabs>
+
+  关闭终端窗口也会断开，但养成使用 `exit` 的习惯，更容易判断自己当前是在本地电脑还是服务器中。
+</section>
+
+<section className="book-section" id="book01-ch12-connectivity">
+  ## 连接失败时按错误文字判断
+
+  <TroubleshootingItem title="Operation timed out / Connection timed out" open>
+    连接请求没有在等待时间内得到回应。按顺序检查：
+
+    1. 实例是否 Running；
+    2. IP 是否来自当前实例；
+    3. Vultr Firewall 是否允许 TCP 22；
+    4. My IP 规则中的来源是否已经变化；
+    5. 本地网络是否限制 SSH；
+    6. 是否误选 IPv6-only、Private 或 NAT 实例。
+
+    不要通过开放 All Ports 来判断。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Connection refused">
+    通常表示请求到达目标地址，但 SSH 服务没有在该端口接受连接。实例可能仍在初始化，SSH 服务可能异常，或者目标并不是预期服务器。先使用 Vultr View Console 和状态页诊断，不要立即重装。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Permission denied, please try again.">
+    网络已经到达服务器，但密码认证失败。检查用户名、服务器密码、IP 和认证方式。不要使用 Vultr 账户密码。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Permission denied (publickey)">
+    网络已经到达服务器，但当前私钥没有通过。检查私钥路径、对应公钥、用户名和 IP，不要上传私钥或重装实例。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Identity file ... not accessible">
+    这是本地文件路径问题。服务器状态和防火墙可能都正常。返回第 7 章确认私钥文件。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch12-handoff">
+  ## 整理第二册交接卡
+
+  首次登录成功后，填写一张不含秘密正文的交接卡：
+
+  <MockWindow title="服务器交接卡 · 可记录字段">
+    <div slot="toolbar"><MockStatusBadge>首次登录已验证</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="服务商">Vultr</MockField>
+      <MockField label="实例名称或 ID">填写真实值</MockField>
+      <MockField label="服务器地区">Tokyo 或实际备选地区</MockField>
+      <MockField label="公网 IPv4">填写真实值；不要使用教学 IP</MockField>
+      <MockField label="系统与架构">Ubuntu 24.04 LTS · amd64</MockField>
+      <MockField label="管理员用户名">root 或实际 sudo 用户</MockField>
+      <MockField label="认证方式">SSH Key / Password</MockField>
+      <MockField label="凭证保存位置">只写密码管理器条目或私钥文件位置</MockField>
+      <MockField label="云防火墙">book01-ssh · TCP 22 与来源范围</MockField>
+      <MockField label="持续费用">币种、套餐和当前参考金额</MockField>
+      <MockField label="停止计费方法" wide>Destroy 实例，并检查快照、存储和其他独立资源</MockField>
+    </div>
+  </MockWindow>
+
+  公网 IP 是实例识别信息，应避免无必要公开；但密码、SSH 私钥和恢复码具有直接认证能力，敏感等级更高。
+
+  交接卡中禁止填写：
+
+  - root 密码；
+  - SSH 私钥正文或密钥口令；
+  - 银行卡、支付宝或 PayPal 信息；
+  - 身份证件号码或图片；
+  - Vultr 账户密码、2FA 动态码和恢复码。
+</section>
+
+<section className="book-section" id="book01-ch12-complete">
+  ## 第一册完成检查
+
+  <ChapterChecklist chapterId="book01-chapter-12">
+    我已经用自己选择的密码或 SSH 密钥从 Windows 或 Mac 登录真实公网 IPv4，核对首次主机提示，执行 whoami 验证管理员身份，再用 exit 回到本地终端；交接卡完整且没有写入任何密码或私钥。
+  </ChapterChecklist>
+
+  当第 1—12 章全部完成时，你已经获得：
+
+  - 一台正在运行、已经实际验证可登录的 Ubuntu VPS；
+  - 一个独立公网 IPv4；
+  - 一个 root 或可 sudo 的管理员账户；
+  - 一种已经测试成功的登录凭证；
+  - 一个明确的服务器地区；
+  - 一份可以继续使用的安全交接记录。
+
+  下一步进入<a href={sitePath("/books/02-overseas-network/")}>第二册《拥有自己的海外网络》</a>。第二册会从可登录的 Ubuntu VPS 继续安装和配置 3X-UI；在第一册正式发布前，还会单独校订第二册的登录章节，使密码和 SSH 密钥两种交接方式都能顺畅衔接。
+</section>
+
+<section className="book-section" id="book01-ch12-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/connection/openssh" target="_blank" rel="noopener noreferrer">Vultr：使用 OpenSSH 连接 Cloud Compute</a>；
+  - <a href="https://docs.vultr.com/products/orchestration/ssh-keys/add-ssh-keys" target="_blank" rel="noopener noreferrer">Vultr：添加 SSH Keys</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/how-to-troubleshoot-ssh-connectivity-issues" target="_blank" rel="noopener noreferrer">Vultr：SSH 连接问题排查</a>；
+  - <a href="https://ubuntu.com/server/docs/how-to/security/openssh-server/" target="_blank" rel="noopener noreferrer">Ubuntu Server：OpenSSH 与 ED25519</a>；
+  - <a href="https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse" target="_blank" rel="noopener noreferrer">Microsoft Learn：Windows OpenSSH</a>。
+
+  以上事实校订于 2026-07-27。Vultr 凭证入口、Windows/macOS 终端行为、默认用户和第二册衔接内容必须在发布前完成双平台、双认证路径实测。
+</section>

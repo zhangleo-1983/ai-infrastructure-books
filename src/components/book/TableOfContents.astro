@@ -1,6 +1,7 @@
 ---
-import type { BookTocItem } from "../../data/book02";
-import { book02Id } from "../../data/book02";
+import type { BookDefinition } from "../../data/books";
+import type { BookTocItem } from "../../lib/book-content";
+import { chapterHref } from "../../lib/book-content";
 import { sitePath } from "../../lib/site-path";
 
 interface Heading {
@@ -10,21 +11,22 @@ interface Heading {
 }
 
 interface Props {
+  book: BookDefinition;
   items: BookTocItem[];
   currentSlug?: string;
   headings?: Heading[];
 }
 
-const { items, currentSlug, headings = [] } = Astro.props;
+const { book, items, currentSlug, headings = [] } = Astro.props;
 const completionTotal = items.filter(
-  (item) => item.chapterType === "chapter",
+  (item) => item.completionEligible,
 ).length;
 
 function itemLabel(item: BookTocItem): string {
   if (item.chapterType === "introduction") return "开始";
   if (item.chapterType === "appendix") return "附录";
   if (item.chapterType === "sources") return "资料";
-  return String(item.order).padStart(2, "0");
+  return String(item.chapterNumber ?? item.order).padStart(2, "0");
 }
 ---
 
@@ -32,7 +34,7 @@ function itemLabel(item: BookTocItem): string {
   class="table-of-contents"
   open
   data-table-of-contents
-  data-book-id={book02Id}
+  data-book-id={book.id}
   data-current-chapter={currentSlug ? "true" : undefined}
 >
   <summary>
@@ -41,7 +43,7 @@ function itemLabel(item: BookTocItem): string {
       {completionTotal} 个学习章节
     </small>
   </summary>
-  <nav aria-label="第二册目录">
+  <nav aria-label={`${book.cover.navigationLabel}目录`}>
     <ol>
       {
         items.map((item) => (
@@ -49,18 +51,18 @@ function itemLabel(item: BookTocItem): string {
             class:list={{ current: item.slug === currentSlug }}
             data-toc-item
             data-chapter-slug={item.slug}
-            data-completion-eligible={item.chapterType === "chapter" ? "true" : "false"}
+            data-completion-eligible={item.completionEligible ? "true" : "false"}
           >
             <div class="table-of-contents__item">
               <span class="table-of-contents__number">{itemLabel(item)}</span>
               <a
-                href={sitePath(`/books/${book02Id}/${item.slug}/`)}
+                href={sitePath(chapterHref(book, item.slug))}
                 aria-current={item.slug === currentSlug ? "page" : undefined}
               >
                 {item.shortTitle}
               </a>
               {
-                item.chapterType === "chapter" && (
+                item.completionEligible && (
                   <span
                     class="table-of-contents__complete"
                     data-toc-completion-indicator

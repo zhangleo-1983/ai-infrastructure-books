@@ -1,0 +1,265 @@
+---
+book: "01-first-vps"
+order: 11
+slug: "11-purchase-troubleshooting"
+title: "购买或开通失败时检查什么？"
+shortTitle: "购买与开通排错"
+description: "按账户、支付、审核、库存、实例创建、网络和凭证的顺序定位问题，每次只改变一个变量。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 11
+duration: "预计 15 分钟"
+labels:
+  - "故障排查"
+  - "安全边界"
+  - "官方支持"
+completionId: "book01-chapter-11"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book01-ch11-method">
+  ## 一次只判断一层
+
+  购买失败时，不要同时换邮箱、换支付方式、换地区、删除实例和重置密码。多个变量一起变化后，你无法知道哪一步真正解决或扩大了问题。
+
+  按这个顺序排查：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">👤</span>
+      <strong>账户</strong>
+      <small>能否正常登录</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💳</span>
+      <strong>支付</strong>
+      <small>成功、处理中或失败</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🪪</span>
+      <strong>审核</strong>
+      <small>是否等待官方验证</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">📦</span>
+      <strong>库存</strong>
+      <small>地区与套餐是否可售</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">☁️</span>
+      <strong>创建</strong>
+      <small>实例是否进入 Running</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>网络与凭证</strong>
+      <small>IP、22 端口和认证方式</small>
+    </div>
+  </FlowDiagram>
+
+  <Callout type="warning" title="重复操作可能产生第二台收费实例">
+    页面响应慢时，连续点击 Deploy、刷新后重新提交或换标签页再次创建，都可能形成重复资源。第一步永远是查看实例列表和 Billing History，而不是再点一次。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch11-account">
+  ## 第一层：账户
+
+  <TroubleshootingItem title="无法登录 Vultr 账户" open>
+    先判断是密码、邮箱、2FA 还是账户限制。
+
+    - 密码错误：只从官方登录页使用 Forgot Password；
+    - 收不到邮件：检查地址、垃圾邮件和邮箱过滤规则；
+    - 失去 2FA 设备：使用预先保存的 Emergency Backup Code；
+    - 同时失去 2FA 和恢复码：从注册邮箱联系官方支持并按要求验证身份；
+    - 账户 Locked / Suspended：停止重复登录和注册新账户。
+
+    成功状态：使用本人注册邮箱、密码和第二因素进入原账户。
+
+    失败判断：需要借用他人账户、虚假资料或把验证码交给第三方才能继续。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="收到并非自己发起的验证码或安全提醒">
+    不要点击邮件中的可疑链接，也不要向任何人提供验证码。手动打开官方站点，更换唯一密码、检查 2FA 和活动会话，并从注册邮箱联系官方支持。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch11-payment">
+  ## 第二层：支付
+
+  <ComparisonTable>
+
+  | 支付状态 | 它表示什么 | 安全下一步 |
+  | --- | --- | --- |
+  | Completed / Success | 支付机构显示完成 | 回到 Billing History 核对一条记录 |
+  | Pending / Processing | 仍由机构处理 | 等待，不重复付款 |
+  | Failed / Declined | 当前交易没有通过 | 保留错误文字，检查账户或联系支付机构 |
+  | 临时预授权 | 银行卡有效性验证，可能稍后释放 | 不把它当成最终账单，必要时询问发卡行 |
+  | 扣款但余额未更新 | 两边状态尚未同步或需要支持介入 | 保存非敏感交易时间与金额，联系官方 |
+
+  </ComparisonTable>
+
+  <TroubleshootingItem title="支付宝显示付款，但 Vultr 没有更新">
+    核对支付宝状态、Vultr Billing History、注册邮箱和页面是否仍在 Processing。不要立即再付一次。记录时间、金额、币种和 Vultr 页面中的非敏感错误文字，等待合理同步时间或联系双方官方支持。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="银行卡被拒">
+    Vultr 官方说明，发卡机构通常最能解释拒付原因。确认卡片支持线上、国际和相关类型交易，余额或额度充足，再由发卡行判断。不要连续快速重试，也不要修改虚假账单地址。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="PayPal 无法建立付款">
+    检查 PayPal 账户状态和备用资金来源。不要使用购买、借用或共享的 PayPal 账户。若账户条件不满足，换用本人合法可用的其他官方支付方式，而不是规避验证。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch11-review">
+  ## 第三层：审核
+
+  <TroubleshootingItem title="账户显示 Review、Verification 或需要额外资料" open>
+    先确认提示位于已登录的官方控制台或官方支持工单。
+
+    只提交真实、有效且属于本人的材料；阅读用途、隐私说明和提交入口。提交一次后记录时间和工单号，等待结果。
+
+    不要重复注册、代实名、伪造证件、借用地址或寻找绕过风控的教程。
+
+    成功状态：控制台明确显示审核通过或部署限制解除。
+
+    失败判断：资料仍在处理中；官方要求补充内容；账户被拒绝或限制。未得到明确通过前，不继续部署。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch11-inventory">
+  ## 第四层：地区和套餐库存
+
+  <TroubleshootingItem title="东京不可选或目标套餐售罄">
+    先查看状态页和创建页面是否明确显示 Sold Out / Unavailable。不要用更昂贵产品代替需求卡，也不要反复刷新创建。
+
+    按第 5 章同样的方法检查洛杉矶：账户可选、配置达标、独立公网 IPv4、状态正常、费用不超过预算。
+
+    成功状态：找到一个满足全部需求的备选地区，并记录实际地区。
+
+    失败判断：只有 GPU、Dedicated CPU、512 MB、IPv6-only 或超过预算的套餐。此时停止并等待库存或重新评估服务商，不降低必需条件。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Ubuntu 24.04 LTS x64 不在列表">
+    先确认镜像类别是 Operating System，而不是 Marketplace Apps、Snapshot、Backup 或 ISO。切换地区后要重新检查镜像与架构。
+
+    找不到已校订的 Ubuntu 24.04 LTS x64 时，不擅自改用 Windows、ARM 或应用镜像。记录页面状态并等待内容校订或官方支持确认。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch11-provisioning">
+  ## 第五层：实例创建
+
+  <TroubleshootingItem title="点击 Deploy 后没有明确反馈" open>
+    先打开实例列表和 Billing History：
+
+    - 已出现一台实例：不要再次 Deploy，等待状态变化；
+    - 出现两台实例：不要随手删除，先核对实例 ID、创建时间、费用和哪台配置正确；
+    - 没有实例但页面显示 Processing：等待并保存状态；
+    - 没有实例且明确 Failed：记录错误，检查账户、库存和支付层。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="实例长时间停在 Pending / Installing">
+    查看 Vultr Status 是否有相关地区、Compute 或网络事件。记录实例 ID、地区、套餐、开始时间和当前状态。不要 Restart、Reinstall、Destroy 后立即重建；这些动作会改变现场并可能产生额外资源。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="实例显示 Failed / Error">
+    保存错误原文和时间，检查 Billing History 是否已经产生资源记录。通过原账户提交官方支持工单，不要把账户密码、支付密码、SSH 私钥或完整证件放入工单。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="实例状态是 Stopped 或 Suspended">
+    Stopped 实例不能用于首次 SSH 登录，并且 Vultr 当前仍继续计费。Suspended 可能与账单或账户状态有关。先查看账户通知和 Billing，不要把 Restart 当成解决审核或欠款的方法。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book01-ch11-delivery">
+  ## 第六层：网络与凭证
+
+  <TroubleshootingItem title="实例 Running，但没有独立公网 IPv4">
+    检查实例是否被创建成 VPC-only、Private/NAT 或 IPv6-only。等待中的 IP 字段可以短暂没有值，但最终仍没有 Public IPv4 时，这台实例不满足第一版交付条件。
+
+    不要用私网地址继续 SSH，也不要临时改写第二册为 NAT 路线。记录创建配置和实例 ID，按官方支持或经过核对的重建流程处理。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="看不到 root 密码">
+    Vultr 当前不会通过普通邮件发送 root 密码。先在实例 Overview 查找 View Root Password。如果创建时使用 SSH Key，也要确认本机私钥仍在。不要点击 Reinstall 只为“刷新密码”。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="SSH Key 名称存在，但本地私钥不见了">
+    服务商保存的是公钥，不能从公钥还原私钥。不要把“Reinstall SSH Keys”当成无损修改；官方警告它可能触发重装并清除实例数据。先检查本地加密备份或密码恢复路径，再决定后续。
+  </TroubleshootingItem>
+
+  真正的 SSH 超时、拒绝连接、密码被拒和密钥路径错误，会在第 12 章按错误文字继续判断。此处不要提前开放所有端口或重装服务器。
+</section>
+
+<section className="book-section" id="book01-ch11-support">
+  ## 联系官方支持时提供什么
+
+  可以提供：
+
+  - 注册账户所使用的邮箱地址，由你从注册邮箱发起工单；
+  - 实例 ID 或标签；
+  - 目标地区、产品类型和套餐名称；
+  - 操作时间和所在时区；
+  - 页面显示的完整错误文字；
+  - 支付状态、金额和币种，但不提供支付密码或完整银行卡信息；
+  - 你已经尝试过的一项操作；
+  - 你希望确认的具体问题。
+
+  不要提供：
+
+  - Vultr 账户密码或 2FA 动态码；
+  - Emergency Backup Codes；
+  - 服务器 root 密码；
+  - SSH 私钥；
+  - 银行卡安全码、支付宝或 PayPal 密码；
+  - 身份证件图片，除非已确认的官方安全流程明确要求。
+
+  <Callout type="info" title="一个清楚的工单比连续操作更有效">
+    示例问题：“实例 ID 为……，Tokyo Shared CPU，2026-07-27 14:00（UTC+8）开始创建，目前仍显示 Pending。Billing History 只有一条实例记录。请确认是否需要继续等待。”不要把多个无关问题塞进同一段。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch11-check">
+  ## 本章检查
+
+  成功状态：
+
+  - 你能判断问题属于账户、支付、审核、库存、创建、网络或凭证中的哪一层；
+  - 你一次只采取一个可逆的下一步；
+  - 你保留了非敏感错误文字和时间；
+  - 你没有产生无法解释的重复实例或支付；
+  - 需要支持时，你通过原账户或注册邮箱联系官方。
+
+  失败判断：
+
+  - 反复付款、重复注册或连续 Deploy；
+  - 同时修改地区、套餐、认证和防火墙；
+  - 用虚假资料或第三方账户绕过审核；
+  - 为了尝试而 Reinstall 或 Destroy；
+  - 把密码、私钥或验证码发送给他人。
+
+  <ChapterChecklist chapterId="book01-chapter-11">
+    我能按账户、支付、审核、库存、创建、网络与凭证的顺序定位问题，每次只改变一个变量，并知道哪些信息可以安全提供给官方支持。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch11-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/support/platform/billing/why-was-my-credit-card-declined" target="_blank" rel="noopener noreferrer">Vultr：银行卡被拒排查</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/what-if-im-unable-to-pay-my-invoice" target="_blank" rel="noopener noreferrer">Vultr：账单无法支付与暂停风险</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/how-to-troubleshoot-ssh-connectivity-issues" target="_blank" rel="noopener noreferrer">Vultr：SSH 连接问题预检</a>；
+  - <a href="https://docs.vultr.com/support/products/compute/i-lost-the-ssh-key-for-my-vultr-compute-instance" target="_blank" rel="noopener noreferrer">Vultr：私钥丢失后的路径</a>；
+  - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management/reinstall-instance" target="_blank" rel="noopener noreferrer">Vultr：Reinstall 数据删除警告</a>；
+  - <a href="https://status.vultr.com/" target="_blank" rel="noopener noreferrer">Vultr Status</a>。
+
+  以上事实校订于 2026-07-27。错误文字、审核要求、支持入口和状态名称属于易变信息，发布前必须按测试账户与测试实例重新核对。
+</section>

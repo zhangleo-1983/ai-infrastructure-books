@@ -1,16 +1,7 @@
----
-interface Props {
-  value: string;
-}
-
-const { value } = Astro.props;
----
-
 <button
   class="copy-button"
   type="button"
   data-copy-button
-  data-copy-value={value}
   data-copy-state="idle"
   aria-label="复制命令"
   hidden

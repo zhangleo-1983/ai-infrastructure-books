@@ -6,7 +6,7 @@ title: "常见故障排查"
 shortTitle: "故障排查"
 description: "不要同时修改十个选项。按照“服务器 → 面板 → 入站 → 订阅 → 客户端 → 网站”的顺序逐层定位。"
 chapterType: "chapter"
-updatedAt: "2026-07-25"
+updatedAt: "2026-07-27"
 sourceAnchor: "ch11"
 chapterNumber: 11
 labels:
@@ -48,7 +48,7 @@ import Callout from "../../../components/common/Callout.astro";
   </TroubleshootingItem>
 
   <TroubleshootingItem title="SSH：Permission denied">
-    用户名或密码错误。重新从实例页面复制；若使用 Limited User Login，可能不能直接使用 root。
+    用户名或密码错误。重新从实例页面复制；若使用 Limited User Login，可能不能直接使用 root。<span data-parity-ignore>如果错误包含 `publickey`，则重点核对本地私钥路径、服务器部署时选择的公钥和实际用户名；`Identity file ... not accessible` 表示本地文件路径错误，不是服务器密码错误。</span>
   </TroubleshootingItem>
 
   <TroubleshootingItem title="SSH：REMOTE HOST IDENTIFICATION HAS CHANGED">

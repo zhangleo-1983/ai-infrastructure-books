@@ -1,9 +1,12 @@
 # 新增第三册时的操作说明
 
-校订日期：2026-07-26
+校订日期：2026-07-27
 
 本文件只说明未来工程步骤，不代表已经开始第三册正文。第二册稳定并获得项目 Owner
 授权后再执行。
+
+系列级通用流程已经整理到 `docs/new-book-workflow.md`；后续实施应优先遵循该文件和
+`docs/series-architecture.md`。以下条目保留为第三册的历史规划提示。
 
 1. 在 `src/data/books.ts` 确认第三册书号、稳定 slug、标题和状态。
 2. 在 `src/content/books/<book-id>/` 建立内容目录与带显式 `order` 的 MDX。

@@ -34,6 +34,15 @@ export function getCopyFeedback(state: CopyFeedbackState): CopyFeedback {
   };
 }
 
+export function commandTextForButton(button: HTMLButtonElement): string {
+  return (
+    button
+      .closest<HTMLElement>(".code-block")
+      ?.querySelector<HTMLElement>("pre code")
+      ?.textContent ?? ""
+  );
+}
+
 export async function copyText(
   value: string,
   clipboard: ClipboardWriter | undefined =
@@ -82,7 +91,7 @@ export function initializeCopyButtons(): void {
         );
 
         try {
-          await copyText(button.dataset.copyValue ?? "");
+          await copyText(commandTextForButton(button));
           const success = getCopyFeedback("success");
           button.textContent = success.label;
           button.dataset.copyState = "success";

@@ -6,7 +6,7 @@ title: "速查表与术语"
 shortTitle: "附录"
 description: "忘记某个词时，不需要重新翻完整章。"
 chapterType: "appendix"
-updatedAt: "2026-07-25"
+updatedAt: "2026-07-27"
 sourceAnchor: "appendix"
 labels: []
 draft: false
@@ -30,11 +30,26 @@ import Glossary from "../../../components/book/Glossary.astro";
 
   </ComparisonTable>
 
+  <div data-parity-ignore>
+    ### 使用 SSH 私钥时
+
+    Windows PowerShell：
+
+    `ssh -i "$env:USERPROFILE\.ssh\id_ed25519" root@你的IP`
+
+    macOS：
+
+    `ssh -i ~/.ssh/id_ed25519 root@你的IP`
+
+    `root`、私钥文件名和 IP 都应以第一册交接卡或服务商实例详情为准。只使用已经验证成功的认证路径。
+  </div>
+
   ## 核心术语
 
   <Glossary>
     <dt>VPS</dt><dd>运行在云端数据中心的虚拟服务器，你拥有系统管理权限。</dd>
     <dt>SSH</dt><dd>安全远程登录协议，用于从本地终端控制服务器。</dd>
+    <dt data-parity-ignore>SSH 私钥</dt><dd data-parity-ignore>保存在本地、用于证明登录权限的秘密文件；不得上传、分享或写入仓库。</dd>
     <dt>3X-UI</dt><dd>管理 Xray-core 的开源网页面板。</dd>
     <dt>Xray-core</dt><dd>处理入站、出站、协议、路由和流量的后台内核。</dd>
     <dt>Inbound</dt><dd>服务器接收客户端连接的入口，包含协议、端口和身份配置。</dd>

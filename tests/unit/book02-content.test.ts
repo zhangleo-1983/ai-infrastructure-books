@@ -1,12 +1,14 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { requireBookById } from "../../src/data/books";
 import {
   sortBookChapters,
   toBookTocItems,
-} from "../../src/data/book02";
+} from "../../src/lib/book-content";
 
 const root = resolve(import.meta.dirname, "../..");
+const book02 = requireBookById("02-overseas-network");
 const contentDirectory = resolve(
   root,
   "src/content/books/02-overseas-network",
@@ -94,7 +96,7 @@ describe("第二册 Milestone 3 内容", () => {
       "first",
       "second",
     ]);
-    expect(toBookTocItems(entries).map((item) => item.slug)).toEqual([
+    expect(toBookTocItems(entries, book02).map((item) => item.slug)).toEqual([
       "first",
       "second",
     ]);
@@ -133,15 +135,16 @@ describe("第二册 Milestone 3 内容", () => {
   });
 
   it("已迁移章节核心元数据只保存在 Content Collection frontmatter", () => {
-    const chapterData = readFileSync(
-      resolve(root, "src/data/book02.ts"),
+    const registry = readFileSync(
+      resolve(root, "src/data/books.ts"),
       "utf8",
     );
 
-    expect(chapterData).not.toMatch(/\bslug:\s*"/);
-    expect(chapterData).not.toMatch(/\border:\s*\d/);
-    expect(chapterData).not.toMatch(/\btitle:\s*"/);
-    expect(chapterData).toContain("sortBookChapters");
+    for (const slug of expectedSlugs) {
+      expect(registry).not.toContain(`slug: "${slug}"`);
+    }
+    expect(registry).not.toContain("chapterNumber:");
+    expect(registry).not.toContain("sourceAnchor:");
   });
 
   it("CodeBlock 用同一个 code 值负责显示和复制", () => {
@@ -149,9 +152,20 @@ describe("第二册 Milestone 3 内容", () => {
       resolve(root, "src/components/common/CodeBlock.astro"),
       "utf8",
     );
-    expect(codeBlock).toContain("<CopyButton value={code} />");
+    expect(codeBlock).toContain("<CopyButton />");
     expect(codeBlock).toContain("<code>{code}</code></pre>");
     expect(codeBlock).toContain('tabindex="0"');
+    const copyScript = readFileSync(
+      resolve(root, "src/scripts/copy.ts"),
+      "utf8",
+    );
+    expect(copyScript).toContain(
+      '.closest<HTMLElement>(".code-block")',
+    );
+    expect(copyScript).toContain(
+      '.querySelector<HTMLElement>("pre code")',
+    );
+    expect(copyScript).not.toContain("dataset.copyValue");
   });
 
   it("平台面板的静态 HTML 默认不隐藏任何一套正文", () => {
@@ -167,6 +181,45 @@ describe("第二册 Milestone 3 内容", () => {
     expect(platformTabs).toContain(
       "panel.hidden = panel.dataset.platformPanel !== platform",
     );
+  });
+
+  it("第二册 SSH 入口同时支持密码、私钥和第一册交接卡", () => {
+    const introduction = readFileSync(
+      resolve(contentDirectory, "00-introduction.mdx"),
+      "utf8",
+    );
+    const login = readFileSync(
+      resolve(contentDirectory, "02-login-server.mdx"),
+      "utf8",
+    );
+    const install = readFileSync(
+      resolve(contentDirectory, "04-install-3x-ui.mdx"),
+      "utf8",
+    );
+    const troubleshooting = readFileSync(
+      resolve(contentDirectory, "11-troubleshooting.mdx"),
+      "utf8",
+    );
+    const appendix = readFileSync(
+      resolve(contentDirectory, "13-appendix.mdx"),
+      "utf8",
+    );
+
+    expect(introduction).toContain("SSH Key");
+    expect(login).toContain('id="ssh-key-platform"');
+    expect(login).toContain(
+      'ssh -i "$env:USERPROFILE\\\\.ssh\\\\id_ed25519" root@203.0.113.10',
+    );
+    expect(login).toContain(
+      "ssh -i ~/.ssh/id_ed25519 root@203.0.113.10",
+    );
+    expect(login).toContain('code="ssh root@203.0.113.10"');
+    expect(login).toContain('code="sudo whoami"');
+    expect(login).toContain("Permission denied (publickey)");
+    expect(install).toContain("交接卡");
+    expect(troubleshooting).toContain("本地私钥路径");
+    expect(appendix).toContain("使用 SSH 私钥时");
+    expect(book02.cover.prerequisites).toContain("密码或 SSH 私钥");
   });
 
   it("保留系统深色模式与打印媒体规则", () => {
@@ -199,12 +252,12 @@ describe("第二册 Milestone 3 内容", () => {
     const printRoute = readFileSync(
       resolve(
         root,
-        "src/pages/books/02-overseas-network/print/index.astro",
+        "src/pages/books/[book]/print/index.astro",
       ),
       "utf8",
     );
 
-    expect(printRoute).toContain("sortBookChapters");
+    expect(printRoute).toContain("entriesForBook");
     expect(printRoute).toContain("data-print-chapter");
     expect(printRoute).toContain("data-order={entry.data.order}");
     expect(printRoute).not.toContain("book02-v1.html");

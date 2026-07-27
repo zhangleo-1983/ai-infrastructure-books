@@ -1,49 +1,77 @@
 ---
 import { getCollection } from "astro:content";
 import BookCover from "../../../components/book/BookCover.astro";
-import { currentBook } from "../../../data/books";
 import TableOfContents from "../../../components/book/TableOfContents.astro";
+import type { BookDefinition } from "../../../data/books";
+import { getReadableBooks } from "../../../data/books";
 import {
-  book02Id,
-  sortBookChapters,
+  chapterHref,
+  entriesForBook,
+  printHref,
   toBookTocItems,
-} from "../../../data/book02";
+} from "../../../lib/book-content";
 import BookLayout from "../../../layouts/BookLayout.astro";
 
-const bookEntries = sortBookChapters(
-  await getCollection(
+type ChapterEntry = Awaited<ReturnType<typeof getCollection<"chapters">>>[number];
+
+interface Props {
+  book: BookDefinition;
+  entries: ChapterEntry[];
+}
+
+export async function getStaticPaths() {
+  const chapters = await getCollection(
     "chapters",
-    ({ data }) => data.book === book02Id && !data.draft,
-  ),
-);
-const tocItems = toBookTocItems(bookEntries);
-const updatedAt = bookEntries.reduce(
+    ({ data }) => !data.draft,
+  );
+
+  return getReadableBooks().flatMap((book) => {
+    const entries = entriesForBook(chapters, book);
+    if (entries.length === 0) return [];
+
+    return [{
+      params: { book: book.slug },
+      props: { book, entries },
+    }];
+  });
+}
+
+const { book, entries }: Props = Astro.props;
+const tocItems = toBookTocItems(entries, book);
+const updatedAt = entries.reduce(
   (latest, entry) =>
     entry.data.updatedAt > latest ? entry.data.updatedAt : latest,
   "1970-01-01",
 );
+const firstEntry = entries[0];
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "Book",
-  name: currentBook.title,
-  description: currentBook.description,
+  name: book.title,
+  description: book.description,
   inLanguage: "zh-CN",
   dateModified: updatedAt,
+  bookEdition: book.version,
   ...(canonicalUrl ? { url: canonicalUrl } : {}),
 };
 ---
 
 <BookLayout
-  title={currentBook.shortTitle}
-  description={currentBook.description}
-  bookTitle={currentBook.shortTitle}
+  title={book.shortTitle}
+  description={book.description}
+  bookTitle={book.shortTitle}
   ogType="book"
   structuredData={structuredData}
 >
-  <BookCover updatedAt={updatedAt} />
+  <BookCover
+    book={book}
+    updatedAt={updatedAt}
+    startHref={chapterHref(book, firstEntry!.data.slug)}
+    printHref={printHref(book)}
+  />
 
   <section class="book-index" aria-labelledby="book-index-title">
     <div>
@@ -51,7 +79,7 @@ const structuredData = {
       <h2 id="book-index-title">完整目录</h2>
       <p>从“开始之前”到资料来源，全部内容均可直接阅读。</p>
     </div>
-    <TableOfContents items={tocItems} />
+    <TableOfContents book={book} items={tocItems} />
   </section>
 </BookLayout>
 

@@ -12,7 +12,7 @@ const { code, label = "Terminal" } = Astro.props;
 <figure class="code-block">
   <figcaption>
     <span>{label}</span>
-    <CopyButton value={code} />
+    <CopyButton />
   </figcaption>
   <pre tabindex="0" aria-label={`${label} 命令，可横向滚动`}><code>{code}</code></pre>
 </figure>

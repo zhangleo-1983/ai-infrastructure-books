@@ -1,0 +1,306 @@
+---
+book: "01-first-vps"
+order: 6
+slug: "06-account-payment-verification"
+title: "注册、支付和实名认证前要准备什么？"
+shortTitle: "账户、支付与验证"
+description: "用本人可控的邮箱和验证设备建立安全账户，准备支付宝及备选支付方式，并安全处理账单和身份验证。"
+chapterType: "chapter"
+updatedAt: "2026-07-27"
+chapterNumber: 6
+duration: "预计 15 分钟"
+labels:
+  - "中国用户"
+  - "账户安全"
+  - "支付准备"
+completionId: "book01-chapter-06"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<section className="book-section" id="book01-ch6-boundary">
+  ## 这一章先把账户准备到“可以下单”
+
+  创建服务器前，服务商通常要确认三件事：
+
+  1. 这个账户由一个能够接收验证信息的人控制；
+  2. 账户具备有效支付方式；
+  3. 账户、支付机构或合规流程要求的资料已经完成验证。
+
+  这三件事属于不同系统。邮箱验证成功，不代表支付一定成功；支付宝付款成功，也不代表额外账户审核已经结束。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">📧</span>
+      <strong>注册账户</strong>
+      <small>本人邮箱与唯一密码</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🔐</span>
+      <strong>保护账户</strong>
+      <small>2FA 与恢复码</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">💳</span>
+      <strong>准备支付</strong>
+      <small>支付宝主线，其他方式备选</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🪪</span>
+      <strong>完成验证</strong>
+      <small>只走官方页面和支持渠道</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">✅</span>
+      <strong>可以部署</strong>
+      <small>账户状态正常</small>
+    </div>
+  </FlowDiagram>
+
+  <Callout type="warning" title="只创建一个由你本人控制的账户">
+    不要因为验证慢或支付失败，马上换邮箱重复注册。多个账户、资料不一致和连续支付尝试可能让问题更难判断。需要帮助时，保留错误文字并联系官方支持。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch6-data">
+  ## 先把资料分成三类
+
+  <ComparisonTable>
+
+  | 类别 | 包含什么 | 保存位置 |
+  | --- | --- | --- |
+  | 账户资料 | 注册邮箱、账户密码、2FA 恢复码 | 密码管理器；恢复码另存一份 |
+  | 账单资料 | 本人真实姓名、账单地址、支付方式、账单记录 | 服务商与支付机构官方页面 |
+  | 验证资料 | 官方流程要求的身份或地址证明 | 只提交到已确认的官方安全页面 |
+  | 可以记录的状态 | 错误文字、发生时间、工单号、支付状态 | 不含完整证件号和支付凭证的笔记 |
+
+  </ComparisonTable>
+
+  不要把以下内容放进聊天、公开截图、普通文档或代码仓库：
+
+  - 完整银行卡号、安全码和支付密码；
+  - 身份证件正反面或完整号码；
+  - 邮箱验证码、2FA 动态码和恢复码；
+  - 支付二维码、付款链接和完整交易记录；
+  - 服务商密码、服务器密码或 SSH 私钥。
+</section>
+
+<section className="book-section" id="book01-ch6-register">
+  ## 第一步：从官方地址注册
+
+  <InstructionStep number={1} title="确认网址和连接">
+    通过手动输入、书中官方链接或可信书签进入 Vultr 官方站点，核对域名和浏览器的安全连接提示。不要从搜索广告、私聊链接或所谓“代注册页面”进入。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="使用长期可控的邮箱">
+    使用你本人能够长期登录和接收验证邮件的邮箱。不要使用临时邮箱、借来的企业邮箱或由卖家控制的地址。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="生成唯一账户密码">
+    用密码管理器生成并保存一个没有在其他网站使用过的随机密码。Vultr 当前最低要求包括至少 10 个字符，以及大写字母、小写字母和数字；本书建议直接使用更长的随机密码，不只满足最低线。
+  </InstructionStep>
+
+  <MockWindow title="创建账户 · 教学仿真">
+    <div slot="toolbar"><MockStatusBadge tone="neutral">尚未提交</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="Email">由本人长期控制的邮箱</MockField>
+      <MockField label="Password">密码管理器生成的唯一随机密码</MockField>
+      <MockField label="Country / Region">按本人真实情况选择</MockField>
+      <MockField label="Terms">阅读并接受当前适用条款后再勾选</MockField>
+    </div>
+  </MockWindow>
+
+  为什么这样做：邮箱是密码重置、异常提醒和账户恢复的重要入口。密码与其他网站重复时，一个网站泄露就可能影响服务器账户。
+
+  成功状态：
+
+  - 你能在密码管理器中找到 Vultr 官方站点对应的唯一密码；
+  - 注册邮箱可以正常接收邮件；
+  - 国家、地区和其他资料按真实情况填写；
+  - 账户页面可以正常登录。
+
+  失败判断：
+
+  - 密码来自浏览器随手记忆，但你不知道保存在哪里；
+  - 邮箱属于公司、学校或他人，未来可能失去；
+  - 需要填写虚假地区或借用他人资料才能继续；
+  - 注册后收不到验证邮件，却立即重复创建账户。
+</section>
+
+<section className="book-section" id="book01-ch6-verify-account">
+  ## 第二步：完成邮箱和设备验证
+
+  服务商可能要求点击验证邮件，或者在陌生浏览器、设备和网络环境登录时输入一次性验证码。
+
+  做什么：
+
+  1. 只处理由你刚刚发起的验证；
+  2. 核对邮件发件域名和链接目标；
+  3. 验证完成后回到原来的浏览器标签页；
+  4. 如果没有收到邮件，先检查垃圾邮件、邮箱过滤规则和地址拼写；
+  5. 不要把验证码发给“客服”或任何第三方。
+
+  为什么这样做：一次性验证码证明你控制注册邮箱或当前设备。真正的官方支持不需要你把仍然有效的验证码交给他人。
+
+  成功状态：控制台明确显示邮箱或设备已验证，并能进入账户设置。
+
+  失败判断：验证码过期、邮件地址错误、验证循环，或者你收到并非自己发起的登录提醒。遇到未发起的提醒，应立即更换账户密码并检查账户安全状态。
+</section>
+
+<section className="book-section" id="book01-ch6-2fa">
+  ## 第三步：启用两因素认证
+
+  两因素认证常写作 2FA，意思是登录时除了账户密码，还要提供第二种证明。Vultr 当前支持基于时间的一次性密码应用，也支持 FIDO2/WebAuthn 硬件安全密钥。
+
+  本书默认使用你已经能够安全管理的 TOTP 验证器。TOTP 是 Time-based One-Time Password 的缩写，验证器会周期性生成短时有效的数字。
+
+  <MockWindow title="账户安全 · 两因素认证（教学仿真）">
+    <div slot="toolbar"><MockStatusBadge>建议启用</MockStatusBadge></div>
+    <div className="mock-form-grid">
+      <MockField label="2FA Method">TOTP Authenticator</MockField>
+      <MockField label="Status"><MockStatusBadge>Enabled</MockStatusBadge></MockField>
+      <MockField label="Backup Codes" wide>已生成；与手机分开保存；不写入仓库或聊天</MockField>
+    </div>
+  </MockWindow>
+
+  做什么：
+
+  1. 在账户安全设置中选择 Two-Factor Authentication；
+  2. 用本人验证器扫描页面提供的二维码；
+  3. 输入当前动态码完成确认；
+  4. 生成 Emergency Backup Codes，也就是紧急恢复码；
+  5. 把恢复码保存在与手机分开的安全位置；
+  6. 退出并重新登录一次，确认密码和 2FA 都可用。
+
+  为什么这样做：即使账户密码泄露，攻击者仍缺少第二种验证。恢复码则用于手机丢失或验证器不可用时恢复账户。
+
+  成功状态：重新登录时需要第二因素，你本人可以完成；恢复码已经另存。
+
+  失败判断：二维码截图留在相册或聊天中；恢复码只保存在同一部手机；退出前没有确认验证器工作；账户提示启用成功，但你不知道怎样恢复。
+
+  <Callout type="danger" title="恢复码也是登录凭证">
+    每个恢复码通常只能使用一次，但在使用前具有登录价值。不要截屏发给他人。Vultr 官方说明，如果同时失去 2FA 设备和恢复码，需要联系支持并验证身份才能恢复账户。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch6-payment">
+  ## 第四步：准备支付方式
+
+  截至 2026-07-27，Vultr 官方列出的支付方式包括银行卡、PayPal、Alipay 和 UnionPay 等；实际可用选项取决于账户和地区。本书对中国用户使用支付宝作为详细主线，国际银行卡与 PayPal 只作为简要备选。
+
+  <ComparisonTable>
+
+  | 路径 | 你要准备什么 | 不能假设什么 |
+  | --- | --- | --- |
+  | 支付宝主线 | 本人可正常登录和付款的支付宝账户 | 不能保证每个 Vultr 账户都显示或通过 |
+  | 国际银行卡 | 本人有权使用、支持相关线上交易的卡片与真实账单资料 | 不能因为其他网站可用就保证本次通过 |
+  | PayPal | 本人账户和其中有效的备用资金来源 | 不能保证地区、风控和付款协议一定成功 |
+
+  </ComparisonTable>
+
+  支付宝主线的准备顺序：
+
+  1. 先在 Vultr 账户中打开官方 Billing / Make a Payment 页面；
+  2. 确认页面显示 Alipay；
+  3. 核对付款金额、币种和资金进入账户余额还是直接支付账单；
+  4. 跳转后确认是支付宝官方环境；
+  5. 使用本人账户完成支付；
+  6. 返回 Vultr 后再次查看支付状态和账户余额。
+
+  本章只准备并识别路径。第 9 章会在真正付款前逐项核对金额和持续费用。
+
+  <Callout type="warning" title="支付方式可用，不等于付款必然成功">
+    服务商、支付机构、账户状态和风控都可能影响结果。不要连续重复点击付款，不要借用陌生人的支付账户，也不要使用来源不明的礼品码。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch6-billing">
+  ## 账单地址、税费、预授权和充值分别是什么
+
+  <ComparisonTable>
+
+  | 名称 | 它表示什么 | 怎样判断 |
+  | --- | --- | --- |
+  | Billing name / address | 支付与账单使用的姓名和地址 | 按本人及支付方式的真实资料填写 |
+  | Tax | 服务商依法计算的税费 | 查看发票中的独立行，不用猜测固定比例 |
+  | Authorization hold | 银行卡验证产生的临时预授权 | 它可能短暂显示为待处理，不等于最终消费 |
+  | Account credit | 已进入服务商账户的余额 | 它不是单台服务器的月费 |
+  | Invoice | 已生成的账单或发票 | 核对币种、资源、时间和税费 |
+
+  </ComparisonTable>
+
+  Vultr 当前以美元出具账单；税务地区会参考账户账单地址和主要支付方式，某些地区还可能考虑其他信息。不要把他人的税费截图套到自己的账户，也不要为了改变税费填写虚假地址。
+</section>
+
+<section className="book-section" id="book01-ch6-identity">
+  ## 如果出现实名认证或额外审核
+
+  服务商可能因为账户、支付、地区、风险控制或法律要求，请你完成额外验证。具体触发条件和材料可能变化，本书不预测，也不提供绕过方法。
+
+  安全处理顺序：
+
+  1. 先确认提示来自已登录的官方控制台或官方支持工单；
+  2. 阅读要求的材料、用途、隐私说明和提交入口；
+  3. 只提交真实、有效且属于你本人的资料；
+  4. 对不理解的要求，通过官方支持渠道询问；
+  5. 提交后等待，不要重复注册、反复支付或篡改资料；
+  6. 记录工单号、状态和提交时间，不在普通笔记中保存证件图片。
+
+  <Callout type="danger" title="停止使用任何要求“绕验证”的教程">
+    代实名、虚假账单地址、伪造证件、共享账户和规避风控都会带来账户、安全与法律风险。如果你不能合法完成当前要求，应停止这条购买路径，而不是寻找绕过方式。
+  </Callout>
+</section>
+
+<section className="book-section" id="book01-ch6-status">
+  ## 怎样判断当前状态
+
+  <ComparisonTable>
+
+  | 状态 | 它可能表示什么 | 下一步 |
+  | --- | --- | --- |
+  | Success / Completed | 支付或验证步骤已完成 | 回到账户页核对余额和部署权限 |
+  | Pending / Processing | 支付机构或服务商仍在处理 | 记录时间，等待官方状态更新 |
+  | Failed / Declined | 当前尝试没有通过 | 保留完整错误文字，检查资料或联系相应机构 |
+  | Account review | 账户正在额外审核 | 按官方要求提交一次，等待结果 |
+  | Locked / Suspended | 账户访问或部署受限 | 停止重复尝试，从注册邮箱联系官方支持 |
+
+  </ComparisonTable>
+
+  如果付款失败：
+
+  - 不要连续快速重试；
+  - 不要同时更换邮箱、地区、姓名和支付方式；
+  - 记录发生时间、支付方式、金额和非敏感错误文字；
+  - 银行卡被拒时可询问发卡机构；
+  - PayPal 或支付宝问题先查看对应官方状态；
+  - Vultr 账户限制使用注册邮箱联系官方支持。
+</section>
+
+<section className="book-section" id="book01-ch6-check">
+  ## 本章检查
+
+  <ChapterChecklist chapterId="book01-chapter-06">
+    我已经使用本人长期可控的邮箱和唯一密码建立账户，启用 2FA 并另存恢复码；我准备了真实一致的账单与支付资料，也知道支付失败或额外审核时应停止重复尝试并联系官方渠道。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="book01-ch6-sources">
+  ## 本章事实来源
+
+  - <a href="https://docs.vultr.com/support/platform/authentication/what-are-the-password-requirements-for-a-vultr-account" target="_blank" rel="noopener noreferrer">Vultr 账户密码要求</a>；
+  - <a href="https://docs.vultr.com/support/platform/authentication/what-is-two-factor-authentication" target="_blank" rel="noopener noreferrer">Vultr 两因素认证说明</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/what-payment-methods-do-you-accept" target="_blank" rel="noopener noreferrer">Vultr 支付方式说明</a>；
+  - <a href="https://docs.vultr.com/platform/billing/make-account-payments" target="_blank" rel="noopener noreferrer">Vultr 账户付款步骤</a>；
+  - <a href="https://docs.vultr.com/platform/billing/faq" target="_blank" rel="noopener noreferrer">Vultr 账单常见问题</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/how-is-my-tax-location-determined" target="_blank" rel="noopener noreferrer">Vultr 税务地区说明</a>。
+
+  以上事实校订于 2026-07-27。支付方式、验证要求、税费、预授权和控制台界面属于高时效性信息，正式发布前必须使用符合目标读者条件的测试账户重新试走。
+</section>

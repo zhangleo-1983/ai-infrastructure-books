@@ -3,45 +3,57 @@ import { getCollection, render } from "astro:content";
 import ChapterHeader from "../../../components/book/ChapterHeader.astro";
 import ChapterNavigation from "../../../components/book/ChapterNavigation.astro";
 import TableOfContents from "../../../components/book/TableOfContents.astro";
+import type { BookDefinition } from "../../../data/books";
 import {
-  book02Id,
-  sortBookChapters,
+  getBookById,
+  getReadableBooks,
+} from "../../../data/books";
+import {
+  chapterHref,
+  entriesForBook,
+  isCompletionEligible,
+  isSearchEligible,
   toBookTocItems,
-} from "../../../data/book02";
-import { currentBook } from "../../../data/books";
+} from "../../../lib/book-content";
 import BookLayout from "../../../layouts/BookLayout.astro";
 import { sitePath } from "../../../lib/site-path";
-
-export async function getStaticPaths() {
-  const chapters = await getCollection(
-    "chapters",
-    ({ data }) => data.book === book02Id && !data.draft,
-  );
-
-  return sortBookChapters(chapters).map((entry) => ({
-    params: {
-      book: entry.data.book,
-      chapter: entry.data.slug,
-    },
-    props: { entry },
-  }));
-}
 
 type ChapterEntry = Awaited<ReturnType<typeof getCollection<"chapters">>>[number];
 
 interface Props {
+  book: BookDefinition;
   entry: ChapterEntry;
 }
 
-const { entry }: Props = Astro.props;
-const { Content, headings } = await render(entry);
-const bookEntries = sortBookChapters(
-  await getCollection(
+export async function getStaticPaths() {
+  const readableBookIds = new Set(getReadableBooks().map((book) => book.id));
+  const chapters = await getCollection(
     "chapters",
-    ({ data }) => data.book === book02Id && !data.draft,
-  ),
+    ({ data }) => !data.draft && readableBookIds.has(data.book),
+  );
+
+  return chapters.flatMap((entry) => {
+    const book = getBookById(entry.data.book);
+    if (!book || entry.data.slug === "print") return [];
+
+    return [{
+      params: {
+        book: book.slug,
+        chapter: entry.data.slug,
+      },
+      props: { book, entry },
+    }];
+  });
+}
+
+const { book, entry }: Props = Astro.props;
+const { Content, headings } = await render(entry);
+const allEntries = await getCollection(
+  "chapters",
+  ({ data }) => data.book === book.id && !data.draft,
 );
-const tocItems = toBookTocItems(bookEntries);
+const bookEntries = entriesForBook(allEntries, book);
+const tocItems = toBookTocItems(bookEntries, book);
 const currentEntryIndex = bookEntries.findIndex(
   (item) => item.data.slug === entry.data.slug,
 );
@@ -60,7 +72,7 @@ function navigationTarget(
   return {
     label,
     title: item.data.title,
-    href: sitePath(`/books/${book02Id}/${item.data.slug}/`),
+    href: sitePath(chapterHref(book, item.data.slug)),
     status: "available" as const,
   };
 }
@@ -74,6 +86,12 @@ const navigationProps = {
   ...(previousTarget ? { previous: previousTarget } : {}),
   ...(nextTarget ? { next: nextTarget } : {}),
 };
+const sourceAnchor = entry.data.sourceAnchor ?? entry.data.slug;
+const completionEligible = isCompletionEligible(
+  book,
+  entry.data.chapterType,
+);
+const searchEligible = isSearchEligible(book, entry.data.chapterType);
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
@@ -86,21 +104,22 @@ const structuredData = {
   dateModified: entry.data.updatedAt,
   isPartOf: {
     "@type": "Book",
-    name: currentBook.title,
+    name: book.title,
   },
   ...(canonicalUrl ? { url: canonicalUrl, mainEntityOfPage: canonicalUrl } : {}),
 };
 ---
 
 <BookLayout
-  title={entry.data.title}
+  title={`${entry.data.title} · ${book.shortTitle}`}
   description={entry.data.description}
-  bookTitle={currentBook.shortTitle}
+  bookTitle={book.shortTitle}
   ogType="article"
   structuredData={structuredData}
 >
   <TableOfContents
     slot="sidebar"
+    book={book}
     items={tocItems}
     currentSlug={entry.data.slug}
     headings={headings}
@@ -109,20 +128,25 @@ const structuredData = {
   <div
     class="book-prose"
     data-chapter-status-root
-    data-book-id={entry.data.book}
+    data-book-id={book.id}
     data-chapter-slug={entry.data.slug}
-    data-completion-eligible={entry.data.chapterType === "chapter" ? "true" : "false"}
+    data-completion-eligible={completionEligible ? "true" : "false"}
   >
     <div
-      data-migrated-content={entry.data.sourceAnchor}
+      data-migrated-content={sourceAnchor}
       data-reading-content
-      data-pagefind-body
-      data-pagefind-meta={`book:${currentBook.shortTitle}`}
+      data-pagefind-body={searchEligible ? true : undefined}
+      data-pagefind-meta={searchEligible
+        ? `book:${book.search.resultBookLabel}`
+        : undefined}
+      data-pagefind-filter={searchEligible
+        ? `book:${book.id}`
+        : undefined}
     >
       <ChapterHeader
         title={entry.data.title}
         description={entry.data.description}
-        sourceAnchor={entry.data.sourceAnchor}
+        sourceAnchor={sourceAnchor}
         chapterType={entry.data.chapterType}
         labels={entry.data.labels}
         {...chapterNumberProps}

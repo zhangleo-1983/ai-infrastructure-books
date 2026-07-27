@@ -1,5 +1,6 @@
 import {
   SEARCH_DEBOUNCE_MS,
+  SEARCH_QUERY_ALIASES,
   SEARCH_RESULT_LIMIT,
 } from "./constants";
 
@@ -27,7 +28,10 @@ interface PagefindSearchResponse {
 interface PagefindApi {
   init(): Promise<void>;
   options(options: { baseUrl: string }): Promise<void>;
-  search(query: string): Promise<PagefindSearchResponse>;
+  search(
+    query: string,
+    options?: { filters: Record<string, string> },
+  ): Promise<PagefindSearchResponse>;
 }
 
 function textMetadata(
@@ -36,6 +40,11 @@ function textMetadata(
 ): string {
   const value = metadata?.[key];
   return typeof value === "string" ? value : "";
+}
+
+export function normalizeSearchQuery(query: string): string {
+  const trimmed = query.trim();
+  return SEARCH_QUERY_ALIASES[trimmed] ?? trimmed;
 }
 
 export function appendSafeExcerpt(
@@ -90,6 +99,9 @@ export function initializeSearch(): void {
   const resultsElement = results;
   const bundleUrl = dialog.dataset.pagefindUrl;
   const baseUrl = dialog.dataset.baseUrl ?? "/";
+  const bookId = document.querySelector<HTMLElement>(
+    "[data-book-id]",
+  )?.dataset.bookId;
   if (!bundleUrl) return;
   const pagefindBundleUrl = bundleUrl;
 
@@ -141,9 +153,10 @@ export function initializeSearch(): void {
 
   async function search(query: string): Promise<void> {
     const sequence = ++searchSequence;
+    const trimmedQuery = query.trim();
     resultsElement.replaceChildren();
 
-    if (!query.trim()) {
+    if (!trimmedQuery) {
       setStatus("输入章节标题、术语或正文关键词。", "idle");
       return;
     }
@@ -152,7 +165,10 @@ export function initializeSearch(): void {
 
     try {
       const pagefind = await loadPagefind();
-      const response = await pagefind.search(query.trim());
+      const response = await pagefind.search(
+        normalizeSearchQuery(trimmedQuery),
+        bookId ? { filters: { book: bookId } } : undefined,
+      );
       const resultData = await Promise.all(
         response.results
           .slice(0, SEARCH_RESULT_LIMIT)
@@ -161,7 +177,7 @@ export function initializeSearch(): void {
       if (sequence !== searchSequence) return;
 
       if (resultData.length === 0) {
-        setStatus(`没有找到与“${query.trim()}”相关的内容。`, "empty");
+        setStatus(`没有找到与“${trimmedQuery}”相关的内容。`, "empty");
         return;
       }
 
