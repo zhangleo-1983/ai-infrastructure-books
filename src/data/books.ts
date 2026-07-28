@@ -77,8 +77,8 @@ export const books: readonly BookDefinition[] = [
     subtitle: "从看懂套餐到完成首次 SSH 登录",
     description: "面向中国零基础用户，从选择 Vultr 套餐到获得并登录第一台 Ubuntu VPS。",
     status: "release-candidate",
-    version: "1.0.0-rc.1",
-    updatedAt: "2026-07-27",
+    version: "1.0.0-rc.2",
+    updatedAt: "2026-07-28",
     featured: false,
     cover: {
       navigationLabel: "第一册",

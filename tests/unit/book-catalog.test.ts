@@ -23,7 +23,7 @@ describe("系列书籍注册表", () => {
     const firstBook = getBookById("01-first-vps");
     expect(firstBook).toBeDefined();
     expect(firstBook?.status).toBe("release-candidate");
-    expect(firstBook?.version).toBe("1.0.0-rc.1");
+    expect(firstBook?.version).toBe("1.0.0-rc.2");
     expect(firstBook?.search.enabled).toBe(true);
     expect(firstBook?.print.enabled).toBe(true);
 

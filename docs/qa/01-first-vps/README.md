@@ -21,17 +21,29 @@
 - [x] 15 个内容单元已进入公开 Release Candidate 路由
 - [x] 第一册独立内容检查覆盖区块、提示框、仿真界面、命令、关键交付和敏感数据边界
 - [x] 第二册开始之前、首次登录、重新登录、排错和附录已完成密码/SSH 私钥双路径衔接校订
-- [ ] 第二册双路径已经使用真实 Vultr 实例在 Windows 与 macOS 完成发布级实测
-- [ ] Vultr 中国用户主线已使用测试账户完整试走
+- [x] Vultr 中国用户主线已使用真实测试账户完成 Deploy 前试走
+- [x] 账户、2FA、信用卡、套餐、Ubuntu、Public IPv4、防火墙、备份和最终摘要均已脱敏核对
+- [ ] 使用真实 Vultr 实例完成 Windows/macOS 双路径与第二册端到端复核（可选持续 QA，不阻塞发布）
 - [x] 搜索样本已建立：16 个中文与技术词样本
 - [x] 打印与 PDF 已验收
 - [x] 发布候选检查已完成
+- [x] `book01-v1.0.0-rc.2` 已吸收真实账户 Deploy 前差异并完成全量回归
 
 脚手架运行时注册表状态：已找到对应 id。
 
-## 公开 RC 自动与人工验收记录
+真实账户与两册联合试走使用
+[`field-validation-runbook.md`](field-validation-runbook.md)。该台账只记录脱敏结论，
+不得写入账户、支付、身份验证或服务器凭证。
 
-验收日期：2026-07-27
+现场差异进入正文前后的逐项处理记录维护在
+[`field-validation-revisions.md`](field-validation-revisions.md)，用于区分技术纠错、
+安全纠错、界面差异、账户差异和仅需记录的变化。
+
+## Release Candidate 自动与人工验收记录
+
+`rc.1` 验收日期：2026-07-27
+
+`rc.2` 校订与回归日期：2026-07-28
 
 - `npm run check:all` 通过：类型检查、lint、54 个单元测试、production build、
   两册内容检查、966 个内部链接、发布准备检查和三浏览器 E2E 全部通过；
@@ -47,5 +59,8 @@
 - Vultr Status 曾对非浏览器自动链接请求返回 403；这不构成地域访问结论，也不阻塞
   当前 RC。中国大陆不同运营商的普通浏览器访问只作为持续事实复核项。
 
-真实 Vultr 测试账户和真实实例试走仍是发布后的持续事实复核项，不阻塞教学仿真版
-公开 Release Candidate。
+2026-07-28 已完成真实 Vultr 中国账户的部署前试走，覆盖控制台访问、2FA、信用卡
+验证、支付方式、Tokyo Shared CPU、Ubuntu 24.04 LTS、Public IPv4、SSH 防火墙、
+Automatic Backups 和最终费用摘要。项目 Owner 决定不为内容校订强制购买实例；
+Pending、Running、凭证、SSH、第二册端到端和 Destroy 继续依据官方资料维护，并作为
+可选持续 QA，不阻塞教学仿真版公开 Release Candidate。

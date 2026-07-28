@@ -6,7 +6,7 @@ title: "注册、支付和实名认证前要准备什么？"
 shortTitle: "账户、支付与验证"
 description: "用本人可控的邮箱和验证设备建立安全账户，准备支付宝及备选支付方式，并安全处理账单和身份验证。"
 chapterType: "chapter"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 chapterNumber: 6
 duration: "预计 15 分钟"
 labels:
@@ -51,7 +51,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
     <div className="flow-node">
       <span className="flow-node__icon" aria-hidden="true">💳</span>
       <strong>准备支付</strong>
-      <small>支付宝主线，其他方式备选</small>
+      <small>以账户当前可用方式为准</small>
     </div>
     <div className="flow-node">
       <span className="flow-node__icon" aria-hidden="true">🪪</span>
@@ -194,19 +194,19 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch6-payment">
   ## 第四步：准备支付方式
 
-  截至 2026-07-27，Vultr 官方列出的支付方式包括银行卡、PayPal、Alipay 和 UnionPay 等；实际可用选项取决于账户和地区。本书对中国用户使用支付宝作为详细主线，国际银行卡与 PayPal 只作为简要备选。
+  截至 2026-07-28，Vultr 官方列出的支付方式包括银行卡、PayPal、Alipay 和 UnionPay 等；实际可用选项取决于账户、地区、促销和当前审核状态。真实中国账户的部署前核验曾同时看到 Credit Card、PayPal、Crypto 和 Alipay，但这不是对所有账户的承诺。本书保留支付宝的详细路径；如果自己的账户没有显示或当前条件不允许使用，应在官方页面比较本人可合法使用的银行卡或 PayPal。
 
   <ComparisonTable>
 
   | 路径 | 你要准备什么 | 不能假设什么 |
   | --- | --- | --- |
-  | 支付宝主线 | 本人可正常登录和付款的支付宝账户 | 不能保证每个 Vultr 账户都显示或通过 |
+  | 支付宝（账户显示时） | 本人可正常登录和付款的支付宝账户 | 不能保证每个 Vultr 账户都显示、兼容当前促销或通过 |
   | 国际银行卡 | 本人有权使用、支持相关线上交易的卡片与真实账单资料 | 不能因为其他网站可用就保证本次通过 |
   | PayPal | 本人账户和其中有效的备用资金来源 | 不能保证地区、风控和付款协议一定成功 |
 
   </ComparisonTable>
 
-  支付宝主线的准备顺序：
+  账户显示 Alipay 时的准备顺序：
 
   1. 先在 Vultr 账户中打开官方 Billing / Make a Payment 页面；
   2. 确认页面显示 Alipay；
@@ -214,6 +214,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   4. 跳转后确认是支付宝官方环境；
   5. 使用本人账户完成支付；
   6. 返回 Vultr 后再次查看支付状态和账户余额。
+
+  如果页面提示当前促销与 Alipay 不能同时使用，不要为了测试支付方式就冲动移除促销，也不要转向代付或非官方充值。先比较本人银行卡、PayPal 等官方选项；是否放弃账户权益，必须由账户所有者在理解后果后决定。
 
   本章只准备并识别路径。第 9 章会在真正付款前逐项核对金额和持续费用。
 
@@ -238,6 +240,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   </ComparisonTable>
 
   Vultr 当前以美元出具账单；税务地区会参考账户账单地址和主要支付方式，某些地区还可能考虑其他信息。不要把他人的税费截图套到自己的账户，也不要为了改变税费填写虚假地址。
+
+  添加银行卡后，发卡行可能暂时显示一笔用于验证卡片的小额授权。Vultr 官方说明，这类授权会由发卡机构释放，不是服务器费用。不要因为看到待处理授权就反复绑卡或重复付款；先核对描述和状态，不确定时联系发卡行或 Vultr 官方支持。
 </section>
 
 <section className="book-section" id="book01-ch6-identity">
@@ -300,7 +304,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - <a href="https://docs.vultr.com/support/platform/billing/what-payment-methods-do-you-accept" target="_blank" rel="noopener noreferrer">Vultr 支付方式说明</a>；
   - <a href="https://docs.vultr.com/platform/billing/make-account-payments" target="_blank" rel="noopener noreferrer">Vultr 账户付款步骤</a>；
   - <a href="https://docs.vultr.com/platform/billing/faq" target="_blank" rel="noopener noreferrer">Vultr 账单常见问题</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/why-is-there-a-small-charge-after-adding-credit-card" target="_blank" rel="noopener noreferrer">Vultr 添加银行卡后的临时授权说明</a>；
   - <a href="https://docs.vultr.com/support/platform/billing/how-is-my-tax-location-determined" target="_blank" rel="noopener noreferrer">Vultr 税务地区说明</a>。
 
-  以上事实校订于 2026-07-27。支付方式、验证要求、税费、预授权和控制台界面属于高时效性信息，正式发布前必须使用符合目标读者条件的测试账户重新试走。
+  以上事实校订于 2026-07-28，并已使用真实中国账户完成到“可以部署”为止的脱敏核验，没有创建付费实例。支付方式、验证要求、税费、预授权和控制台界面属于高时效性信息，正式付款时仍必须以本人账户页面为准。
 </section>

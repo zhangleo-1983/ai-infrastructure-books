@@ -6,7 +6,7 @@ title: "附录：购买清单、交接卡与术语表"
 shortTitle: "附录"
 description: "集中提供可打印的购买决策表、费用核对表、服务器交接卡、备选服务商检查项和零基础术语解释。"
 chapterType: "appendix"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 labels:
   - "购买清单"
   - "服务器交接卡"
@@ -60,8 +60,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   | 公网地址 | 必须有独立公网 IPv4 | ______ | 创建页与实例 Overview |
   | 管理员用户 | `root`；或明确可 sudo 的用户 | ______ | 登录凭证区域 |
   | 认证方式 | SSH Key 推荐；Password 也完整支持 | ______ | 创建页 |
-  | 云防火墙 | TCP 22；优先只允许自己的公网 IP | ______ | Firewall Group |
-  | 自动备份 | 首次练习默认关闭 | ______ | 附加项与结算摘要 |
+  | 云防火墙 | TCP 22；Custom 填写自己的当前公网 IPv4/32 | ______ | Firewall Group |
+  | 自动备份 | 首次练习主动关闭 | ______ | 附加项与结算摘要 |
   | 月度预算上限 | 由读者预先确定 | ______ | 第 3、9 章 |
 
   </ComparisonTable>
@@ -81,13 +81,13 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - □ 产品是普通 Cloud Compute，不是 Marketplace App 或预装面板；
   - □ 地区是自己记录的首选或备选地区；
   - □ 套餐满足 CPU、内存、磁盘和流量下限；
-  - □ 镜像是 Ubuntu 24.04 LTS；
+  - □ 已主动选择 Ubuntu 24.04 LTS，而不是沿用页面默认镜像；
   - □ 架构是 x86_64 / amd64；
-  - □ Public IPv4 已启用，不是 IPv6-only、Private 或 NAT；
+  - □ Public IPv4 已启用，不是 IPv6-only、Private 或 NAT；如果页面显示 `No Public IPv4 Address`，它保持未勾选；
   - □ 登录方式与第 7 章准备的凭证一致；
   - □ SSH Key 路径只上传公钥，没有上传私钥；
-  - □ 云防火墙只开放当前需要的 TCP 22；
-  - □ 自动备份和其他附加项符合自己的预算；
+  - □ 云防火墙只开放当前需要的 TCP 22，来源为 Custom + 当前公网 IPv4 `/32`；
+  - □ 已显式确认 Automatic Backups 为 Off，其他附加项符合自己的预算；
   - □ 最终金额、币种和持续计费方式已经看懂；
   - □ 已经知道怎样停止后续计费，而不只是怎样关机。
 
@@ -287,6 +287,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
 <section className="book-section" id="book01-appendix-calibration">
   ## 附录校订说明
+
+  Vultr 主线已于 2026-07-28 使用真实中国账户完成到 Deploy 前最终摘要的脱敏核验，没有创建付费实例；实例、SSH 与销毁闭环保留为可选持续 QA。
 
   AWS Lightsail 与阿里云 ECS 的地址、密钥、防火墙和停机规则依据官方资料校订于 2026-07-27。它们尚未完成中国大陆测试账户的发布级全流程试走，因此当前只作为选择检查，不作为逐按钮购买教程。
 

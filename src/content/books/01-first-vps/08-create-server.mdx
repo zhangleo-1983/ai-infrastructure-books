@@ -6,7 +6,7 @@ title: "在创建页面逐项选择服务器"
 shortTitle: "创建服务器配置"
 description: "沿 Vultr Cloud Compute 创建流程选择 Shared CPU、东京、Ubuntu 24.04 LTS、amd64、独立公网 IPv4、SSH 凭证与最小防火墙。"
 chapterType: "chapter"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 chapterNumber: 8
 duration: "预计 18 分钟"
 labels:
@@ -35,7 +35,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
     Deploy 会开始创建并产生资源费用。页面可能把按钮固定在底部或侧边，即使配置还没有全部检查，也能点击。请完成本章最后的核对表，再进入第 9 章。
   </Callout>
 
-  当前官方流程包含产品类型、地区、套餐、系统、SSH Key、Firewall Group、主机名、Public IPv4 和附加功能。按钮名称和字段顺序以后可能变化；下面的界面是教学仿真，重点是每个选择的含义。
+  当前官方流程包含产品类型、地区、套餐、系统、SSH Key、Firewall Group、主机名、Public IPv4 和附加功能。Vultr 可能同时提供新版 Beta 与旧版创建页，两者的字段位置、默认值和套餐可用性展示并不一定完全相同。下面的界面是教学仿真，重点是每个选择的含义，而不是复刻某一版页面。
 </section>
 
 <section className="book-section" id="book01-ch8-firewall">
@@ -52,7 +52,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
       <MockField label="Network">IPv4</MockField>
       <MockField label="Protocol">TCP</MockField>
       <MockField label="Port">22</MockField>
-      <MockField label="Source">My IP / 你的当前公网 IP</MockField>
+      <MockField label="Source">Custom · 你的当前公网 IPv4/32</MockField>
       <MockField label="Note">Allow SSH from my current network</MockField>
     </div>
   </MockWindow>
@@ -62,10 +62,12 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   1. 在 Vultr 控制台的 Network / Firewall 区域新建一个 Firewall Group；
   2. 名称使用 `book01-ssh` 这类不含个人信息的标签；
   3. 添加入站 IPv4 规则；
-  4. 协议选择 TCP，端口填写 `22`；
-  5. 来源优先选择 My IP，或填写你当前可信网络的公网 IP；
+  4. 使用 SSH 预设时确认端口自动固定为 `22`；没有预设时选择 TCP 并填写 `22`；
+  5. 来源选择 Custom，填写你当前上网网络的公网 IPv4，并在末尾加 `/32`；
   6. 不添加其他入站端口；
   7. 保存后确认规则出现在列表中。
+
+  `/32` 表示只允许这一个 IPv4 地址。这里填写的是电脑或家庭路由器当前访问公网时使用的出口地址，不是尚未创建的服务器地址。
 
   为什么这样做：把来源限制为当前公网 IP，可以减少其他地址尝试连接 SSH。如果你的网络公网 IP 经常变化，原有规则可能会把你自己挡在外面。
 
@@ -79,7 +81,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - 防火墙组创建了，但没有在实例创建页选中。
 
   <Callout type="warning" title="动态公网 IP 的兼容分支">
-    如果你的家庭宽带或移动网络频繁更换公网 IP，My IP 规则可能导致连接超时。兼容方案是只把 TCP 22 临时开放到 `0.0.0.0/0`，同时使用 SSH 密钥或强随机密码；登录成功后再收紧来源。`0.0.0.0/0` 表示所有 IPv4 来源，不是更安全的默认值。
+    如果你的家庭宽带或移动网络频繁更换公网 IP，Custom `/32` 规则可能导致连接超时。兼容方案是只把 TCP 22 临时开放到 `0.0.0.0/0`，同时使用 SSH 密钥或强随机密码；登录成功后再收紧来源。`0.0.0.0/0` 表示所有 IPv4 来源，不是更安全的默认值。
   </Callout>
 </section>
 
@@ -91,7 +93,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   </InstructionStep>
 
   <InstructionStep number={2} title="实例类型选择 Shared CPU">
-    不选择 Dedicated CPU、Cloud GPU、Bare Metal 或 Kubernetes。套餐分类使用能满足需求卡的普通 Cloud Compute / Shared CPU。
+    主动选择能满足需求卡的普通 Cloud Compute / Shared CPU，不要信任首次打开页面时的默认产品。2026-07-28 的真实账户核验曾默认进入 Dedicated CPU；不选择 Dedicated CPU、Cloud GPU、Bare Metal 或 Kubernetes。
   </InstructionStep>
 
   为什么这样做：本书需要一台通用 Ubuntu VPS，不需要专用 CPU、GPU 或集群产品。
@@ -119,6 +121,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - 只看到地图高亮，却没有确认城市名称；
   - 换了地区后，套餐配置或价格发生变化但没有重新核对；
   - 地区显示 Sold Out / Unavailable，仍反复点击。
+
+  如果 Beta 页显示目标套餐不可用，而同一账户的官方旧版创建页结果不同，先把它视为页面或库存状态不一致。不要自动申请 Reserved Capacity，不要为了继续而升级到昂贵套餐，也不要把它解释为中国大陆访问限制。只有在某个官方创建路径能够给出完整、可解释的最终摘要时，才继续下一步。
 </section>
 
 <section className="book-section" id="book01-ch8-step-3">
@@ -139,6 +143,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   </ComparisonTable>
 
+  套餐可能使用 Regular、High Performance 或其他名称；名称不是通过条件。只要它属于 Shared CPU / Cloud Compute、满足资源下限、具有独立公网 IPv4，并且最终价格可解释，才进入下一步。
+
   为什么这样做：这组下限用于第一册登录和第二册轻量服务。更大的套餐不会让你自动完成配置，只会增加持续费用。
 
   成功状态：五项资源和价格都能从当前套餐卡或结算摘要中找到。
@@ -153,7 +159,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   1. 镜像类型选择 Operating System；
   2. 系统选择 Ubuntu；
-  3. 版本选择 Ubuntu 24.04 LTS；
+  3. 不依赖当前默认镜像，主动把版本选择为 Ubuntu 24.04 LTS；
   4. 架构确认 x86_64、x64 或 amd64；
   5. 不选择 Marketplace Apps、ISO、Snapshot 或 Backup。
 
@@ -215,6 +221,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   4. IPv6 可以暂不启用，或者启用后仍必须保留 Public IPv4；
   5. 不要取消 Public IPv4。
 
+  某些创建页会使用反向选项 `No Public IPv4 Address`。如果看到它，必须保持未勾选；勾选它的含义正是“不分配公网 IPv4”。
+
   为什么这样做：第二册需要从公网直接使用服务器 IPv4。NAT Gateway、VPC 私网或 IPv6-only 都会改变操作路径。
 
   <MockWindow title="Instance Connectivity · 教学仿真">
@@ -235,7 +243,9 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch8-step-7">
   ## 第七步：绑定防火墙，不提前开放第二册端口
 
-  在 Firewall Group 中选择本章开头创建的 `book01-ssh`。
+  在创建页能看到 Firewall Group 字段时，选择本章开头创建的 `book01-ssh`。2026-07-28 的真实账户核验中，旧版创建页提供该下拉项，而 Beta 页没有显示。
+
+  如果当前创建页没有绑定字段，不要假设防火墙会自动生效。按照官方 Firewall Group 绑定流程，在实例创建后立即把 `book01-ssh` 链接到该实例；完成绑定前不要为第二册开放其他端口。
 
   为什么这样做：只有绑定到实例的防火墙组才会实际过滤流量。第一册仅验证 SSH，不需要面板端口、节点端口、HTTP 或 HTTPS。
 
@@ -288,6 +298,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   <Callout type="danger" title="暂不购买备份，也必须接受数据丢失风险">
     这台服务器在首次学习阶段没有不可替代数据，所以主线先关闭自动备份。第二册配置稳定并开始长期使用后，应重新评估自动备份、快照和恢复演练。没有验证过恢复的备份，不能视为可靠保护。
   </Callout>
+
+  不要假设 Automatic Backups 默认关闭。2026-07-28 的真实账户核验中，它曾默认开启并增加持续费用，关闭时还要求确认数据风险。你要显式关闭它，再确认最终摘要中的附加费用和总价已经更新。
 </section>
 
 <section className="book-section" id="book01-ch8-summary">
@@ -350,9 +362,11 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Vultr Cloud Compute 创建流程</a>；
   - <a href="https://docs.vultr.com/products/network/firewall-groups/management/rules" target="_blank" rel="noopener noreferrer">Vultr Firewall Rule 管理</a>；
+  - <a href="https://docs.vultr.com/products/network/firewall-groups/provisioning" target="_blank" rel="noopener noreferrer">Vultr 创建 Firewall Group</a>；
+  - <a href="https://docs.vultr.com/products/network/firewall-groups/management/link" target="_blank" rel="noopener noreferrer">Vultr 绑定 Firewall Group</a>；
   - <a href="https://docs.vultr.com/products/orchestration/ssh-keys/add-ssh-keys" target="_blank" rel="noopener noreferrer">Vultr 添加 SSH Key</a>；
   - <a href="https://docs.vultr.com/support/products/compute/i-did-not-get-an-email-of-my-vultr-compute-instance-root-password" target="_blank" rel="noopener noreferrer">Vultr root 密码获取说明</a>；
   - <a href="https://ubuntu.com/about/release-cycle" target="_blank" rel="noopener noreferrer">Ubuntu 发布周期</a>。
 
-  以上事实校订于 2026-07-27。创建页面顺序、套餐库存、镜像列表、Public IPv4 默认值、附加功能和费用都属于易变事实，发布前必须使用测试账户完成一次部署前试走。
+  以上事实校订于 2026-07-28，并已使用真实中国账户完成 Beta 与旧版页面的部署前脱敏核验，没有点击 Deploy。创建页面顺序、套餐库存、镜像列表、Public IPv4 默认值、附加功能和费用都属于易变事实，读者仍应以本人账户的最终摘要为准。
 </section>

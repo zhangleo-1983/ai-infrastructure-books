@@ -6,7 +6,7 @@ title: "下单前最后核对费用"
 shortTitle: "费用与下单"
 description: "区分套餐价格、账户余额、附加服务、税费和流量超额，理解停止与销毁的计费差异，再提交一次 Deploy。"
 chapterType: "chapter"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 chapterNumber: 9
 duration: "预计 12 分钟"
 labels:
@@ -36,6 +36,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   VPS 是持续占用资源的服务。最危险的误解不是暂时多花一点，而是把账户充值金额当成服务器月费，或者以为关机就会停止账单。
 
+  Deploy 是本书主线中的计费边界：点击并成功创建服务器后开始计费；只编辑创建草稿，或者在提交前关闭页面，不会创建服务器。还没准备好产生费用时，停在这里完全没有问题。
+
   <Callout type="warning" title="本章不是固定报价或财务建议">
     套餐、附加服务、税费、汇率和超额价格都会变化。所有金额都必须以你自己账户中的当前结算摘要、Billing History 和官方条款为准。
   </Callout>
@@ -57,7 +59,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   ### 套餐价格
 
-  Vultr 页面可能同时显示小时价格和月度参考价格。你要记录页面当前显示的两个值，但最后仍以结算摘要和 Billing History 为准。
+  Vultr 页面可能同时显示小时价格和月度参考价格。你要记录页面当前显示的两个值，但最后仍以结算摘要和 Billing History 为准。Vultr 官方当前说明，服务器从 Deploy 后开始按小时计费，最小计费单位为一小时；“刚创建就删除”也不能当作零费用试用。
 
   ### 账户充值或余额
 
@@ -126,7 +128,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 
   这是本章最重要的规则。
 
-  截至 2026-07-27，Vultr 官方明确说明：实例处于 Stopped 状态时，CPU、RAM、SSD 和 IP 等资源仍被保留，因此继续计费。要停止该实例继续占用这些资源，需要 Destroy。
+  截至 2026-07-28，Vultr 官方明确说明：实例处于 Stopped 状态时，CPU、RAM、SSD 和 IP 等资源仍被保留，因此继续计费。要停止该实例继续占用这些资源，需要 Destroy。
 
   <FlowDiagram>
     <div className="flow-node">
@@ -165,7 +167,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch9-backup">
   ## 自动备份为什么默认关闭
 
-  截至 2026-07-27，Vultr 官方说明，Automatic Backups 会在实例基础小时或月度价格之外增加 20%，并按实例实际计费情况折算。
+  截至 2026-07-28，Vultr 官方说明，Automatic Backups 会在实例基础小时或月度价格之外增加 20%，并按实例实际计费情况折算。
 
   自动备份有价值，但第一册刚创建的是练习服务器：
 
@@ -174,7 +176,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - 目标是先确认购买和登录路径；
   - 打开备份会让第一张账单增加一个持续费用项目。
 
-  因此第一册默认关闭 Automatic Backups。
+  因此第一册的教学选择是关闭 Automatic Backups。不要把这句话理解为厂商页面一定默认关闭：2026-07-28 的真实账户部署前核验中，该选项曾默认开启并增加费用。每次都要亲自关闭，并重新核对总价。
 
   <Callout type="danger" title="关闭备份意味着服务商不会替你自动保留恢复副本">
     这不是“备份没用”。进入第二册、配置开始具有价值后，应根据数据价值重新选择自动备份、快照或其他方案，并实际验证恢复步骤。
@@ -213,7 +215,7 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch9-bandwidth">
   ## 流量额度用完后会怎样
 
-  套餐包含的 Transfer 不是无限流量。截至 2026-07-27，Vultr 官方说明，超过套餐额度的带宽用量会按 GB 产生超额费用，并可在 Bandwidth Usage 页面查看当前与之前计费周期的出站传输统计。
+  套餐包含的 Transfer 不是无限流量。截至 2026-07-28，Vultr 官方说明，超过套餐额度的带宽用量会按 GB 产生超额费用，并可在 Bandwidth Usage 页面查看当前与之前计费周期的出站传输统计。
 
   本书不要求你预测第二册一定会使用多少流量，但必须建立两个习惯：
 
@@ -288,6 +290,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch9-deploy">
   ## 全部通过后，只提交一次
 
+  如果你现在并不需要服务器，或者不愿开始计费，就关闭创建页并保留自己的核对记录。没有必要为了“验证教程”点击 Deploy。
+
   <InstructionStep number={1} title="再读一遍最终摘要">
     核对产品、地区、系统、公网 IPv4、认证方式、防火墙、附加项、币种和费用。
   </InstructionStep>
@@ -312,6 +316,8 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
 <section className="book-section" id="book01-ch9-sources">
   ## 本章事实来源
 
+  - <a href="https://docs.vultr.com/support/platform/billing/how-am-i-billed-for-my-servers" target="_blank" rel="noopener noreferrer">Vultr：服务器从 Deploy 开始计费及最小小时单位</a>；
+  - <a href="https://docs.vultr.com/support/platform/billing/why-is-there-a-small-charge-after-adding-credit-card" target="_blank" rel="noopener noreferrer">Vultr：添加银行卡后的临时授权</a>；
   - <a href="https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr" target="_blank" rel="noopener noreferrer">Vultr：停止实例后的计费</a>；
   - <a href="https://docs.vultr.com/support/platform/billing/how-much-does-it-cost-to-enable-automatic-backups" target="_blank" rel="noopener noreferrer">Vultr：Automatic Backups 费用</a>；
   - <a href="https://docs.vultr.com/support/platform/billing/does-vultr-charge-for-stored-snapshots" target="_blank" rel="noopener noreferrer">Vultr：快照费用</a>；
@@ -319,5 +325,5 @@ import MockWindow from "../../../components/mock-ui/MockWindow.astro";
   - <a href="https://docs.vultr.com/support/platform/billing/why-do-i-see-an-unexpected-charge-on-my-invoice" target="_blank" rel="noopener noreferrer">Vultr：意外账单费用检查</a>；
   - <a href="https://docs.vultr.com/support/platform/billing" target="_blank" rel="noopener noreferrer">Vultr Billing 资料中心</a>。
 
-  以上事实校订于 2026-07-27。20% 自动备份费率、快照与流量单价、税费、币种、套餐价格和页面名称都必须在正式发布前重新核对。
+  以上事实校订于 2026-07-28，并已使用真实中国账户核对到 Deploy 前最终摘要，没有创建付费实例。20% 自动备份费率、快照与流量单价、税费、币种、套餐价格和页面名称都必须在正式下单时重新核对。
 </section>

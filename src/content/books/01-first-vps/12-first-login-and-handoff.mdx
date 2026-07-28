@@ -6,7 +6,7 @@ title: "完成首次 SSH 登录，进入第二册"
 shortTitle: "首次登录与交接"
 description: "分别使用 SSH 密钥或密码从 Windows、macOS 登录 Ubuntu，验证管理员身份、安全退出并整理第二册交接卡。"
 chapterType: "chapter"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 chapterNumber: 12
 duration: "预计 20 分钟"
 labels:
@@ -332,7 +332,7 @@ import { sitePath } from "../../../lib/site-path";
     1. 实例是否 Running；
     2. IP 是否来自当前实例；
     3. Vultr Firewall 是否允许 TCP 22；
-    4. My IP 规则中的来源是否已经变化；
+    4. Firewall Group 的 Custom `/32` 来源是否仍等于你当前的公网 IPv4；
     5. 本地网络是否限制 SSH；
     6. 是否误选 IPv6-only、Private 或 NAT 实例。
 
@@ -417,5 +417,5 @@ import { sitePath } from "../../../lib/site-path";
   - <a href="https://ubuntu.com/server/docs/how-to/security/openssh-server/" target="_blank" rel="noopener noreferrer">Ubuntu Server：OpenSSH 与 ED25519</a>；
   - <a href="https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse" target="_blank" rel="noopener noreferrer">Microsoft Learn：Windows OpenSSH</a>。
 
-  以上事实校订于 2026-07-27。Vultr 凭证入口、Windows/macOS 终端行为、默认用户和第二册衔接内容必须在发布前完成双平台、双认证路径实测。
+  以上事实校订于 2026-07-28。Vultr 凭证入口、Windows/macOS 终端行为、默认用户和第二册衔接内容依据官方资料与自动回归维护；双平台、双认证实机复核属于可选持续 QA，不作为发布前强制付费条件。
 </section>

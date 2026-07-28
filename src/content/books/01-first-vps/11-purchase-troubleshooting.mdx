@@ -6,7 +6,7 @@ title: "购买或开通失败时检查什么？"
 shortTitle: "购买与开通排错"
 description: "按账户、支付、审核、库存、实例创建、网络和凭证的顺序定位问题，每次只改变一个变量。"
 chapterType: "chapter"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 chapterNumber: 11
 duration: "预计 15 分钟"
 labels:
@@ -116,6 +116,8 @@ import Callout from "../../../components/common/Callout.astro";
   <TroubleshootingItem title="PayPal 无法建立付款">
     检查 PayPal 账户状态和备用资金来源。不要使用购买、借用或共享的 PayPal 账户。若账户条件不满足，换用本人合法可用的其他官方支付方式，而不是规避验证。
   </TroubleshootingItem>
+
+  如果某种支付方式提示与当前促销或账户权益不兼容，先把它归为账户条件，而不是支付平台故障。不要为了试一次支付就冲动移除促销，也不要使用代付或非官方充值；比较本人可用的其他官方方式，仍无法判断时联系 Vultr 支持。
 </section>
 
 <section className="book-section" id="book01-ch11-review">
@@ -139,6 +141,8 @@ import Callout from "../../../components/common/Callout.astro";
 
   <TroubleshootingItem title="东京不可选或目标套餐售罄">
     先查看状态页和创建页面是否明确显示 Sold Out / Unavailable。不要用更昂贵产品代替需求卡，也不要反复刷新创建。
+
+    如果 Beta 页与官方旧版创建页显示不同结果，先记录产品类型、地区、套餐和时间，把它视为页面或库存状态不一致。不要自动申请 Reserved Capacity，不要升级到 Dedicated CPU；只有某个官方路径能够显示符合需求卡且费用可解释的最终摘要时，才继续。
 
     按第 5 章同样的方法检查洛杉矶：账户可选、配置达标、独立公网 IPv4、状态正常、费用不超过预算。
 
@@ -261,5 +265,5 @@ import Callout from "../../../components/common/Callout.astro";
   - <a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management/reinstall-instance" target="_blank" rel="noopener noreferrer">Vultr：Reinstall 数据删除警告</a>；
   - <a href="https://status.vultr.com/" target="_blank" rel="noopener noreferrer">Vultr Status</a>。
 
-  以上事实校订于 2026-07-27。错误文字、审核要求、支持入口和状态名称属于易变信息，发布前必须按测试账户与测试实例重新核对。
+  以上事实校订于 2026-07-28。真实中国账户已经完成 Deploy 前页面核验；错误文字、审核要求、支持入口和状态名称仍属于易变信息，实例创建后的错误分支依据官方资料维护并可继续抽样实测。
 </section>

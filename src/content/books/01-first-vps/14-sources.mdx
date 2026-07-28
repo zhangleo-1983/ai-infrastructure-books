@@ -6,7 +6,7 @@ title: "资料来源与校订记录"
 shortTitle: "资料来源"
 description: "按稳定知识、Vultr 主线、AWS Lightsail 和阿里云 ECS 分类列出第一册使用的官方资料及校订边界。"
 chapterType: "sources"
-updatedAt: "2026-07-27"
+updatedAt: "2026-07-28"
 labels:
   - "官方资料"
   - "校订记录"
@@ -21,14 +21,16 @@ import Callout from "../../../components/common/Callout.astro";
 
   第一册把容易变化的事实尽量链接到服务商、操作系统或平台的官方资料。官方页面仍可能更新，因此“链接存在”不等于书中所有按钮名称永远有效。
 
-  当前内容校订日期：**2026-07-27**。
+  当前内容校订日期：**2026-07-28**。
 
   当前校订状态：
 
   - 已完成官方文档层面的技术路线复核；
   - 已完成“开始之前”、第 1—12 章、附录与本页的公开 Release Candidate；
   - 厂商页面全部使用 HTML 与 CSS 教学仿真，不是当前控制台的像素级截图；
-  - 尚未使用中国大陆测试账户完成 Vultr 注册、支付宝、人工审核、东京库存和双认证登录的实机全流程复核；
+  - 已使用真实中国账户完成控制台访问、2FA、信用卡验证、支付方式和 Deploy 前配置摘要的脱敏核验，没有创建付费实例；
+  - Beta 与旧版创建页、套餐可用性、默认镜像、Automatic Backups 和 Firewall Source 的差异已经进入正文校订；
+  - 付费实例、Windows/macOS SSH、第二册端到端和销毁流程保留为可选持续 QA；
   - AWS Lightsail 与阿里云 ECS 只作为附录中的最小补充选择；
   - 当前价格、库存、支付方式和验证要求仍以读者自己账户中的实时页面为准，不构成可用性承诺。
 
@@ -57,7 +59,9 @@ import Callout from "../../../components/common/Callout.astro";
   <ol className="source-list">
     <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning" target="_blank" rel="noopener noreferrer">Provision Cloud Compute</a>：Shared CPU、地区、套餐、镜像、SSH Key、Firewall、Public IPv4、Automatic Backups 与 Limited User。</li>
     <li><a href="https://docs.vultr.com/products/compute/instances/cloud-compute/management" target="_blank" rel="noopener noreferrer">Cloud Compute Management</a>：实例 Overview、状态和管理操作。</li>
+    <li><a href="https://docs.vultr.com/products/network/firewall-groups/provisioning" target="_blank" rel="noopener noreferrer">Provision Firewall Group</a>：创建独立防火墙组。</li>
     <li><a href="https://docs.vultr.com/products/network/firewall-groups/management/rules" target="_blank" rel="noopener noreferrer">Vultr Firewall Rules</a>：协议、端口、来源 IPv4 与规则管理。</li>
+    <li><a href="https://docs.vultr.com/products/network/firewall-groups/management/link" target="_blank" rel="noopener noreferrer">Link Firewall Group</a>：把防火墙组绑定到实例。</li>
     <li><a href="https://docs.vultr.com/support/products/compute/how-do-i-get-a-vultr-compute-instance-dedicated-ip-address" target="_blank" rel="noopener noreferrer">实例公网地址说明</a>：核对普通实例 IP 与可独立管理地址的边界。</li>
     <li><a href="https://status.vultr.com/" target="_blank" rel="noopener noreferrer">Vultr Status</a>：创建或连接异常时核对平台与地区状态。</li>
     <li><a href="https://docs.vultr.com/public/doc-assets/pdfs/article/best-practices-when-migrating-to-vultr.pdf" target="_blank" rel="noopener noreferrer">Vultr Migration Practices</a>：Looking Glass 与部署前网络测试入口。</li>
@@ -71,6 +75,8 @@ import Callout from "../../../components/common/Callout.astro";
     <li><a href="https://docs.vultr.com/support/platform/billing/what-payment-methods-do-you-accept" target="_blank" rel="noopener noreferrer">Accepted Payment Methods</a>：官方列出的支付方式；实际可用性仍取决于账户和地区。</li>
     <li><a href="https://docs.vultr.com/platform/billing/make-account-payments" target="_blank" rel="noopener noreferrer">Make Account Payments</a>：账户支付入口与支付流程。</li>
     <li><a href="https://docs.vultr.com/platform/billing/faq" target="_blank" rel="noopener noreferrer">Billing FAQ</a>：美元账单、预授权、账户余额、税务和计费常见问题。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/why-is-there-a-small-charge-after-adding-credit-card" target="_blank" rel="noopener noreferrer">Credit-card Authorization</a>：添加银行卡后的临时验证授权不是服务器费用。</li>
+    <li><a href="https://docs.vultr.com/support/platform/billing/how-am-i-billed-for-my-servers" target="_blank" rel="noopener noreferrer">Server Billing</a>：Deploy 后开始按小时计费，最小计费单位为一小时。</li>
     <li><a href="https://docs.vultr.com/support/platform/billing/how-is-my-tax-location-determined" target="_blank" rel="noopener noreferrer">Tax Location</a>：账单地址、主要支付方式与税务地区。</li>
     <li><a href="https://docs.vultr.com/support/platform/billing/why-was-my-credit-card-declined" target="_blank" rel="noopener noreferrer">Declined Credit Card</a>：银行卡失败的官方排查边界。</li>
     <li><a href="https://docs.vultr.com/support/platform/billing/what-if-im-unable-to-pay-my-invoice" target="_blank" rel="noopener noreferrer">Unable to Pay Invoice</a>：未完成账单的官方处理入口。</li>
@@ -133,9 +139,9 @@ import Callout from "../../../components/common/Callout.astro";
   | 信息类型 | 示例 | 当前状态 | 最晚何时复核 |
   | --- | --- | --- | --- |
   | 长期稳定知识 | VPS、RAM、SSH、公钥与私钥 | 已完成文档核对 | 每次大版本 |
-  | 厂商界面 | 按钮、状态、字段顺序 | 已提供教学仿真；尚待真实账户复核 | 每个发布候选 |
+  | 厂商界面 | 按钮、状态、字段顺序 | 教学仿真；Vultr Deploy 前主线已完成真实账户核验 | 每个发布候选 |
   | 套餐与价格 | 规格、币种、流量、附加费 | 不写固定长期价格 | 每个发布候选 |
-  | 支付与验证 | Alipay、银行卡、PayPal、KYC | 尚待中国账户试走 | 每个发布候选 |
+  | 支付与验证 | Alipay、银行卡、PayPal、KYC | 常见支付分支与 2FA 已实核；账户差异继续条件化表达 | 每个发布候选 |
   | 地区与库存 | Tokyo、Los Angeles | 不作库存承诺 | 发布当天 |
   | SSH 登录 | Windows/macOS、密码/密钥 | 文档路径与自动回归已完成 | 每个发布候选抽样实测 |
   | 第二册兼容 | Ubuntu、管理员、认证方式 | 跨册正文和自动回归已完成 | 两册任一登录流程变化时 |
@@ -144,22 +150,22 @@ import Callout from "../../../components/common/Callout.astro";
 </section>
 
 <section className="book-section" id="book01-sources-boundary">
-  ## 不阻塞公开阅读、但仍需继续复核的事项
+  ## 不阻塞公开阅读的可选持续 QA
 
-  - 使用中国大陆网络与测试账户完整试走 Vultr 主线；
-  - 核对注册、邮箱验证、两因素认证和恢复码；
-  - 核对当前 Alipay、银行卡和 PayPal 分支；
+  - 抽样覆盖不同中国大陆运营商与时段的普通浏览器访问；
+  - 在新账户流程变化时复核注册、邮箱验证和恢复码；
+  - 在支付政策变化时复核 Alipay、银行卡和 PayPal 分支；
   - 核对额外身份验证与人工审核的实际提示；
-  - 核对 Tokyo 和 Los Angeles 当前库存、套餐字段与结算金额；
+  - 继续抽样核对 Tokyo 和 Los Angeles 的库存、套餐字段与结算金额；
   - 分别创建密码实例和 ED25519 密钥实例；
   - 在 Windows 与 macOS 完成首次 SSH 登录和错误分支；
-  - 核对实例状态、Overview、Firewall、Billing History 和销毁流程；
+  - 核对实例状态、Overview、Billing History 和销毁流程；
   - 在厂商界面或登录路径变化时，再校订第二册“开始之前”、首次登录、重新登录和故障排查内容；
   - 每个发布候选继续运行内容、安全、链接、响应式、打印、搜索与跨浏览器验收。
 
   详细执行记录维护在 `docs/qa/01-first-vps/fact-check.md`。该文件可能包含作者工作状态，不作为读者操作步骤。
 
-  这些项目用于提高下一版的实机置信度，不会阻止当前 Release Candidate 使用仿真界面公开阅读。读者遇到与仿真界面不同的真实页面时，应按字段含义判断，并以官方控制台和官方支持为准。
+  这些项目用于持续提高实机置信度，不是当前 Release Candidate 或下一候选版本的发布前置条件。读者遇到与仿真界面不同的真实页面时，应按字段含义判断，并以官方控制台和官方支持为准。
 
   <Callout type="warning" title="不使用推广或绕过渠道">
     第一版不使用返利、推广、邀请码、代付、共享账户或非官方充值链接，也不提供绕过支付验证、身份审核、地区限制或服务条款的方法。
