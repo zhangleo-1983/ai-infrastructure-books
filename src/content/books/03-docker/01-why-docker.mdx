@@ -1,0 +1,338 @@
+---
+book: "03-docker"
+order: 1
+slug: "01-why-docker"
+title: "Docker 到底解决什么问题？"
+shortTitle: "Docker 解决什么问题"
+description: "从应用所需的文件、运行环境和启动方式出发，理解容器、虚拟机、Docker Engine、CLI 与 daemon 的关系。"
+chapterType: "chapter"
+updatedAt: "2026-07-28"
+chapterNumber: 1
+duration: "预计 15—20 分钟"
+labels:
+  - "对象模型"
+  - "容器与虚拟机"
+  - "Docker Engine"
+completionId: "book03-chapter-01"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="听说过 Docker，但仍把容器理解成另一台 VPS 的零基础读者"
+  duration="预计 15—20 分钟"
+  outcome="能够解释 Docker Engine、CLI、daemon、镜像和容器的基本关系，并判断容器与虚拟机不是同一层对象"
+/>
+
+<section className="book-section" id="ch1-problem">
+  ## 先从一个常见问题开始
+
+  假设你准备在 VPS 上运行一个 Web 应用。这个应用不仅需要一份程序文件，还可能需要：
+
+  - 指定版本的 Python、Node.js 或 Java；
+  - 一组系统库；
+  - 配置文件和启动参数；
+  - 固定的目录结构；
+  - 一个数据库或缓存；
+  - 明确的端口；
+  - 更新、停止和重启方式。
+
+  如果直接把这些内容逐项安装到 Ubuntu，第一次可能可以运行。但几个月后，你可能遇到：
+
+  - 新应用需要另一版运行环境；
+  - 系统升级改变了依赖；
+  - 迁移服务器时漏装一个库；
+  - 不记得当初执行过哪些命令；
+  - 卸载应用时不知道哪些文件可以删除；
+  - 两个应用争用同一个端口或配置目录。
+
+  Docker 主要解决的不是“把一条命令变短”，而是把应用需要的文件、运行环境和启动方式整理成可分发、可重复创建的单位。
+
+  <Callout type="info" title="Docker 不会替你理解应用">
+    容器可以保存运行环境，但不会自动告诉你应用需要多少内存、怎样备份数据库、哪些端口可以公开，也不会替你管理密码和升级兼容性。这些责任仍然属于维护者。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch1-three-ways">
+  ## 三种运行应用的方式
+
+  <ComparisonTable>
+
+  | 方式 | 应用运行在哪里 | 优点 | 需要承担的工作 |
+  | --- | --- | --- | --- |
+  | 直接安装 | 与系统软件混在同一 Ubuntu 中 | 路径直接、额外层较少 | 依赖、版本、卸载和冲突都要自己管理 |
+  | 每个应用一台虚拟机 | 每台 VM 有自己的操作系统和内核 | 边界清楚、系统可以不同 | 占用资源较多，还要维护多套操作系统 |
+  | Docker 容器 | 主机上的隔离进程，共享主机内核 | 环境更容易重复，启动和销毁较快 | 仍要管理镜像、端口、数据、安全和宿主机 |
+
+  </ComparisonTable>
+
+  VM 是 Virtual Machine（虚拟机）的缩写。第一册购买的 VPS，本质上通常就是云平台提供的一台虚拟机；它拥有自己的 Ubuntu 系统和内核视图。
+
+  Docker 容器运行在这台 VPS 里面。两者可以同时存在：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>云厂商物理主机</strong>
+      <small>由服务商维护</small>
+    </div>
+    <div className="flow-node">
+      <strong>你的 VPS</strong>
+      <small>Ubuntu 与 Linux 内核</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker Engine</strong>
+      <small>管理镜像、容器、网络和 volume</small>
+    </div>
+    <div className="flow-node">
+      <strong>应用容器</strong>
+      <small>一个或多个隔离进程</small>
+    </div>
+  </FlowDiagram>
+
+  <Callout type="warning" title="容器不是 VPS 里面再开一台完整 VPS">
+    Linux 容器通常共享主机的 Linux 内核。容器可以看到自己的进程、文件和网络视图，但它不是一套拥有独立内核的完整 Ubuntu 虚拟机。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch1-container-process">
+  ## 容器首先是一个进程
+
+  **进程**是正在运行的程序实例。SSH 服务、Xray、Nginx 和数据库在运行时都会表现为一个或多个进程。
+
+  Docker 容器也是进程，只是 Docker 利用 Linux 内核提供的隔离能力，让这个进程拥有相对独立的：
+
+  - 进程视图；
+  - 文件系统视图；
+  - 网络空间；
+  - 主机名；
+  - 资源限制；
+  - 用户与权限视图。
+
+  “隔离”意味着默认情况下，一个容器不应当像普通主机进程那样随意看见其他容器的全部状态。但隔离程度取决于你怎样创建容器。
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">镜像</p>
+
+      准备运行所需文件和默认配置的模板。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">容器</p>
+
+      根据镜像和运行参数创建的进程环境。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">主进程</p>
+
+      容器中负责持续工作的核心进程；它结束时，容器通常也会停止。
+    </section>
+  </InfoGrid>
+
+  第 3 章的 `hello-world` 会打印文字后结束，所以容器自动进入停止状态。第 5 章的 Nginx 主进程会持续监听，因此容器保持运行。区别不在于 Docker 是否成功，而在于容器主进程是否仍在工作。
+</section>
+
+<section className="book-section" id="ch1-engine">
+  ## Docker Engine 由谁接收命令
+
+  在服务器主线中，你会接触三个容易混淆的名称：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Docker CLI</strong>
+      <small>终端里的 `docker` 命令</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker API</strong>
+      <small>CLI 与 daemon 的通信接口</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker daemon</strong>
+      <small>`dockerd`，真正管理 Docker 对象</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker objects</strong>
+      <small>镜像、容器、网络、volume</small>
+    </div>
+  </FlowDiagram>
+
+  CLI 是 Command-Line Interface（命令行界面）的缩写。你输入 `docker run` 时，不是 CLI 自己直接变成容器；CLI 会把请求发给 Docker daemon，由 daemon 创建和管理对象。
+
+  daemon 是长期运行在后台的服务。它通常拥有很高的系统权限，所以本书默认使用 `sudo docker ...`，并且不会把“加入 docker 用户组”当作无风险的便利设置。
+
+  <MockWindow title="Docker Engine · 教学关系图">
+    <div slot="toolbar">
+      <MockStatusBadge>不是软件截图</MockStatusBadge>
+    </div>
+    <div className="mock-form-grid">
+      <MockField label="你输入的命令">sudo docker run ...</MockField>
+      <MockField label="命令接收者">Docker CLI</MockField>
+      <MockField label="实际执行者">Docker daemon（dockerd）</MockField>
+      <MockField label="管理对象">images / containers / networks / volumes</MockField>
+      <MockField label="当前服务器主线" wide>Ubuntu VPS 上的 Docker Engine，不使用 Docker Desktop 图形界面</MockField>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="ch1-desktop">
+  ## Docker Engine 与 Docker Desktop 不要混用
+
+  Docker Desktop 是面向 Windows、macOS 和 Linux 桌面环境的应用，包含 Docker Engine、CLI、Compose 和图形界面等能力。
+
+  本书操作的是远程 Ubuntu VPS，因此主线是：
+
+  - 通过 SSH 进入服务器；
+  - 在服务器安装 Docker Engine；
+  - 在终端使用 Docker CLI；
+  - 使用 Compose plugin 管理服务；
+  - 不要求在个人电脑安装 Docker Desktop。
+
+  看到网上教程打开 Docker Desktop Dashboard 时，不要在 VPS 上寻找同一张界面。它们可能讲的是相同 Docker 对象，但操作入口不同。
+</section>
+
+<section className="book-section" id="ch1-objects">
+  ## Docker 管理的不只有容器
+
+  <ComparisonTable>
+
+  | 对象 | 它保存或表达什么 | 删除风险 |
+  | --- | --- | --- |
+  | image | 创建容器需要的只读文件和默认配置 | 删除后可能需要重新下载 |
+  | container | 由镜像和运行参数组成的可运行实例 | 未持久化的容器内改动可能丢失 |
+  | network | 容器之间以及容器与主机的连接关系 | 服务通信可能中断 |
+  | volume | 独立于容器生命周期的数据位置 | 可能保存数据库或业务数据 |
+  | Compose project | 一组由配置文件定义的 service | `down` 与 `down -v` 影响范围不同 |
+
+  </ComparisonTable>
+
+  本书会按顺序认识这些对象。不要因为它们都由 Docker 管理，就把 `container`、`image` 和 `volume` 当作同一个“Docker 文件”。
+
+  <Callout type="danger" title="删除容器不等于卸载 Docker，删除 Docker 也不等于自动理解数据">
+    不同命令作用于不同对象。遇到故障时先确认对象名称、当前状态和数据位置，再决定是否停止或删除。批量清理不是本书的第一排错手段。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch1-isolation">
+  ## 隔离不是绝对安全
+
+  容器默认会获得一定程度的进程、文件和网络隔离，但下面的配置会显著改变边界：
+
+  - 使用 `--privileged` 赋予扩展权限；
+  - 把 Docker socket 挂载进容器；
+  - 把主机 `/`、`/etc` 或敏感目录映射进容器；
+  - 共享主机进程或网络命名空间；
+  - 以 root 身份运行来源不明的程序；
+  - 向公网发布没有鉴权的管理端口。
+
+  Docker 官方对 `--privileged` 的说明非常明确：这种容器不再是安全沙箱，可能获得接管主机的能力。
+
+  <Callout type="danger" title="容器隔离不能替代来源审查和最小权限">
+    不运行来源不明的镜像，不因为教程报错就添加 `--privileged`，不把 `/var/run/docker.sock` 交给未知容器。遇到要求这些权限的教程，先理解为什么需要，再决定是否接受风险。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch1-benefits">
+  ## Docker 真正带来的可维护性
+
+  对本系列后续图书而言，Docker 的价值主要体现在：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">环境更容易重复</p>
+
+      镜像和 Compose 文件可以明确应用需要什么，而不是依赖一段无法复盘的终端历史。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">对象边界更清楚</p>
+
+      容器、镜像、网络和数据可以分别检查，不必把所有文件散落到 Ubuntu 系统目录。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">更新更可控</p>
+
+      可以先记录镜像版本、配置和备份，再重建容器验证，而不是直接覆盖系统环境。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">交接更清楚</p>
+
+      后续维护者能从 Compose 项目找到服务、端口、目录和启动方式。
+    </section>
+  </InfoGrid>
+
+  这些价值只有在你记录版本、保存配置、分离持久数据并验证备份时才成立。只执行一次长 `docker run` 命令，不会自动得到可维护系统。
+</section>
+
+<section className="book-section" id="ch1-not-fit">
+  ## Docker 不是所有问题的唯一答案
+
+  直接安装、容器和虚拟机可以组合使用。以下情况需要停下来评估，而不是默认“容器化”：
+
+  - 应用官方明确不支持容器运行；
+  - 需要特殊内核模块、硬件设备或非常高的系统权限；
+  - 数据库已有成熟的主机安装和备份体系；
+  - 团队无法维护镜像、Compose、数据和更新流程；
+  - 为了一个极小的命令行工具引入 Docker 反而增加复杂度；
+  - 现有服务运行稳定，迁移收益不足以覆盖风险。
+
+  本书不会把第二册已经工作的 3X-UI / Xray 强行迁入容器。第三册练习与它们并行存在，并通过端口、目录和名称边界避免误操作。
+</section>
+
+<section className="book-section" id="ch1-check">
+  ## 检查你的对象模型
+
+  逐句判断：
+
+  <ComparisonTable>
+
+  | 说法 | 是否正确 | 原因 |
+  | --- | --- | --- |
+  | “一个容器就是一台完整 VPS” | 否 | Linux 容器通常共享主机内核 |
+  | “Docker CLI 负责直接运行所有进程” | 不准确 | CLI 把请求发给 daemon |
+  | “镜像和容器是同一个对象” | 否 | 镜像是模板，容器是可运行实例 |
+  | “容器停止就表示 Docker 坏了” | 否 | 主进程正常结束时容器也会停止 |
+  | “容器默认隔离，所以任何镜像都安全” | 否 | 来源和运行权限仍然决定风险 |
+  | “Docker 可以运行在第一册购买的 VPS 里” | 是 | VPS 提供 Ubuntu 主机，Docker 在其中管理容器 |
+
+  </ComparisonTable>
+
+  如果仍然把镜像理解成压缩后的 VPS，或把 daemon 理解成某个业务容器，先重新阅读本章关系图，再进入下一章。
+</section>
+
+<section className="book-section" id="ch1-finish">
+  ## 本章完成标准
+
+  你现在应当能够用自己的话解释：
+
+  - VPS、Docker Engine 与容器分别位于哪一层；
+  - 容器为什么首先是主机上的隔离进程；
+  - Docker CLI 与 daemon 怎样分工；
+  - 镜像为什么不是正在运行的容器；
+  - 主进程退出为什么会让容器停止；
+  - 容器隔离为什么不等于绝对安全；
+  - Docker 可以改善哪些维护问题，又不能替代哪些责任。
+
+  <ChapterChecklist chapterId="book03-chapter-01">
+    我能区分 VPS、Docker Engine、镜像和容器，并能解释容器通常共享主机内核、由 daemon 管理，而不是另一台完整 VPS。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch1-sources">
+  ## 本章事实依据
+
+  本章于 2026-07-28 依据 Docker 官方资料校订：
+
+  - [What is Docker?](https://docs.docker.com/get-started/docker-overview/)
+  - [What is a container?](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/)
+  - [Docker Engine security](https://docs.docker.com/engine/security/)
+  - [`docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+
+  本章仿真关系图只表达对象职责，不代表 Docker Desktop、云厂商控制台或某个 Engine 版本的真实界面。
+</section>

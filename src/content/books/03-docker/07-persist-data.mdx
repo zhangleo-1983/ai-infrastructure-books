@@ -1,0 +1,587 @@
+---
+book: "03-docker"
+order: 7
+slug: "07-persist-data"
+title: "数据放在哪里：volume 与目录映射"
+shortTitle: "volume 与目录映射"
+description: "分别使用 named volume 和只读 bind mount 保存数据，验证删除容器以后数据仍然存在，并建立安全删除边界。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 7
+duration: "预计 35—45 分钟"
+labels:
+  - "持久化"
+  - "named volume"
+  - "bind mount"
+completionId: "book03-chapter-07"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const volumeName = "book03-web-data";
+
+export const volumeCreate =
+  "sudo docker volume create book03-web-data";
+
+export const volumeInspect =
+  "sudo docker volume inspect book03-web-data";
+
+export const volumeWrite =
+  `sudo docker run --rm --mount type=volume,src=book03-web-data,dst=/data nginx:1.30.4-alpine sh -c "printf '%s\\n' '<!doctype html>' '<html lang=\\"zh-CN\\">' '<meta charset=\\"utf-8\\">' '<title>volume 练习</title>' '<h1>volume 数据仍然在</h1>' '<p>这个文件保存在 book03-web-data。</p>' > /data/index.html"`;
+
+export const volumeRunFirst =
+  "sudo docker run -d --name book03-volume-a -p 127.0.0.1:8080:80 --mount type=volume,src=book03-web-data,dst=/usr/share/nginx/html nginx:1.30.4-alpine";
+
+export const volumeRunSecond =
+  "sudo docker run -d --name book03-volume-b -p 127.0.0.1:8080:80 --mount type=volume,src=book03-web-data,dst=/usr/share/nginx/html nginx:1.30.4-alpine";
+
+export const volumeRequest =
+  "curl --fail --show-error http://127.0.0.1:8080";
+
+export const volumeMountInspect =
+  "sudo docker inspect --format '{{range .Mounts}}{{.Type}} name={{.Name}} target={{.Destination}} rw={{.RW}}{{println}}{{end}}' book03-volume-a";
+
+export const volumeFirstCleanup =
+  "sudo docker stop book03-volume-a\nsudo docker rm book03-volume-a";
+
+export const volumeSecondCleanup =
+  "sudo docker stop book03-volume-b\nsudo docker rm book03-volume-b";
+
+export const bindPage = `<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8">
+  <title>bind mount 练习</title>
+  <h1>这个页面来自主机目录</h1>
+  <p>容器只能读取，不能修改。</p>
+</html>`;
+
+export const bindDirectory =
+  'mkdir -p "$HOME/docker-labs/bind-web"\ncd "$HOME/docker-labs/bind-web"\npwd';
+
+export const bindRun =
+  'sudo docker run -d --name book03-bind-demo -p 127.0.0.1:8080:80 --mount "type=bind,src=$HOME/docker-labs/bind-web,dst=/usr/share/nginx/html,readonly" nginx:1.30.4-alpine';
+
+export const bindInspect =
+  "sudo docker inspect --format '{{range .Mounts}}{{.Type}} source={{.Source}} target={{.Destination}} rw={{.RW}}{{println}}{{end}}' book03-bind-demo";
+
+export const bindCleanup =
+  "sudo docker stop book03-bind-demo\nsudo docker rm book03-bind-demo";
+
+<LearningGoals
+  audience="知道容器可以删除，但还不清楚网页、数据库或配置文件应该保存在哪里的读者"
+  duration="预计 35—45 分钟"
+  outcome="完成一次 named volume 跨容器复用和一次只读 bind mount 修改验证，并能指出数据删除边界"
+/>
+
+<section className="book-section" id="ch7-result">
+  ## 这一章要解决什么
+
+  镜像是模板，容器有自己的 writable layer（可写层）。应用在容器内创建文件时，如果没有额外挂载，这些文件通常进入当前容器的可写层。
+
+  可写层有两个关键限制：
+
+  1. 它属于这个容器，不是镜像的一部分；
+  2. 删除容器时，可写层也随容器一起销毁。
+
+  因此，真实业务不能只因为“文件现在能看到”，就认定数据已经持久保存。Docker 提供多种 mount（挂载）方式，把数据放到容器生命周期之外。
+
+  <ComparisonTable>
+
+  | 位置 | 谁管理 | 删除容器后 | 适合什么 |
+  | --- | --- | --- | --- |
+  | 容器可写层 | Docker，绑定当前容器 | 数据随容器消失 | 临时文件、可重建状态 |
+  | named volume | Docker daemon | 默认继续存在 | 应用生成并长期保存的数据 |
+  | bind mount | 服务器文件系统与作者 | 主机文件继续存在 | 需要直接编辑的配置和内容 |
+  | tmpfs | 主机内存 | 停止或重启后消失 | 明确不需要落盘的临时数据 |
+
+  </ComparisonTable>
+
+  本章会完成两个独立练习：
+
+  - 用 `book03-web-data` named volume 验证“换容器，数据仍在”；
+  - 用 `$HOME/docker-labs/bind-web` bind mount 验证“修改主机文件，容器立即读取新内容”。
+
+  <Callout type="danger" title="持久化不等于备份">
+    volume 或主机目录可以让数据跨容器保留，但服务器磁盘损坏、误删 volume、账户被入侵时，数据仍可能丢失。第 11 章才会完成备份与恢复演练。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch7-relationship">
+  ## 先看清容器和数据的生命周期
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>image</strong>
+      <small>只读模板，可重新拉取</small>
+    </div>
+    <div className="flow-node">
+      <strong>container A</strong>
+      <small>可停止、删除、重建</small>
+    </div>
+    <div className="flow-node">
+      <strong>named volume</strong>
+      <small>独立于单个容器继续存在</small>
+    </div>
+    <div className="flow-node">
+      <strong>container B</strong>
+      <small>重新挂载后读取原数据</small>
+    </div>
+  </FlowDiagram>
+
+  “独立于单个容器”不等于“永远不会删除”。具名 volume 需要单独的删除动作；带 `-v` 的 Compose 删除或 volume prune 也可能影响数据。本章不会提供这些破坏性命令的复制按钮。
+
+  <Callout type="info" title="mount 会遮住容器目标目录原有内容">
+    把 volume 或主机目录挂载到容器某个路径时，那个路径原先来自镜像的内容会被挂载内容遮住。不是原文件被删除，而是容器当前从挂载处看到另一套内容。修复方式通常是用正确挂载重新创建容器。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch7-prepare">
+  ## 开始前检查
+
+  先确认第 6 章已经释放 TCP 8080：
+
+  <CodeBlock
+    label="检查 TCP 8080"
+    code={"sudo ss -lntp | grep ':8080 '"}
+  />
+
+  没有输出：可以继续。
+
+  有输出：核对监听者。不要停止第二册或其他业务；如果是第 6 章的 `book03-port-local`，先返回上一章完成定向清理。
+
+  再查看本章名称和 volume：
+
+  <CodeBlock
+    label="检查本章已有对象"
+    code={'sudo docker ps -a --filter "name=book03-volume-"\nsudo docker ps -a --filter "name=book03-bind-demo"\nsudo docker volume ls --filter "name=book03-web-data"'}
+  />
+
+  主线预期没有本章容器，也没有 `book03-web-data`。
+
+  如果 volume 已存在，不要覆盖式“重新做”。先执行 `docker volume inspect`，查明它是否是本书上次练习留下的数据。名称相同不代表内容可以删除。
+</section>
+
+<section className="book-section" id="ch7-volume-create">
+  ## 第一部分：使用 named volume
+
+  ### 第一步：显式创建 volume
+
+  <InstructionStep number={1} title="创建稳定命名的数据对象">
+    显式名称便于检查、复用、备份和定向操作，比随机匿名 volume 更适合零基础主线。
+  </InstructionStep>
+
+  <CodeBlock
+    label="创建 book03-web-data"
+    code={volumeCreate}
+  />
+
+  成功输出：
+
+  <TerminalMock title="volume 创建结果">
+    {volumeName}
+  </TerminalMock>
+
+  再查看它：
+
+  <CodeBlock
+    label="检查 named volume"
+    code={volumeInspect}
+  />
+
+  重点看：
+
+  - `Name` 是 `book03-web-data`；
+  - `Driver` 通常是 `local`；
+  - `Scope` 通常是 `local`；
+  - 输出中有 Docker 管理的 `Mountpoint`。
+
+  <Callout type="warning" title="不要直接进入 Docker 的 volume 存储目录修改文件">
+    `Mountpoint` 用于说明数据落在这台主机，不是推荐的日常编辑入口。Docker 官方说明直接操作其内部存储属于不受支持的行为，可能损坏数据；应通过挂载到容器或经过验证的备份流程访问。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch7-volume-write">
+  ### 第二步：通过临时容器向 volume 写入教学页面
+
+  下面的容器只负责写入一个示例 `index.html`：
+
+  <CodeBlock
+    label="向 book03-web-data 写入示例页面"
+    code={volumeWrite}
+  />
+
+  命令中的对象边界：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--rm</code></p>
+
+      临时容器结束后自动删除；不会删除具名 `book03-web-data`。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>type=volume</code></p>
+
+      source 是 Docker 管理的具名 volume。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>dst=/data</code></p>
+
+      容器内把同一份数据看作 `/data`。
+    </section>
+  </InfoGrid>
+
+  成功状态：命令没有报错并重新出现提示符。临时容器已经不存在，但 volume 和刚写入的文件继续存在。
+
+  失败判断：
+
+  - `No such volume`：名称输入错误或前一步没有完成；
+  - `permission denied`：不要给容器增加 `--privileged`，先核对挂载和目标路径；
+  - 镜像命令找不到 `sh`：镜像或命令被改动，回到本书固定镜像；
+  - 磁盘不足：停止，不要执行 volume prune 碰运气。
+</section>
+
+<section className="book-section" id="ch7-volume-first">
+  ### 第三步：让第一个 Nginx 容器读取 volume
+
+  <CodeBlock
+    label="创建第一个 volume 练习容器"
+    code={volumeRunFirst}
+  />
+
+  命令仍然只把服务发布到服务器本机。`src=book03-web-data` 是 volume 名，`dst=/usr/share/nginx/html` 是 Nginx 在容器内读取网页的目录。
+
+  检查挂载：
+
+  <CodeBlock
+    label="检查第一个容器的挂载"
+    code={volumeMountInspect}
+  />
+
+  预期：
+
+  <TerminalMock title="volume 挂载关系">
+    volume name=book03-web-data target=/usr/share/nginx/html rw=true
+  </TerminalMock>
+
+  再请求页面：
+
+  <CodeBlock
+    label="读取 volume 中的页面"
+    code={volumeRequest}
+  />
+
+  <Callout type="tip" title="刚启动后第一次 curl 失败，不一定是数据丢失">
+    `docker run -d` 返回容器 ID，表示容器已经进入启动流程，不保证 Nginx 此刻已经完成初始化。实机校订中，立即请求曾出现 `Empty reply from server`；几秒后容器保持 Up，同一条 curl 正常返回。先用 `sudo docker ps` 和 `sudo docker logs book03-volume-a` 检查状态与启动日志，等待几秒后重试；不要因为第一次请求失败就删除 volume 或重建全部对象。
+  </Callout>
+
+  成功状态：输出中包含“volume 数据仍然在”和 `book03-web-data`。
+
+  这说明 Nginx 读取的不是镜像自带欢迎页，而是 named volume 中的 `index.html`。
+</section>
+
+<section className="book-section" id="ch7-volume-recreate">
+  ### 第四步：删除容器，再用新容器读取同一份数据
+
+  先停止并删除第一个容器：
+
+  <CodeBlock
+    label="删除第一个 volume 练习容器"
+    code={volumeFirstCleanup}
+  />
+
+  再确认：
+
+  <CodeBlock
+    label="确认容器消失而 volume 仍在"
+    code={'sudo docker ps -a --filter "name=book03-volume-a"\nsudo docker volume ls --filter "name=book03-web-data"'}
+  />
+
+  成功状态：
+
+  - 容器列表没有 `book03-volume-a`；
+  - volume 列表仍有 `book03-web-data`。
+
+  现在创建名称不同的第二个容器：
+
+  <CodeBlock
+    label="用同一 volume 创建第二个容器"
+    code={volumeRunSecond}
+  />
+
+  再请求：
+
+  <CodeBlock
+    label="验证新容器仍能读取旧数据"
+    code={volumeRequest}
+  />
+
+  成功状态：仍然显示“volume 数据仍然在”。这才是本章 named volume 主线的核心证据：容器 A 已经删除，容器 B 挂载同一 volume 后读取到原文件。
+
+  <Callout type="tip" title="数据保留来自 volume，不是容器名称">
+    第二个容器改名为 `book03-volume-b`，数据仍然存在；如果换成一个空的新 volume，即使容器名称相同，也不会自动得到这份文件。
+  </Callout>
+
+  完成验证后删除第二个容器：
+
+  <CodeBlock
+    label="删除第二个 volume 练习容器"
+    code={volumeSecondCleanup}
+  />
+
+  本章有意保留 `book03-web-data`，供第 11 章备份和恢复演练使用。
+</section>
+
+<section className="book-section" id="ch7-bind-model">
+  ## 第二部分：使用 bind mount
+
+  named volume 适合让 Docker 管理应用数据。但如果你希望直接在服务器上用编辑器修改网页、配置或脚本，bind mount 更直观。
+
+  <ComparisonTable>
+
+  | 问题 | named volume | bind mount |
+  | --- | --- | --- |
+  | source 写什么 | volume 名称 | 主机文件或目录路径 |
+  | 存储位置谁安排 | Docker | 你 |
+  | 是否依赖主机目录结构 | 较少 | 是 |
+  | 是否适合直接用 nano 编辑 | 不建议直接进 Docker 内部目录 | 是 |
+  | 容器默认能否修改 | 通常能 | 默认能，除非设为 readonly |
+  | 主机路径不存在时 `--mount` | 不适用 | 报错，不会默默创建 |
+
+  </ComparisonTable>
+
+  bind mount 默认允许容器修改主机文件。对于只需要读取的静态网页，本书会显式使用 `readonly`。
+
+  <Callout type="danger" title="不要把系统根目录或敏感目录挂进练习容器">
+    `/`、`/root`、`/etc`、`~/.ssh`、Docker socket 和第二册服务目录都不属于本章 source。可写 bind mount 会让容器进程直接修改主机文件，挂载范围必须尽可能小。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch7-bind-files">
+  ### 第五步：建立专用主机目录
+
+  <CodeBlock
+    label="创建并进入 bind mount 练习目录"
+    code={bindDirectory}
+  />
+
+  成功状态：`pwd` 输出以 `/docker-labs/bind-web` 结尾。
+
+  打开网页：
+
+  <CodeBlock
+    label="编辑主机上的 index.html"
+    code="nano index.html"
+  />
+
+  粘贴：
+
+  <CodeBlock
+    label="bind-web/index.html"
+    code={bindPage}
+  />
+
+  在 nano 中按 <kbd>Ctrl</kbd> + <kbd>O</kbd> 保存，按 <kbd>Enter</kbd> 确认，再按 <kbd>Ctrl</kbd> + <kbd>X</kbd> 退出。
+
+  检查文件：
+
+  <CodeBlock
+    label="确认主机文件存在"
+    code={"pwd\nls -l index.html\ngrep '来自主机目录' index.html"}
+  />
+
+  成功状态：路径正确、文件存在，并能找到标题文字。
+</section>
+
+<section className="book-section" id="ch7-bind-run">
+  ### 第六步：以只读方式挂载主机目录
+
+  <CodeBlock
+    label="启动只读 bind mount 练习容器"
+    code={bindRun}
+  />
+
+  这里使用 `--mount`，因为它把 `type`、`src`、`dst` 和 `readonly` 分别写清楚；如果 source 路径不存在，`--mount` 会报错，而不是静默创建一个可能掩盖拼写错误的新目录。
+
+  检查实际挂载：
+
+  <CodeBlock
+    label="检查 bind mount"
+    code={bindInspect}
+  />
+
+  预期类似：
+
+  <TerminalMock title="bind mount 关系">
+    bind source=/home/admin/docker-labs/bind-web target=/usr/share/nginx/html rw=false
+  </TerminalMock>
+
+  实际用户名和 source 路径会不同。关键是：
+
+  - 类型是 `bind`；
+  - source 以 `/docker-labs/bind-web` 结尾；
+  - target 是 Nginx 网页目录；
+  - `rw=false`，表示容器不能通过这个挂载写回主机。
+
+  请求页面：
+
+  <CodeBlock
+    label="读取 bind mount 页面"
+    code={volumeRequest}
+  />
+
+  成功状态：输出“这个页面来自主机目录”和“容器只能读取”。
+</section>
+
+<section className="book-section" id="ch7-bind-change">
+  ### 第七步：修改主机文件，观察即时变化
+
+  仍在 `$HOME/docker-labs/bind-web` 目录中打开文件：
+
+  <CodeBlock
+    label="再次编辑 index.html"
+    code="nano index.html"
+  />
+
+  把标题改成：
+
+  `这个页面已经在主机上更新`
+
+  保存后重新请求：
+
+  <CodeBlock
+    label="查看修改后的页面"
+    code={volumeRequest}
+  />
+
+  成功状态：新标题立即出现，不需要重新拉取镜像，也不需要删除或重建容器。
+
+  为什么：Nginx 每次读取的是主机目录当前内容。bind mount 建立的是路径关系，不是创建容器时的一次性复制。
+
+  如果还是旧标题：
+
+  - 运行 `pwd`，确认编辑的是本章目录；
+  - 用 `docker inspect` 确认 source；
+  - 确认请求的是 `127.0.0.1:8080`；
+  - 检查是否有另一个容器占用了相同端口；
+  - 不要清除浏览器缓存代替服务器端验证，先以 curl 输出为准。
+</section>
+
+<section className="book-section" id="ch7-bind-cleanup">
+  ### 第八步：删除容器，保留主机目录
+
+  先核对名称和镜像：
+
+  <CodeBlock
+    label="核对 bind mount 练习容器"
+    code={'sudo docker ps -a --filter "name=book03-bind-demo"'}
+  />
+
+  确认后执行：
+
+  <CodeBlock
+    label="停止并删除 bind mount 容器"
+    code={bindCleanup}
+  />
+
+  再看主机文件：
+
+  <CodeBlock
+    label="确认 bind mount 源文件仍在"
+    code={'ls -l "$HOME/docker-labs/bind-web/index.html"\ngrep "已经在主机上更新" "$HOME/docker-labs/bind-web/index.html"'}
+  />
+
+  成功状态：容器已经不存在，主机上的 `index.html` 仍然存在并保留修改。
+
+  本章保留这个目录。第 9 章会在另一个固定项目目录中使用相同的只读 bind mount 思路。
+</section>
+
+<section className="book-section" id="ch7-delete-boundary">
+  ## 删除数据前必须回答的五个问题
+
+  无论是 named volume 还是 bind mount，执行删除前都先回答：
+
+  1. source 的精确名称或绝对路径是什么；
+  2. 哪个容器或 Compose 项目仍然使用它；
+  3. 里面保存的是可重建缓存、配置还是用户数据；
+  4. 最近一次可验证备份在哪里；
+  5. 删除后如何恢复并确认恢复成功。
+
+  <ComparisonTable>
+
+  | 动作 | 容器 | named volume | bind mount 主机文件 |
+  | --- | --- | --- | --- |
+  | `docker stop` | 保留 | 保留 | 保留 |
+  | `docker rm` | 删除 | 具名 volume 默认保留 | 保留 |
+  | `docker compose down` | 删除项目容器和网络 | 默认保留具名 volume | 保留 |
+  | 带 volume 删除选项的 down | 删除 | 可能删除 | 通常不删除主机目录 |
+  | volume prune | 不直接针对容器 | 可能删除未被引用的 volume | 不处理 |
+  | 手工删除主机目录 | 不直接处理 | 不处理 | 直接删除文件 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="“没有容器在使用”不等于“数据已经没有价值”">
+    停止服务、准备迁移或等待恢复时，volume 可能暂时没有容器引用。不要把 prune 当作磁盘不足时的第一反应。本章保留 `book03-web-data` 正是为了后续完成备份验证。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch7-failures">
+  ## 常见失败与判断
+
+  <ComparisonTable>
+
+  | 现象 | 先检查 | 不要立刻做什么 |
+  | --- | --- | --- |
+  | 删除容器后页面数据消失 | 新容器是否挂载同一 volume | 不要新建多个随机 volume |
+  | 页面变回 Nginx 默认页 | target、volume 名和 source | 不要修改镜像内部文件 |
+  | bind source 不存在 | `pwd`、`$HOME`、目录拼写 | 不要换成会默默建目录的简写掩盖错误 |
+  | bind 页面 403 或 Permission denied | 主机文件权限和目录遍历权限 | 不要用 `chmod -R 777` |
+  | `rw=true` | 是否漏写 `readonly` | 不要假设容器不会修改文件 |
+  | volume 无容器引用 | 是否在等待下章或恢复 | 不要立即 prune |
+  | 磁盘不足 | 镜像、日志、volume 的明确占用 | 不要执行 system prune 碰运气 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch7-finish">
+  ## 本章完成标准
+
+  本章结束时：
+
+  - `book03-volume-a` 和 `book03-volume-b` 已删除；
+  - `book03-web-data` named volume 仍然存在；
+  - 你已经证明不同容器可以读取同一 volume 中的数据；
+  - `book03-bind-demo` 已删除；
+  - `$HOME/docker-labs/bind-web/index.html` 仍然存在；
+  - 你已经证明修改主机文件会反映到 bind mount；
+  - bind mount 使用 `readonly`，检查结果为 `rw=false`；
+  - TCP 8080 已释放；
+  - 没有运行 volume prune、system prune 或带 volume 删除选项的 Compose 命令。
+
+  <ChapterChecklist chapterId="book03-chapter-07">
+    我完成了 named volume 跨容器复用和只读 bind mount 验证，能指出容器可写层、volume 与主机目录的生命周期和删除边界。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch7-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 实测校订：
+
+  - [Storage](https://docs.docker.com/engine/storage/)
+  - [Volumes](https://docs.docker.com/engine/storage/volumes/)
+  - [Bind mounts](https://docs.docker.com/engine/storage/bind-mounts/)
+  - [`docker volume create`](https://docs.docker.com/reference/cli/docker/volume/create/)
+  - [`docker volume inspect`](https://docs.docker.com/reference/cli/docker/volume/inspect/)
+  - [`docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+
+  Nginx 启动就绪时序、镜像内工具、文件权限和挂载状态已在目标 Ubuntu VPS 实测；第 11 章仍会把“volume 仍然存在”与“备份已经恢复验证”分开判断。
+</section>

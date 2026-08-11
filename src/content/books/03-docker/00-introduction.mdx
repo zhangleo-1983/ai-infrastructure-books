@@ -1,0 +1,575 @@
+---
+book: "03-docker"
+order: 0
+slug: "start"
+title: "开始之前：先确认这台服务器适合练习"
+shortTitle: "开始之前"
+description: "在安装 Docker 以前核对 SSH、管理员权限、Ubuntu 版本、CPU 架构、资源、现有服务与监听端口，并决定是否适合继续。"
+chapterType: "introduction"
+updatedAt: "2026-07-28"
+duration: "预计 10—15 分钟"
+labels:
+  - "阅读起点"
+  - "服务器清点"
+  - "安全边界"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const identityCheck = `whoami
+sudo -v
+sudo whoami`;
+
+export const systemCheck = `cat /etc/os-release
+dpkg --print-architecture`;
+
+export const resourceCheck = `df -h /
+free -h
+nproc`;
+
+export const listeningCheck = `sudo ss -lntup`;
+
+export const runningServicesCheck =
+  "sudo systemctl --type=service --state=running --no-pager";
+
+export const existingDockerCheck = `if command -v docker >/dev/null 2>&1; then
+  sudo docker version
+else
+  echo "Docker 尚未安装"
+fi`;
+
+export const existingDockerInventory = `sudo docker ps -a
+sudo docker image ls
+sudo docker volume ls
+sudo docker network ls`;
+
+<LearningGoals
+  audience="已经完成第一册、可以登录 Ubuntu VPS，并准备开始学习 Docker 的零基础读者"
+  duration="预计 10—15 分钟"
+  outcome="得到一份不含秘密的服务器清点结果，并能明确判断当前 VPS 是否适合继续"
+/>
+
+<section className="book-section" id="start-purpose">
+  ## 先不要安装 Docker
+
+  这一篇只做开始前检查，不安装软件、不停止服务、不修改防火墙，也不创建容器。
+
+  原因很直接：Docker 会在服务器上增加后台服务、网络接口和防火墙规则。如果你还不知道这台服务器运行着什么，直接复制安装命令，后面就很难判断一个变化来自 Docker、第二册节点，还是服务器原本的问题。
+
+  <Callout type="info" title="“开始之前”不计入全书完成率">
+    第三册只把第 1—12 章计入完成率。这一篇是一道安全门：检查通过后再进入正式章节；检查没有通过，不代表学习失败，而是说明当前服务器还不适合作为练习环境。
+  </Callout>
+
+  检查结束时，你只需要做出一个决定：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>读取当前状态</strong>
+      <small>登录、系统、资源、服务、端口</small>
+    </div>
+    <div className="flow-node">
+      <strong>填写清点结果</strong>
+      <small>只记录必要信息，不抄秘密</small>
+    </div>
+    <div className="flow-node">
+      <strong>判断风险</strong>
+      <small>可继续、需处理、必须停止</small>
+    </div>
+    <div className="flow-node">
+      <strong>选择学习环境</strong>
+      <small>当前 VPS 或另一台练习机</small>
+    </div>
+  </FlowDiagram>
+</section>
+
+<section className="book-section" id="start-outcome">
+  ## 这本书会带你得到什么
+
+  完成第三册以后，你应当拥有：
+
+  - 可以正常工作的 Docker Engine 与 Compose plugin；
+  - 一个能够从配置文件重复创建的 Compose 项目；
+  - 一个只在明确范围内监听的练习 Web 服务；
+  - 清楚记录的镜像、容器、端口、目录和数据位置；
+  - 查看状态、读取日志和判断故障层级的能力；
+  - 一次更新、备份和恢复验证；
+  - 一份可以交给第四册或具体 AI 应用图书继续使用的项目交接卡。
+
+  本书不会替你完成：
+
+  - 购买 VPS、付款、实名认证或首次 SSH 登录；
+  - 安装 3X-UI、Xray、VLESS、Reality 或代理客户端；
+  - 购买域名、配置 DNS、HTTPS、Cloudflare 或反向代理；
+  - Kubernetes、集群、高可用、GPU 容器或生产数据库运维；
+  - 对任何来源不明的一键脚本、镜像站或容器做安全担保；
+  - 自动判断现有业务是否可以被停止或删除。
+
+  <Callout type="warning" title="第一册是前置，第二册不是强制前置">
+    你必须已经拥有一台能通过 SSH 登录的 Ubuntu VPS。是否完成第二册不影响学习 Docker；但如果同一台服务器已经运行 3X-UI / Xray，就必须把它们作为现有业务保护起来。
+  </Callout>
+</section>
+
+<section className="book-section" id="start-command-location">
+  ## 确认命令输入在哪里
+
+  本篇命令都要在已经登录 VPS 以后执行，不是在自己电脑的 PowerShell、Windows Terminal 或 macOS 终端本地提示符中直接执行。
+
+  登录服务器后，提示符通常包含服务器用户名和主机名：
+
+  <TerminalMock title="已经进入 Ubuntu VPS">
+    <span className="term-green">root@book01-vps</span>
+    <span className="term-white">{":~#"}</span>{" ▌"}
+  </TerminalMock>
+
+  如果当前看到的是下面一类提示符，你可能仍在自己的电脑上：
+
+  <TerminalMock title="仍在本地电脑">
+    <span className="term-green">{"PS C:\\Users\\YourName>"}</span><br />
+    或<br />
+    <span className="term-green">yourname@Mac</span>
+    <span className="term-white">{" ~ %"}</span>
+  </TerminalMock>
+
+  无法确认时，先执行 `whoami`，再对照第一册第 12 章。不要把 Linux 检查命令粘贴到本地 PowerShell 后，根据报错猜测服务器状态。
+</section>
+
+<section className="book-section" id="start-handoff">
+  ## 第一步：拿出第一册交接卡
+
+  第一册完成后，你应当已经记录：
+
+  <ComparisonTable>
+
+  | 交接信息 | 第三册为什么需要 | 缺失时怎么办 |
+  | --- | --- | --- |
+  | 公网 IPv4 | 找到并登录正确服务器 | 返回第一册实例验收 |
+  | 服务商与地区 | 判断网络和控制台位置 | 返回实例 Overview |
+  | Ubuntu 版本 | 匹配官方安装路径 | 登录后再次读取系统 |
+  | CPU 架构 | 选择兼容软件包与镜像 | 登录后读取架构 |
+  | 管理员用户名 | 执行需要 `sudo` 的操作 | 返回首次登录交接 |
+  | 认证方式 | 确保断线后还能重新登录 | 找到密码或本地私钥 |
+  | 云防火墙记录 | 后续判断端口是否公网可达 | 先只做本机监听练习 |
+  | 持续费用 | 决定是否另开练习 VPS | 查看服务商账单页 |
+
+  </ComparisonTable>
+
+  交接卡可以记录“凭证保存在哪里”，但不要把下面内容复制到本书笔记、截图或服务器清点文件：
+
+  - root 密码；
+  - SSH 私钥正文和私钥口令；
+  - 服务商账户密码、2FA 动态码与恢复码；
+  - 银行卡、支付宝、PayPal 或身份证件信息；
+  - 第二册订阅 URL、UUID、Reality 私钥或客户端配置。
+
+  <Callout type="danger" title="找不到登录凭证时，不要继续修改服务器">
+    当前 SSH 窗口还连着，不代表以后一定能回来。先找回密码管理器条目或本地私钥位置，并验证一次重新登录；不要把当前窗口当作唯一救生通道。
+  </Callout>
+</section>
+
+<section className="book-section" id="start-reconnect">
+  ## 第二步：确认你能重新登录
+
+  在保留当前 SSH 窗口的同时，在电脑上再打开一个终端窗口，使用第一册验证过的密码或 SSH 密钥重新登录同一公网 IPv4。
+
+  为什么保留原窗口：如果新窗口失败，你仍有一个可用连接进行只读检查，不会因为关闭唯一会话而失去服务器入口。
+
+  新窗口登录成功后执行：
+
+  <CodeBlock
+    label="确认新 SSH 会话中的身份"
+    code="whoami"
+  />
+
+  成功状态：
+
+  - 新窗口能够进入同一台 Ubuntu VPS；
+  - `whoami` 返回 `root`，或返回第一册记录的管理员用户名；
+  - 两个窗口中的主机名和公网 IP 对应同一实例。
+
+  失败判断：
+
+  - 连接超时：先检查实例状态、IP、TCP 22 和当前来源地址；
+  - `Permission denied`：检查用户名、密码或私钥，不要改 Docker；
+  - 主机身份突然变化：先核对实例是否重装或 IP 是否被复用；
+  - 只有旧窗口能用：返回第一册第 12 章修复登录路径。
+
+  验证完成后，可以在新窗口输入 `exit` 退出，保留原窗口继续本篇。
+</section>
+
+<section className="book-section" id="start-identity">
+  ## 第三步：确认管理员权限
+
+  Docker Engine 的官方软件包安装、后台服务和网络设置都需要管理员权限。依次执行：
+
+  <CodeBlock
+    label="检查当前账户与 sudo"
+    code={identityCheck}
+  />
+
+  三行命令分别表示：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>whoami</code></p>
+
+      显示当前登录账户。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>sudo -v</code></p>
+
+      验证能否取得管理员权限，成功时可能没有输出。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>sudo whoami</code></p>
+
+      成功时应当返回 `root`。
+    </section>
+  </InfoGrid>
+
+  成功状态：
+
+  - 直接登录 root：第一行与第三行都返回 `root`；
+  - 使用 sudo 管理员：第一行是自己的用户名，第三行返回 `root`。
+
+  失败判断：
+
+  - `sudo: command not found`；
+  - `is not in the sudoers file`；
+  - 不知道 `sudo` 要求输入哪个账户密码；
+  - 反复输入密码仍然认证失败。
+
+  出现失败时返回第一册管理员交接步骤，不要寻找“免 sudo 安装脚本”绕过权限问题。
+</section>
+
+<section className="book-section" id="start-system">
+  ## 第四步：确认 Ubuntu 与 CPU 架构
+
+  <CodeBlock
+    label="读取系统与软件包架构"
+    code={systemCheck}
+  />
+
+  在本书主线环境中，重点字段应当是：
+
+  <TerminalMock title="系统信息关键字段示意">
+    NAME="Ubuntu"<br />
+    VERSION_ID="24.04"<br />
+    VERSION_CODENAME=noble<br />
+    ...<br />
+    <span className="term-green">amd64</span>
+  </TerminalMock>
+
+  `amd64` 与常见的 `x86_64` 在本书场景中表示同一类 64 位 CPU 架构。一个名称来自 Ubuntu 软件包体系，另一个常见于 Linux 内核和云厂商界面。
+
+  本书主线采用 Ubuntu 24.04 LTS amd64。截至 2026-07-28，它仍在 Docker Engine 官方 Ubuntu 支持范围内。
+
+  <Callout type="warning" title="不是主线环境，不等于可以猜着继续">
+    Docker 也支持部分其他 Ubuntu 版本和 CPU 架构，但包名、镜像架构与实际输出可能不同。Debian、Linux Mint、CentOS、AlmaLinux 等系统不能直接套用本书的 Ubuntu APT 命令。
+  </Callout>
+
+  以下情况暂停：
+
+  - 系统不是 Ubuntu；
+  - Ubuntu 版本不是本书已经校订的 24.04 LTS；
+  - 架构不是 `amd64`；
+  - `/etc/os-release` 缺失或内容无法辨认；
+  - 云控制台与服务器实际输出互相矛盾。
+
+  暂停不是要求重装。先记录实际系统和架构，再决定是否换一台练习 VPS。
+</section>
+
+<section className="book-section" id="start-resources">
+  ## 第五步：确认磁盘、内存和 CPU
+
+  Docker 软件包本身、镜像层、容器可写层、volume 和日志都会占用服务器磁盘。先读取当前资源：
+
+  <CodeBlock
+    label="读取根磁盘、内存与 CPU 数量"
+    code={resourceCheck}
+  />
+
+  <ComparisonTable>
+
+  | 命令 | 重点字段 | 怎样判断 |
+  | --- | --- | --- |
+  | `df -h /` | 根文件系统 `/` 的 `Avail` 与 `Use%` | 本书练习开始前至少预留约 2 GB |
+  | `free -h` | `Mem` 行的 `total` 与 `available` | 记录现状；可用内存很少时不要叠加练习服务 |
+  | `nproc` | 当前可用 CPU 数量 | 记录数字，不要求为了本书升级 |
+
+  </ComparisonTable>
+
+  这里的 2 GB 是本书为安装、镜像和练习数据设置的预留空间，不是 Docker 官方对所有业务的统一最低要求。后续部署 Open WebUI、Dify、n8n 或数据库时，需要根据具体应用重新评估资源。
+
+  <Callout type="danger" title="磁盘不足时不要靠陌生清理命令腾空间">
+    不要执行 `rm -rf`、`docker system prune` 或论坛里的批量清理脚本。现在甚至还没有确认 Docker 是否存在。先找出占用来源；无法判断时，换练习服务器比盲删生产数据更安全。
+  </Callout>
+
+  暂停条件：
+
+  - `/` 可用空间不足约 2 GB；
+  - 根分区已经接近 100%；
+  - 内存几乎没有可用空间，服务器已经频繁失去响应；
+  - 云厂商控制台显示 CPU、磁盘或带宽异常；
+  - 服务器当前正在重启、更新、恢复快照或处理其他故障。
+</section>
+
+<section className="book-section" id="start-services">
+  ## 第六步：清点正在运行的服务
+
+  systemd 是 Ubuntu 用来管理后台服务的系统组件。下面的命令只列出当前正在运行的 service，不会停止或重启它们：
+
+  <CodeBlock
+    label="列出正在运行的 systemd 服务"
+    code={runningServicesCheck}
+  />
+
+  输出可能很长。你不需要认识 Ubuntu 的每一个基础服务，但必须能够识别自己安装过的业务。
+
+  如果已经完成第二册，重点找：
+
+  - 3X-UI 面板对应的服务；
+  - Xray 或其他代理核心；
+  - SSH 服务；
+  - 自己另外安装的 Web、数据库、监控或面板服务。
+
+  <Callout type="warning" title="看见陌生服务时只记录，不要停止">
+    `systemctl stop`、`disable` 和删除 unit 文件都不属于本篇。陌生服务可能是云厂商代理、系统网络组件或正在使用的业务。无法确认用途时，把名称记入“需先处理”，不要靠停服务观察网站是否坏掉。
+  </Callout>
+</section>
+
+<section className="book-section" id="start-ports">
+  ## 第七步：记录现有监听端口
+
+  **监听端口**表示某个进程正在等待网络连接。端口是 0—65535 之间的数字；同一个监听地址和协议通常不能同时被两个服务占用。
+
+  执行只读检查：
+
+  <CodeBlock
+    label="列出 TCP 与 UDP 监听端口"
+    code={listeningCheck}
+  />
+
+  重点看三类信息：
+
+  <ComparisonTable>
+
+  | 字段 | 表示什么 | 例子怎样读 |
+  | --- | --- | --- |
+  | `tcp` / `udp` | 使用的传输协议 | TCP 22 与 UDP 22 不是同一个监听项 |
+  | `Local Address:Port` | 监听地址与端口 | `0.0.0.0:22` 表示所有 IPv4 地址的 TCP 22 |
+  | `users:(...)` | 哪个进程占用 | 常见会看到 `sshd`、`xray` 等名称 |
+
+  </ComparisonTable>
+
+  `127.0.0.1` 只代表服务器本机回环地址；`0.0.0.0` 通常表示全部 IPv4 接口。是否能从公网访问，还要同时检查云防火墙、主机规则和应用鉴权，不能只看这一列。
+
+  <MockWindow title="现有服务与端口清点 · 教学模板">
+    <div slot="toolbar">
+      <MockStatusBadge tone="warning">填写真实值后再继续</MockStatusBadge>
+    </div>
+    <div className="mock-form-grid">
+      <MockField label="SSH">TCP 22 · sshd · 必须保留</MockField>
+      <MockField label="3X-UI 面板">填写真实监听地址与端口；未安装则写“无”</MockField>
+      <MockField label="Xray 入站">填写协议、端口和用途；不要填写 UUID 或私钥</MockField>
+      <MockField label="其他 Web 服务">填写 80、443 或其他实际端口</MockField>
+      <MockField label="数据库">填写仅本机或公网监听；不要填写密码</MockField>
+      <MockField label="未知监听项" wide>记录进程名与端口，标记“需先确认”，不要停止</MockField>
+    </div>
+  </MockWindow>
+
+  成功状态：你能说明每个非系统监听端口大致属于哪个服务，并明确哪些端口不能用于 Docker 练习。
+
+  失败判断：
+
+  - 有公网监听端口，但不知道由谁创建；
+  - 第二册面板或节点端口没有任何记录；
+  - SSH 端口与第一册交接卡不一致；
+  - 端口列表与云防火墙开放范围明显无法解释；
+  - 为了“腾出 8080”准备停止不认识的服务。
+</section>
+
+<section className="book-section" id="start-existing-docker">
+  ## 第八步：确认 Docker 是否已经存在
+
+  即使你不记得安装过 Docker，其他面板或脚本也可能已经安装它。下面的检查只判断命令是否存在，并在存在时读取 Client 与 Server 信息：
+
+  <CodeBlock
+    label="检查现有 Docker"
+    code={existingDockerCheck}
+  />
+
+  出现 `Docker 尚未安装`：符合本书从零主线，可以继续清点。
+
+  出现 Docker Client 和 Server 信息：不要进入第 3 章重新安装。先只读列出现有对象：
+
+  <CodeBlock
+    label="仅在 Docker 已存在时清点对象"
+    code={existingDockerInventory}
+  />
+
+  这四行分别列出：
+
+  - 运行中和已停止的容器；
+  - 已下载的镜像；
+  - Docker 管理的 volume；
+  - Docker 网络。
+
+  <Callout type="danger" title="现有 Docker 对象无法辨认时，本书在这里暂停">
+    不要执行 `rm`、`rmi`、`volume rm`、`prune`、卸载或重装。volume 可能保存数据库数据，已停止容器也可能仍是可恢复业务的一部分。选择另一台练习 VPS，通常比把未知环境强行整理成“全新安装”更安全。
+  </Callout>
+</section>
+
+<section className="book-section" id="start-network">
+  ## 第九步：理解安装对网络的影响
+
+  Docker 安装后会创建后台 daemon、默认网络接口和防火墙规则。以后发布容器端口时，Docker 还会增加转发规则。
+
+  这不表示安装 Docker 一定会破坏第二册节点，也不表示两者绝对互不影响。可靠做法是：
+
+  1. 安装前保存当前服务和端口清单；
+  2. 安装后重新执行同一组只读检查；
+  3. Docker 练习使用独立名称、目录和未占用端口；
+  4. 先监听 `127.0.0.1`，验证后再决定是否向公网发布；
+  5. 发现第二册连接异常时，区分 Xray、Docker daemon、端口和防火墙层。
+
+  <Callout type="warning" title="Docker 发布端口可能绕过你对 UFW 的直觉">
+    Docker 官方提醒，使用 UFW 或 firewalld 时，容器发布端口可能绕过相应规则。后续不能只凭 `ufw status` 判断端口是否安全；第 6 章会把 Docker、主机防火墙和云防火墙分开检查。
+  </Callout>
+
+  本篇不会执行：
+
+  - `ufw allow` 或 `ufw disable`；
+  - iptables、nftables 或 `DOCKER-USER` 规则修改；
+  - 云防火墙新增端口；
+  - 3X-UI / Xray 重启；
+  - Docker 安装或网络重启。
+</section>
+
+<section className="book-section" id="start-naming">
+  ## 第十步：确定练习对象的命名边界
+
+  后续章节统一使用以下约定：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">练习目录</p>
+
+      `$HOME/docker-labs/`，不把 `/root`、`/etc` 或现有业务目录整体挂载进容器。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">容器名称</p>
+
+      使用 `book03-` 前缀，避免与未知对象混淆。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Compose project</p>
+
+      样章使用 `book03-compose-demo`，与真实应用项目分开。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">初始监听</p>
+
+      优先使用 `127.0.0.1:8080`；若 8080 已被占用，则先选其他空闲端口。
+    </section>
+  </InfoGrid>
+
+  名称前缀不是安全隔离机制，但能让你在 `docker ps`、日志和清理确认中更容易认出练习对象。
+
+  <Callout type="info" title="本篇不创建 docker-labs 目录">
+    只有服务器通过全部检查后，正式章节才会创建练习目录。这样即使你决定换服务器，当前主机也不会留下半套练习文件。
+  </Callout>
+</section>
+
+<section className="book-section" id="start-card">
+  ## 保存一份不含秘密的开始前清点表
+
+  把下面字段记录到你自己的安全笔记中。界面是教学模板，不会把填写内容发送或保存到网站。
+
+  <MockWindow title="第三册开始前清点表">
+    <div slot="toolbar">
+      <MockStatusBadge>只记录状态，不写秘密</MockStatusBadge>
+    </div>
+    <div className="mock-form-grid">
+      <MockField label="检查日期">填写 YYYY-MM-DD</MockField>
+      <MockField label="服务器代号">使用自己能辨认的非秘密名称</MockField>
+      <MockField label="服务商与地区">例如 Vultr · Tokyo；以实际为准</MockField>
+      <MockField label="系统与架构">Ubuntu 24.04 LTS · amd64</MockField>
+      <MockField label="管理员权限">root / sudo 已验证</MockField>
+      <MockField label="SSH 重新登录">已验证 / 需先修复</MockField>
+      <MockField label="根分区可用空间">填写 `df -h /` 的 Avail</MockField>
+      <MockField label="可用内存">填写 `free -h` 的 available</MockField>
+      <MockField label="现有 Docker">未安装 / 已安装且已清点 / 无法辨认</MockField>
+      <MockField label="现有服务">3X-UI、Xray、Web、数据库或其他</MockField>
+      <MockField label="禁止占用的端口" wide>SSH、面板、节点、Web 与其他实际端口</MockField>
+      <MockField label="最终判断" wide>可以继续 / 需先处理 / 必须换练习服务器</MockField>
+    </div>
+  </MockWindow>
+
+  不要记录 root 密码、私钥正文、订阅 URL、UUID、Reality 私钥、API key 或支付信息。清点表只描述“有什么”和“在哪里”，不保存能够直接登录或调用服务的秘密。
+</section>
+
+<section className="book-section" id="start-decision">
+  ## 最终判断：现在能不能继续
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">可以继续</p>
+
+      SSH 可重新登录；管理员权限正常；Ubuntu 24.04 LTS amd64；根分区预留约 2 GB；现有服务与端口已记录；Docker 尚未安装。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">需先处理</p>
+
+      当前 Docker 已存在但对象都能辨认；端口 8080 已占用但知道用途；资源偏紧；需要选择其他端口或先完成备份。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">必须停止</p>
+
+      无法重新 SSH；没有 sudo；磁盘接近满；系统或架构不符；存在无法辨认的业务、端口或 Docker volume；服务器当前异常。
+    </section>
+  </InfoGrid>
+
+  “需先处理”不等于可以边安装边观察。先解决清点表中的问题，再重新从本篇检查。
+
+  <Callout type="tip" title="符合继续条件后，保留清点结果">
+    第 3 章安装完成、第 6 章发布端口和第 11 章更新清理时，都要回来看这份基线。只要新状态无法用后续操作解释，就暂停并比较安装前后的差异。
+  </Callout>
+
+  本篇的成功状态不是看到 Docker 版本，而是你能够明确回答：
+
+  - 我登录的是哪台服务器；
+  - 断线后我能不能重新进入；
+  - 我是否拥有管理员权限；
+  - 系统和 CPU 架构是什么；
+  - 磁盘和内存是否适合练习；
+  - 当前有哪些服务和监听端口；
+  - Docker 是否已经存在；
+  - 哪些对象和端口绝对不能误操作；
+  - 如果检查不通过，我是先修复还是换练习服务器。
+
+  全部回答清楚后，再进入第 1 章建立 Docker 的对象模型。不要跳过第 1—2 章直接执行安装和 Compose 文件。
+</section>
+
+<section className="book-section" id="start-sources">
+  ## 本篇事实依据
+
+  本篇于 2026-07-28 依据以下官方资料校订：
+
+  - [在 Ubuntu 上安装 Docker Engine](https://docs.docker.com/engine/install/ubuntu/)
+  - [Docker Engine 安全说明](https://docs.docker.com/engine/security/)
+  - [Docker 的 packet filtering 与 firewalls](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
+  - [Ubuntu Server：systemd service units](https://documentation.ubuntu.com/server/how-to/software/service-units/)
+
+  Ubuntu 支持范围、Docker 防火墙行为和 daemon 权限属于发布前必须重新核验的易变事实。本篇的 2 GB 是本书练习预留，不是 Docker 官方给所有应用规定的统一最低配置。
+</section>

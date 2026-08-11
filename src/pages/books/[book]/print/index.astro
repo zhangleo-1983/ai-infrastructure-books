@@ -4,7 +4,11 @@ import BookCover from "../../../../components/book/BookCover.astro";
 import ChapterHeader from "../../../../components/book/ChapterHeader.astro";
 import PrintSectionHeading from "../../../../components/book/PrintSectionHeading.astro";
 import type { BookDefinition } from "../../../../data/books";
-import { getReadableBooks } from "../../../../data/books";
+import {
+  books,
+  getReadableBooks,
+  isReadableBook,
+} from "../../../../data/books";
 import {
   bookHref,
   chapterHref,
@@ -22,15 +26,27 @@ interface Props {
 }
 
 export async function getStaticPaths() {
+  const includeDraftEntries = import.meta.env.DEV;
   const chapters = await getCollection(
     "chapters",
-    ({ data }) => !data.draft,
+    ({ data }) => includeDraftEntries || !data.draft,
   );
+  const availableBooks = includeDraftEntries
+    ? books.filter(
+        (book) => isReadableBook(book) || book.status === "drafting",
+      )
+    : getReadableBooks();
 
-  return getReadableBooks().flatMap((book) => {
-    if (!book.print.enabled) return [];
-    const entries = entriesForBook(chapters, book).filter((entry) =>
-      isPrintEligible(book, entry.data.chapterType),
+  return availableBooks.flatMap((book) => {
+    const isDraftBookPreview =
+      includeDraftEntries && book.status === "drafting";
+    if (!book.print.enabled && !isDraftBookPreview) return [];
+    const entries = entriesForBook(chapters, book, {
+      includeDrafts: includeDraftEntries,
+    }).filter(
+      (entry) =>
+        isDraftBookPreview ||
+        isPrintEligible(book, entry.data.chapterType),
     );
     if (entries.length === 0) return [];
 

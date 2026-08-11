@@ -1,0 +1,251 @@
+---
+book: "03-docker"
+order: 14
+slug: "sources"
+title: "资料来源与校订记录"
+shortTitle: "资料来源"
+description: "按安装、概念、网络、存储、Compose、安全、日志和维护分类列出第三册使用的 Docker 官方资料与当前校订边界。"
+chapterType: "sources"
+updatedAt: "2026-08-11"
+labels:
+  - "官方资料"
+  - "校订记录"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book03-sources-scope">
+  ## 本页怎样使用
+
+  第三册所有 Docker 技术事实优先依据 Docker 官方文档和 Docker Official Image 页面。官方资料仍会更新，因此“链接存在”不表示命令、支持系统、默认行为和输出以后永远不变。
+
+  当前内容校订日期：**2026-08-11**。
+
+  当前校订状态：
+
+  - 已完成“开始之前”、第 1—12 章、附录和本页的内容初稿；
+  - 已完成官方文档层面的安装、对象模型、端口、存储、Compose、安全、日志、更新和清理复核；
+  - 主线固定 Ubuntu 24.04 LTS、amd64、Docker 官方 APT 软件源、Docker Engine 与 Compose plugin；
+  - 练习镜像声明固定为 `nginx:1.30.4-alpine`，不使用 `latest` 作为主线；
+  - 所有界面与终端状态均为 HTML/CSS 教学仿真或示例输出，不是真实软件截图；
+  - 已在隔离的 Ubuntu 24.04 LTS、amd64 VPS 连续执行开始检查和第 3—12 章；实测版本为 Docker Engine 29.7.2、Compose plugin 5.4.0；
+  - 已实测 Docker 官方 APT 软件源、Docker Hub、`hello-world`、固定 Nginx 镜像、生命周期、回环端口、SSH 隧道、volume、bind mount、Compose、故障注入、备份恢复和精确清理；
+  - 第 6 章继续采用 `127.0.0.1` 与 SSH 隧道，不增加受控公网演示；公网地址的 8080 请求在验证环境中按预期不可达；
+  - 实测确认容器 Started 后应用可能仍在初始化，正文已补充状态、日志、等待和重试边界；
+  - 第三册已进入 `1.0.0-rc.1` 发布候选，production、Pagefind、完成状态和整册打印均已启用；
+  - 本页不把第三方博客、镜像站、一键脚本或 AI 生成答案作为唯一技术依据。
+
+  <Callout type="warning" title="一次实机通过不等于所有环境都会相同">
+    本次实测证明这套命令在校订环境和日期下可以连续完成，但云服务商、地区网络、Docker 版本和镜像内容仍会变化。每个发布候选都要重新抽样验证安装、镜像拉取、应用就绪、备份恢复和删除边界；遇到差异时以当时官方文档与脱敏实测证据为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-sources-install">
+  ## 安装、系统与权限
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/engine/install/ubuntu/" target="_blank" rel="noopener noreferrer">Install Docker Engine on Ubuntu</a>：支持的 Ubuntu 与 CPU 架构、冲突包、官方 APT 软件源、GPG key、软件包和 `hello-world` 验证。</li>
+    <li><a href="https://docs.docker.com/engine/install/" target="_blank" rel="noopener noreferrer">Install Docker Engine</a>：Docker Engine 各平台安装入口和官方安装方式边界。</li>
+    <li><a href="https://docs.docker.com/compose/install/linux/" target="_blank" rel="noopener noreferrer">Install the Docker Compose plugin</a>：Linux 上的 Compose plugin 与版本验证。</li>
+    <li><a href="https://docs.docker.com/engine/install/linux-postinstall/" target="_blank" rel="noopener noreferrer">Linux post-installation steps</a>：systemd、日志 driver 与 `docker` 用户组的 root 级权限警告。</li>
+    <li><a href="https://docs.docker.com/engine/security/rootless/" target="_blank" rel="noopener noreferrer">Rootless mode</a>：无 root daemon 的原理和前提；本册不把它作为零基础服务器主线。</li>
+    <li><a href="https://ubuntu.com/about/release-cycle" target="_blank" rel="noopener noreferrer">Ubuntu Release Cycle</a>：Ubuntu LTS 支持周期；本册仍以已确认的 24.04 LTS 为主线。</li>
+  </ol>
+
+  截至本页校订日期，Docker Ubuntu 安装页已经列出比 24.04 更新的受支持 Ubuntu 版本。这不自动改变本书主线：新增系统要先完成独立安装、网络、防火墙和回归验证，再调整注册表与正文。
+</section>
+
+<section className="book-section" id="book03-sources-concepts">
+  ## 容器、镜像与生命周期
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/" target="_blank" rel="noopener noreferrer">What is a container?</a>：容器、隔离进程和与虚拟机的基础区别。</li>
+    <li><a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/" target="_blank" rel="noopener noreferrer">What is an image?</a>：镜像、层和容器创建关系。</li>
+    <li><a href="https://docs.docker.com/get-started/docker-concepts/building-images/build-tag-and-publish-an-image/" target="_blank" rel="noopener noreferrer">Build, tag, and publish an image</a>：完整镜像名称、registry、namespace、repository 和 tag 默认值。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/image/tag/" target="_blank" rel="noopener noreferrer">docker image tag</a>：镜像引用格式和 `docker.io/library` 默认路径。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/container/run/" target="_blank" rel="noopener noreferrer">docker container run</a>：创建与运行、`--rm`、端口、挂载、重启策略和权限选项。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/container/ls/" target="_blank" rel="noopener noreferrer">docker container ls</a>：运行中与已停止容器的列表和过滤。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/container/inspect/" target="_blank" rel="noopener noreferrer">docker container inspect</a>：状态、挂载、网络和底层配置。</li>
+    <li><a href="https://docs.docker.com/engine/containers/start-containers-automatically/" target="_blank" rel="noopener noreferrer">Start containers automatically</a>：restart policy 的行为和适用边界。</li>
+    <li><a href="https://hub.docker.com/_/hello-world" target="_blank" rel="noopener noreferrer">hello-world Docker Official Image</a>：安装后的端到端测试镜像。</li>
+    <li><a href="https://hub.docker.com/_/nginx" target="_blank" rel="noopener noreferrer">nginx Docker Official Image</a>：练习镜像、标签、端口、内容目录和维护说明。</li>
+  </ol>
+
+  <Callout type="info" title="tag 与 digest 的记录边界">
+    tag 便于人阅读，但发布者可以更新 tag 指向；digest 更适合记录实际内容身份。多平台镜像还可能同时存在 manifest list digest 与平台特定 digest，交接时应保存命令真实输出，不凭空手写摘要。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-sources-network">
+  ## 网络、端口与防火墙
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/engine/network/" target="_blank" rel="noopener noreferrer">Docker networking overview</a>：Docker 网络驱动、容器通信与端口发布入口。</li>
+    <li><a href="https://docs.docker.com/engine/network/port-publishing/" target="_blank" rel="noopener noreferrer">Port publishing and mapping</a>：主机地址、主机端口、容器端口、localhost 绑定和默认公开范围。</li>
+    <li><a href="https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/" target="_blank" rel="noopener noreferrer">Publishing and exposing ports</a>：`-p` 的入门解释和默认监听风险。</li>
+    <li><a href="https://docs.docker.com/engine/network/packet-filtering-firewalls/" target="_blank" rel="noopener noreferrer">Packet filtering and firewalls</a>：Docker firewall 规则、iptables/nftables 与转发边界。</li>
+    <li><a href="https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw" target="_blank" rel="noopener noreferrer">Docker and ufw</a>：Docker 发布端口可能在 UFW 常规链之前转发的限制。</li>
+  </ol>
+
+  本册第 6、9—12 章默认绑定 `127.0.0.1`，只验证 VPS 本机和 SSH 隧道路径。公网可达性取决于 Docker 版本、绑定地址、网络模式、主机转发、防火墙、云防火墙和上游网络，不能只凭一条 `ufw status` 判断。
+</section>
+
+<section className="book-section" id="book03-sources-storage">
+  ## 存储、挂载与备份
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/engine/storage/" target="_blank" rel="noopener noreferrer">Storage overview</a>：容器可写层、volume、bind mount 与其他存储类型。</li>
+    <li><a href="https://docs.docker.com/engine/storage/volumes/" target="_blank" rel="noopener noreferrer">Volumes</a>：named / anonymous volume、挂载、生命周期、备份和恢复。</li>
+    <li><a href="https://docs.docker.com/engine/storage/bind-mounts/" target="_blank" rel="noopener noreferrer">Bind mounts</a>：主机路径、可写风险、只读选项和路径遮盖行为。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/volume/" target="_blank" rel="noopener noreferrer">docker volume</a>：volume 创建、检查、列表与删除命令入口。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/volume/prune/" target="_blank" rel="noopener noreferrer">docker volume prune</a>：unused volume 的技术定义、默认范围和扩展选项。</li>
+  </ol>
+
+  第 11 章根据官方 volume 归档模型，把原 volume 只读挂入临时容器，并恢复到新 volume 实际读取。这个流程适用于本书静态文件练习；数据库和持续写入应用仍需使用应用自己的导出、一致性或快照方案。
+</section>
+
+<section className="book-section" id="book03-sources-compose">
+  ## Compose、配置与 secrets
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/compose/intro/compose-application-model/" target="_blank" rel="noopener noreferrer">How Compose works</a>：project、service、network、volume、config 和 secret 的应用模型。</li>
+    <li><a href="https://docs.docker.com/reference/compose-file/" target="_blank" rel="noopener noreferrer">Compose file reference</a>：`compose.yaml` 的字段规范。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/" target="_blank" rel="noopener noreferrer">docker compose CLI</a>：Compose 子命令总入口。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/config/" target="_blank" rel="noopener noreferrer">docker compose config</a>：解析、规范化和检查 Compose 模型。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/up/" target="_blank" rel="noopener noreferrer">docker compose up</a>：创建、启动和配置或镜像变化后的重建行为。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/down/" target="_blank" rel="noopener noreferrer">docker compose down</a>：停止和删除项目对象，以及 volume 选项的影响。</li>
+    <li><a href="https://docs.docker.com/compose/how-tos/environment-variables/" target="_blank" rel="noopener noreferrer">Environment variables in Compose</a>：变量设置、插值和优先级入口。</li>
+    <li><a href="https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/" target="_blank" rel="noopener noreferrer">Variable interpolation</a>：shell、`--env-file` 与 `.env` 的插值来源。</li>
+    <li><a href="https://docs.docker.com/compose/how-tos/use-secrets/" target="_blank" rel="noopener noreferrer">Use secrets in Compose</a>：把 secret 以文件方式授予 service。</li>
+    <li><a href="https://docs.docker.com/reference/compose-file/secrets/" target="_blank" rel="noopener noreferrer">Compose secrets reference</a>：顶层 secret 来源和 service 授权。</li>
+    <li><a href="https://docs.docker.com/compose/trust-model/" target="_blank" rel="noopener noreferrer">Trust model for Compose files</a>：陌生 Compose 文件可读取主机文件、运行镜像或共享主机资源的风险。</li>
+  </ol>
+
+  `.env`、`env_file`、容器环境和 Compose secrets 的作用不同。无论采用哪一种，真实密码、API key、私钥和令牌都不能写入公开仓库、终端截图或普通交接文档。
+</section>
+
+<section className="book-section" id="book03-sources-security">
+  ## Docker daemon 与容器安全
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/engine/security/" target="_blank" rel="noopener noreferrer">Docker Engine security</a>：内核隔离、capabilities、daemon 攻击面和主机挂载风险。</li>
+    <li><a href="https://docs.docker.com/engine/security/protect-access/" target="_blank" rel="noopener noreferrer">Protect the Docker daemon socket</a>：Unix socket、SSH 与 TLS 远程访问边界。</li>
+    <li><a href="https://docs.docker.com/reference/cli/dockerd/" target="_blank" rel="noopener noreferrer">dockerd reference</a>：daemon socket、网络监听和配置选项。</li>
+    <li><a href="https://docs.docker.com/engine/containers/run/#runtime-privilege-and-linux-capabilities" target="_blank" rel="noopener noreferrer">Runtime privilege and Linux capabilities</a>：`--privileged`、device 和 capability 的影响。</li>
+    <li><a href="https://docs.docker.com/scout/" target="_blank" rel="noopener noreferrer">Docker Scout</a>：镜像软件供应链和漏洞分析入口；本册不要求账户或启用服务。</li>
+  </ol>
+
+  本书使用 `sudo docker`，不默认把读者加入 `docker` 用户组；不使用 `--privileged`、Docker socket 挂载、主机根目录挂载或未加密 daemon TCP 端口。容器隔离不能替代镜像来源审查、最小权限、主机更新、应用鉴权和备份。
+</section>
+
+<section className="book-section" id="book03-sources-logs">
+  ## 状态、日志与故障排查
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/ps/" target="_blank" rel="noopener noreferrer">docker compose ps</a>：service 当前状态、端口和包含已停止容器的选项。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/logs/" target="_blank" rel="noopener noreferrer">docker compose logs</a>：`--tail`、`--timestamps`、`--since` 与跟随输出。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/exec/" target="_blank" rel="noopener noreferrer">docker compose exec</a>：在运行中的 service 容器执行受控命令。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/inspect/" target="_blank" rel="noopener noreferrer">docker inspect</a>：底层对象信息和 format 模板。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/container/stats/" target="_blank" rel="noopener noreferrer">docker stats</a>：容器资源快照和 `--no-stream`。</li>
+    <li><a href="https://docs.docker.com/engine/logging/" target="_blank" rel="noopener noreferrer">View container logs</a>：容器标准输出、标准错误与镜像日志实现差异。</li>
+  </ol>
+
+  日志内容由应用决定，可能包含敏感 URL、header、Cookie、邮箱、IP 或令牌。对外分享前必须脱敏；“排错”不是公开完整日志的理由。
+</section>
+
+<section className="book-section" id="book03-sources-maintenance">
+  ## 更新、日志轮转与安全清理
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/pull/" target="_blank" rel="noopener noreferrer">docker compose pull</a>：拉取 service 镜像，但不会启动容器。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/compose/images/" target="_blank" rel="noopener noreferrer">docker compose images</a>：查看 Compose 容器使用的镜像。</li>
+    <li><a href="https://docs.docker.com/reference/cli/docker/system/df/" target="_blank" rel="noopener noreferrer">docker system df</a>：Docker 对象磁盘占用和详细视图。</li>
+    <li><a href="https://docs.docker.com/engine/manage-resources/pruning/" target="_blank" rel="noopener noreferrer">Prune unused Docker objects</a>：container、image、network、volume 和 system prune 的范围。</li>
+    <li><a href="https://docs.docker.com/engine/logging/configure/" target="_blank" rel="noopener noreferrer">Configure logging drivers</a>：默认 `json-file`、日志增长、`local` driver 和新建容器生效边界。</li>
+    <li><a href="https://docs.docker.com/engine/logging/drivers/local/" target="_blank" rel="noopener noreferrer">Local file logging driver</a>：本地日志轮转和 driver 选项。</li>
+    <li><a href="https://docs.docker.com/reference/compose-file/services/#logging" target="_blank" rel="noopener noreferrer">Compose services.logging</a>：为单个 Compose service 声明日志 driver 与 options。</li>
+  </ol>
+
+  本书只展示精确命名对象的清理流程，不把 prune 当作日常维护捷径。Docker 判断一个对象没有被当前容器引用，仍不能判断其中的数据是否满足业务保留、审计或回退需求。
+</section>
+
+<section className="book-section" id="book03-sources-matrix">
+  ## 逐章校订状态
+
+  <ComparisonTable>
+
+  | 内容 | 当前文档校订 | 尚需实机确认 |
+  | --- | --- | --- |
+  | 开始之前 | Ubuntu、资源、端口和已有对象检查模型 | 与第二册共用 VPS 时的真实清单 |
+  | 第 1—2 章 | 容器、镜像、tag、digest 和来源模型 | 不需要 Docker 执行 |
+  | 第 3 章 | 官方 Ubuntu APT 路径、包名、GPG key | 在 24.04 amd64 从空环境安装 |
+  | 第 4—5 章 | run、ps、inspect、stop、start、restart、rm | `hello-world` 与固定 Nginx tag 的真实输出 |
+  | 第 6 章 | port publish、localhost 与防火墙边界 | SSH 隧道；是否增加受控公网演示 |
+  | 第 7 章 | named volume、只读 bind mount 和生命周期 | 两个容器之间的数据连续性 |
+  | 第 8 章 | env file、inspect 可见性、Compose secret 边界 | 示例文件、权限与真实 CLI 输出 |
+  | 第 9 章 | Compose project、service 和完整 `compose.yaml` | stop、down、重新创建后的页面连续性 |
+  | 第 10 章 | ps、logs、inspect、exec 和固定排查顺序 | 缺页故障的状态、HTTP 和日志实际输出 |
+  | 第 11 章 | pull、up、volume 归档、local 日志和精确清理 | 备份文件所有权、恢复、镜像更新和日志配置 |
+  | 第 12 章 | 运行清单与非敏感交接字段 | HANDOFF 检查、最终对象与主机重启窗口 |
+  | 附录 | 命令影响分类、决策表和术语 | 随正文实测结果同步修正 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book03-sources-change-types">
+  ## 哪些内容更容易变化
+
+  <ComparisonTable>
+
+  | 类型 | 示例 | 复核频率 |
+  | --- | --- | --- |
+  | 长期稳定知识 | 镜像与容器区别、主机端口与容器端口、持久化不等于备份 | 每次大版本或概念模型调整 |
+  | Docker 版本 | 支持 Ubuntu、APT 路径、包名、Compose 行为 | 每个发布候选 |
+  | 镜像内容 | Nginx tag、默认端口、路径、支持架构 | 每个发布候选并实拉镜像 |
+  | CLI 输出 | `ps` 列名、pull 进度、错误文字、inspect 字段 | 每个发布候选抽样实测 |
+  | 网络和防火墙 | localhost、IPv6、UFW、iptables/nftables | 每个发布候选专项验证 |
+  | 地区网络 | 中国用户 VPS 到 Docker 源和 registry 的连通性 | 实测时记录服务商、地区、日期和网络 |
+  | 安全建议 | daemon、Compose trust、secrets、镜像信任 | 每个发布候选依据官方安全文档 |
+  | 后续册接口 | 域名、反向代理、Open WebUI 等输入要求 | 相邻图书规格变化时 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book03-sources-corrections">
+  ## 发现事实变化时怎样处理
+
+  发现命令、链接或行为与正文不一致时：
+
+  1. 记录章节、标题、具体命令和当前校订日期；
+  2. 保存不含秘密的实际错误与系统、架构、Docker / Compose 版本；
+  3. 区分是命令错误、版本变化、镜像变化、地区网络还是本机状态；
+  4. 优先查 Docker 官方文档、官方镜像页和对应应用官方升级说明；
+  5. 在隔离环境复现，不用承载第二册或其他业务的服务器冒险验证；
+  6. 只修正受影响段落，同时更新 `updatedAt`、本页和 QA 台账；
+  7. 对安装、数据、网络、安全或删除行为变化重新运行完整回归；
+  8. 不用来源不明的镜像站、一键脚本或关闭安全校验作为默认修复。
+
+  <Callout type="info" title="提交勘误时不要附带秘密">
+    可以提供 Docker / Compose 版本、Ubuntu 版本、CPU 架构、脱敏后的命令和错误原文；不要提供服务器密码、SSH 私钥、公网 IP、API key、完整环境文件、第二册 UUID、Reality 私钥或订阅 URL。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-sources-release-boundary">
+  ## 发布候选持续复核清单
+
+  - ☑ 在隔离 Ubuntu 24.04 LTS amd64 VPS 连续执行开始检查和第 3—12 章；
+  - ☑ 记录 Docker Engine、Compose、Nginx 镜像 ID / digest 和验证日期；
+  - ☑ 核对中国用户经海外网络访问东京 VPS，并由 VPS 连接 Docker APT 与 Docker Hub 的连通性边界；
+  - ☑ 决定第 6 章保留回环地址与 SSH 隧道主线，不增加公网 8080 演示；
+  - ☑ 验证 volume 备份文件、恢复页面、文件所有权和精确清理；
+  - ☑ 验证 `local` 日志 driver 与 `max-size`、`max-file` 的实际 inspect 输出；
+  - ☑ 核对主要仿真终端的状态、错误和成功文字；
+  - ☑ 建立第三册中文搜索预期样本；
+  - ☑ 开启 production、Pagefind、完成状态和完整打印；
+  - ☑ 完成 Chromium、Firefox、WebKit、无 JavaScript、键盘、响应式、打印 PDF 和无障碍验收；
+  - ☑ 再次确认第一、二册 URL、正文、搜索、打印和交互无回归。
+
+  第三册当前是发布候选，不等于正式发布。跨浏览器、搜索质量、最终 PDF 和第一、二册回归必须在 RC 报告中留下实际结果；发现阻塞问题时应回到草稿或生成下一版 RC，不能用版本标签掩盖失败。
+</section>

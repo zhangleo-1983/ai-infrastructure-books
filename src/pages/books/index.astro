@@ -7,6 +7,11 @@ import {
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { bookHref } from "../../lib/book-content";
 import { sitePath } from "../../lib/site-path";
+
+const includeDrafts = import.meta.env.DEV;
+const canBrowse = (book: (typeof books)[number]) =>
+  isReadableBook(book) ||
+  (includeDrafts && book.status === "drafting");
 ---
 
 <BaseLayout
@@ -17,7 +22,7 @@ import { sitePath } from "../../lib/site-path";
     <p class="eyebrow">Books</p>
     <h1>全部书目</h1>
     <p class="lede">
-      第一册与第二册已开放 Release Candidate 阅读；其他书目只展示系列规划，
+      第一册、第二册与第三册已开放 Release Candidate 阅读；其他书目只展示系列规划，
       不创建空白正文页面。
     </p>
   </header>
@@ -31,7 +36,7 @@ import { sitePath } from "../../lib/site-path";
           </span>
           <div>
             <h2>
-              {isReadableBook(book) ? (
+              {canBrowse(book) ? (
                 <a href={sitePath(bookHref(book))}>{book.title}</a>
               ) : (
                 book.title

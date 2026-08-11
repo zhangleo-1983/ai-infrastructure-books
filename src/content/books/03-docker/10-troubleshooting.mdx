@@ -1,0 +1,631 @@
+---
+book: "03-docker"
+order: 10
+slug: "10-troubleshooting"
+title: "看状态、读日志、定位常见故障"
+shortTitle: "故障排查"
+description: "沿主机、Docker、Compose、容器、挂载、端口和请求路径逐层排查，并通过一次可恢复故障练习建立证据链。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 10
+duration: "预计 35—45 分钟"
+labels:
+  - "故障分层"
+  - "日志"
+  - "受控恢复"
+completionId: "book03-chapter-10"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const projectEnter =
+  'cd "$HOME/docker-labs/compose-web"\npwd';
+
+export const baselineCheck =
+  "sudo docker compose config -q\nsudo docker compose ps\ncurl --fail --show-error http://127.0.0.1:8080";
+
+export const daemonCheck =
+  "sudo systemctl is-active docker\nsudo docker version";
+
+export const statusInspect =
+  `CONTAINER_ID="$(sudo docker compose ps -q web)"
+sudo docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} started={{.State.StartedAt}} image={{.Config.Image}}' "$CONTAINER_ID"`;
+
+export const recentLogs =
+  "sudo docker compose logs --tail=50 --timestamps --since=10m web";
+
+export const portEvidence =
+  "sudo docker compose port web 80\nsudo ss -lntp | grep ':8080 '";
+
+export const mountEvidence =
+  `CONTAINER_ID="$(sudo docker compose ps -q web)"
+sudo docker inspect --format '{{range .Mounts}}{{.Type}} source={{.Source}} target={{.Destination}} rw={{.RW}}{{println}}{{end}}' "$CONTAINER_ID"`;
+
+export const processCheck =
+  "sudo docker compose exec web nginx -t\nsudo docker compose exec web ls -l /usr/share/nginx/html";
+
+export const resourceCheck =
+  'df -h /\nfree -h\nsudo docker stats --no-stream "$(sudo docker compose ps -q web)"';
+
+export const injectMissingPage =
+  "mv site/index.html site/index.html.disabled\ncurl --fail --show-error http://127.0.0.1:8080";
+
+export const restorePage =
+  "mv site/index.html.disabled site/index.html\ncurl --fail --show-error http://127.0.0.1:8080";
+
+<LearningGoals
+  audience="遇到页面打不开时容易反复 restart，或不知道应该先查容器、端口还是防火墙的读者"
+  duration="预计 35—45 分钟"
+  outcome="沿固定顺序收集状态、日志、挂载、端口和请求证据，完成一次故障注入与恢复，并能把问题定位到明确层级"
+/>
+
+<section className="book-section" id="ch10-result">
+  ## 这一章要解决什么
+
+  “页面打不开”只是用户看到的最终现象。它可能来自很多不同位置：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>主机</strong>
+      <small>磁盘、内存、网络、系统服务</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker daemon</strong>
+      <small>是否能够管理对象</small>
+    </div>
+    <div className="flow-node">
+      <strong>Compose 配置</strong>
+      <small>是否能正确解析</small>
+    </div>
+    <div className="flow-node">
+      <strong>容器主进程</strong>
+      <small>Running、Exited 或 Restarting</small>
+    </div>
+    <div className="flow-node">
+      <strong>数据与配置</strong>
+      <small>挂载、权限和文件内容</small>
+    </div>
+    <div className="flow-node">
+      <strong>端口与请求</strong>
+      <small>本机 curl、外部路径和防火墙</small>
+    </div>
+  </FlowDiagram>
+
+  排错的目标不是“多试几条命令”，而是回答两个问题：
+
+  1. 哪一层第一次偏离了预期；
+  2. 哪一条证据支持这个判断。
+
+  <Callout type="danger" title="restart 不是通用诊断工具">
+    重启可能让瞬时故障暂时消失，也可能覆盖关键现场。没有先保存状态和最近日志时，反复 restart 会减少证据，却不会告诉你根因。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-baseline">
+  ## 开始前：确认最后已知正常状态
+
+  第 9 章留下的 Compose 项目应该仍在运行。进入项目目录：
+
+  <CodeBlock
+    label="进入 Compose 项目"
+    code={projectEnter}
+  />
+
+  成功状态：`pwd` 以 `/docker-labs/compose-web` 结尾。
+
+  执行三项基线：
+
+  <CodeBlock
+    label="验证配置、状态和本机请求"
+    code={baselineCheck}
+  />
+
+  正常基线是：
+
+  - `config -q` 没有输出；
+  - `web` service 状态为 Up 或 Running；
+  - PORTS 显示 `127.0.0.1:8080 → 80/tcp`；
+  - curl 返回第 9 章维护过的页面。
+
+  如果基线已经失败，不要进入本章的故障注入。直接从下面的排查顺序开始，并记录失败发生在配置、状态还是请求。
+
+  <Callout type="warning" title="只对 book03-compose-demo 做练习">
+    本章不会停止、进入或修改第二册的 3X-UI / Xray，也不会处理其他 Compose 项目。每条 Compose 命令都从 `$HOME/docker-labs/compose-web` 执行。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-order">
+  ## 一套固定的排查顺序
+
+  <ComparisonTable>
+
+  | 顺序 | 层级 | 先取得的证据 | 通过以后再看 |
+  | ---: | --- | --- | --- |
+  | 1 | 主机 | 磁盘、内存、基础网络和系统状态 | Docker daemon |
+  | 2 | Docker daemon | `systemctl` 与 client/server 版本 | Compose 配置 |
+  | 3 | Compose 配置 | `docker compose config -q` | service 状态 |
+  | 4 | 容器状态 | `compose ps -a` 与 inspect | 最近日志 |
+  | 5 | 应用和挂载 | 日志、配置验证、文件与权限 | 主机端口 |
+  | 6 | 主机端口 | Compose port 与 `ss` | 本机 HTTP |
+  | 7 | 本机请求 | `curl 127.0.0.1` | SSH 隧道或公网 |
+  | 8 | 外部入口 | 绑定地址、IPv4/IPv6、云防火墙 | 浏览器体验 |
+
+  </ComparisonTable>
+
+  只要上一层失败，就先停在那一层。比如 Docker daemon 无法连接时，重新配置云防火墙不会让 daemon 恢复；服务器本机 curl 已经失败时，清浏览器缓存也没有意义。
+</section>
+
+<section className="book-section" id="ch10-daemon">
+  ## 第一步：确认 Docker daemon
+
+  <CodeBlock
+    label="检查 Docker 服务和客户端—服务端链路"
+    code={daemonCheck}
+  />
+
+  成功状态：
+
+  - 第一条输出 `active`；
+  - `docker version` 同时显示 Client 与 Server；
+  - 没有 socket 权限或 daemon 连接错误。
+
+  失败判断：
+
+  - `inactive` 或 `failed`：Docker 系统服务没有正常运行；
+  - 只有 Client：命令行存在，但 daemon 不可用；
+  - permission denied：当前账户没有通过 `sudo` 访问 Docker；
+  - command not found：Docker CLI 未安装或 PATH 异常；
+  - 服务异常同时第二册也异常：先区分系统级资源或网络问题，不要认定是 Compose 文件。
+
+  <Callout type="warning" title="不要直接编辑 Docker socket 权限">
+    `/var/run/docker.sock` 可以控制 Docker daemon，接近主机 root 能力。不要用 `chmod 666` 解决权限问题，也不要把 socket 挂入普通应用容器。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-status">
+  ## 第二步：读懂 service 状态
+
+  在项目目录中运行：
+
+  <CodeBlock
+    label="查看包括已停止容器的状态"
+    code="sudo docker compose ps -a"
+  />
+
+  <MockWindow title="Compose 状态仿真">
+    <div slot="toolbar">
+      <MockStatusBadge tone="warning">先判断状态，再决定下一步</MockStatusBadge>
+    </div>
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr>
+            <th>状态</th>
+            <th>表示什么</th>
+            <th>先看什么</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><MockStatusBadge>Running / Up</MockStatusBadge></td>
+            <td>主进程仍在运行</td>
+            <td>端口、挂载、应用响应</td>
+          </tr>
+          <tr>
+            <td><MockStatusBadge tone="neutral">Created</MockStatusBadge></td>
+            <td>容器已创建但没有启动</td>
+            <td>创建输出和启动条件</td>
+          </tr>
+          <tr>
+            <td><MockStatusBadge tone="warning">Exited</MockStatusBadge></td>
+            <td>主进程已经结束</td>
+            <td>退出码和结束前日志</td>
+          </tr>
+          <tr>
+            <td><MockStatusBadge tone="warning">Restarting</MockStatusBadge></td>
+            <td>重启策略正在重复拉起</td>
+            <td>最早一轮错误和重启次数</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  health（健康状态）只有在镜像或 Compose service 配置了 healthcheck 时才有意义。本书当前 Nginx 样章没有配置 healthcheck，因此“没有 health 字段”不等于服务不健康，也不能把 Running 自动解释为应用完全可用。
+
+  取得当前容器 ID，并读取重点字段：
+
+  <CodeBlock
+    label="检查状态、退出码和重启次数"
+    code={statusInspect}
+  />
+
+  正常主线类似：
+
+  <TerminalMock title="inspect 重点字段">
+    status=running exit=0 restarts=0 started=2026-… image=nginx:1.30.4-alpine
+  </TerminalMock>
+
+  解释：
+
+  - `status=running`：主进程现在仍在；
+  - `exit=0`：当前运行容器还没有异常退出证据；停止后才结合日志判断最后退出；
+  - `restarts=0`：Docker 没有尝试自动重启；
+  - `started`：本次启动时间；
+  - `image`：容器配置引用的镜像名称。
+
+  非零退出码表示进程没有按正常成功路径结束，但单独一个数字通常不能说明根因。必须与同一时间附近的日志、资源和配置一起判断。
+</section>
+
+<section className="book-section" id="ch10-logs">
+  ## 第三步：读取“最近、带时间”的日志
+
+  <CodeBlock
+    label="查看最近 10 分钟的最后 50 行日志"
+    code={recentLogs}
+  />
+
+  参数作用：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--tail=50</code></p>
+
+      只取末尾 50 行，避免旧日志淹没当前问题。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--timestamps</code></p>
+
+      给每行增加时间，便于与操作和请求对应。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--since=10m</code></p>
+
+      只读取最近 10 分钟，缩小观察窗口。
+    </section>
+  </InfoGrid>
+
+  读日志时先找：
+
+  1. 最早出现的明确错误，而不是最后一行重复提示；
+  2. 错误发生时间是否与刚才操作一致；
+  3. service 前缀是否是 `web`；
+  4. 文件路径、端口、变量名和权限对象；
+  5. 是否有密码、令牌或用户数据被意外打印。
+
+  <Callout type="danger" title="日志可能包含敏感信息">
+    复制日志给他人前先检查 URL 参数、Authorization header、Cookie、邮箱、IP、令牌和环境值。不要把“排错需要”当作公开完整日志的理由。
+  </Callout>
+
+  `docker compose logs -f web` 可以持续跟随新日志。按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 只停止日志跟随，不会停止后台 service。
+</section>
+
+<section className="book-section" id="ch10-mount">
+  ## 第四步：检查挂载与容器内配置
+
+  先从 Docker 配置读取挂载关系：
+
+  <CodeBlock
+    label="检查 web service 的挂载"
+    code={mountEvidence}
+  />
+
+  正常结果应包含：
+
+  - 类型 `bind`；
+  - source 以 `/docker-labs/compose-web/site` 结尾；
+  - target 为 `/usr/share/nginx/html`；
+  - `rw=false`。
+
+  再运行两个受控命令：
+
+  <CodeBlock
+    label="验证 Nginx 配置并查看网页目录"
+    code={processCheck}
+  />
+
+  `docker compose exec` 表示“在正在运行的 service 容器中执行命令”。本章只运行：
+
+  - `nginx -t`：让 Nginx 验证自己的配置；
+  - `ls -l`：读取网页目录清单。
+
+  成功状态：
+
+  - Nginx 输出 syntax is ok 和 test is successful；
+  - 目录中有 `index.html`；
+  - 不需要启动交互 shell；
+  - 不增加 `--privileged`，不安装临时软件。
+
+  <Callout type="warning" title="进入容器不是第一步">
+    容器内 shell 适合做已明确目标的检查，不适合漫无目的修改。临时在容器里修好的文件可能在重建后消失；长期配置应回到 Compose 文件或挂载的主机文件中维护。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-port">
+  ## 第五步：验证主机端口和本机请求
+
+  <CodeBlock
+    label="取得 Compose 端口与主机监听证据"
+    code={portEvidence}
+  />
+
+  两条证据应该互相对应：
+
+  - Compose 报告容器 80 映射到 `127.0.0.1:8080`；
+  - 主机有 TCP 8080 的监听或 Docker 转发入口；
+  - 没有出现 `0.0.0.0:8080` 或意外 IPv6 全地址绑定。
+
+  然后才运行：
+
+  <CodeBlock
+    label="从服务器本机验证 HTTP"
+    code="curl --fail --show-error http://127.0.0.1:8080"
+  />
+
+  判断路径：
+
+  <ComparisonTable>
+
+  | 状态 | 端口 | curl | 更可能在哪一层 |
+  | --- | --- | --- | --- |
+  | Running | 正确 | 成功 | Docker 主线正常，外部问题继续查隧道或公网 |
+  | Running | 缺失 | 失败 | Compose ports 或容器创建配置 |
+  | Running | 正确 | HTTP 4xx/5xx | 应用、网页文件或应用配置 |
+  | Exited | 可能残留显示 | 失败 | 主进程和日志 |
+  | daemon 不可用 | 无法可靠判断 | 通常失败 | 先修复 Docker daemon |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch10-resource">
+  ## 第六步：查看资源，但不急着清理
+
+  <CodeBlock
+    label="查看磁盘、内存和 web service 即时资源"
+    code={resourceCheck}
+  />
+
+  重点关注：
+
+  - 根文件系统是否接近满；
+  - available memory 是否持续极低；
+  - Nginx CPU 或内存是否明显异常；
+  - `docker stats --no-stream` 只是一个时刻的快照，不代表长期趋势。
+
+  磁盘不足可能导致：
+
+  - 镜像拉取或解压失败；
+  - 应用无法写文件；
+  - 日志无法继续写入；
+  - 容器异常退出；
+  - 数据库损坏风险上升。
+
+  <Callout type="danger" title="磁盘满时也不要直接 system prune">
+    先用第 11 章的对象清单确认空间被镜像、容器、日志还是 volume 占用。批量清理可能删除回退镜像、已停止的诊断现场或暂时未挂载的数据。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-injection">
+  ## 第七步：做一次可恢复的故障注入
+
+  fault injection（故障注入）表示主动制造一个范围明确、能立即恢复的问题，用来验证排查方法。本章只移动 Compose 项目的教学网页，不停止其他服务，也不修改 Docker daemon。
+
+  开始前确认文件：
+
+  <CodeBlock
+    label="确认故障练习文件"
+    code="ls -l site/index.html"
+  />
+
+  只有文件存在，并且它属于第 9 章教学页面时才继续。
+
+  移走默认页面并立即请求：
+
+  <CodeBlock
+    label="注入“默认页面缺失”故障"
+    code={injectMissingPage}
+  />
+
+  预期现象：
+
+  - `mv` 没有输出；
+  - curl 返回 HTTP 错误，常见为 403；
+  - Compose service 仍然 Running；
+  - 主机端口仍然存在。
+
+  这组现象说明问题不在 daemon、容器生命周期或端口发布，而在应用读取的网页内容层。
+
+  查看最近日志：
+
+  <CodeBlock
+    label="读取故障后的 Nginx 日志"
+    code="sudo docker compose logs --tail=20 --timestamps web"
+  />
+
+  日志通常会出现刚才请求对应的 HTTP 状态，并可能提示目录中没有可用 index。具体措辞随 Nginx 版本变化，不要求逐字一致。
+
+  <TerminalMock title="故障日志仿真">
+    web-1 | 2026-… [error] directory index of "/usr/share/nginx/html/" is forbidden<br />
+    web-1 | 127.0.0.1 - - [2026-…] "GET / HTTP/1.1" 403 …
+  </TerminalMock>
+
+  仿真中的时间、进程号和请求字段不是固定输出。
+</section>
+
+<section className="book-section" id="ch10-restore">
+  ## 第八步：恢复最后已知正常状态
+
+  把文件移回并再次请求：
+
+  <CodeBlock
+    label="恢复 index.html 并验证"
+    code={restorePage}
+  />
+
+  成功状态：curl 再次返回教学页面。
+
+  最后重跑基线：
+
+  <CodeBlock
+    label="确认恢复后的完整基线"
+    code={baselineCheck}
+  />
+
+  这次恢复没有：
+
+  - restart 容器；
+  - 重建 Compose 项目；
+  - 删除 volume；
+  - 修改主机防火墙；
+  - 清理镜像；
+  - 影响第二册服务。
+
+  根因是网页文件被移走，修复也只作用于网页文件。修复范围与根因范围一致，是比“全部重启”更可靠的做法。
+</section>
+
+<section className="book-section" id="ch10-common">
+  ## 常见故障：按证据定位
+
+  <TroubleshootingItem title="Compose 配置无法解析" open={true}>
+    **先看：** `pwd`、`ls compose.yaml`、`sudo docker compose config -q`。
+
+    **常见原因：** YAML 缩进、冒号、引号、字段层级或当前目录错误。
+
+    **成功修复：** `config -q` 无输出，再执行 `config` 检查解析后的端口和挂载。
+
+    **不要做：** 不要在配置未通过时反复 `up -d`，也不要删除现有数据。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="service 显示 Exited 或 Restarting">
+    **先看：** `compose ps -a`、退出码、重启次数和最早一轮错误日志。
+
+    **常见原因：** 主进程配置错误、必要文件缺失、权限不足、参数或变量错误。
+
+    **成功修复：** 修改持久配置后重建，service 持续 Running，重启次数不再增加。
+
+    **不要做：** 不要不断 restart；Restarting 循环会重复制造日志和负载。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="端口已经被占用">
+    **先看：** `ss -lntp`、所有容器的 PORTS、第一册和第二册端口清单。
+
+    **常见原因：** 另一个容器、主机服务或旧练习对象已经监听同一主机端口。
+
+    **成功修复：** 保留已有业务，为教学项目选择并同步记录一个空闲端口。
+
+    **不要做：** 不要停止名称和用途不明确的监听者。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="bind mount 权限或路径错误">
+    **先看：** inspect 中的 source、target、rw，主机上的 `pwd`、`ls -l` 和文件内容。
+
+    **常见原因：** 相对路径从错误目录解析、source 拼写错误、主机权限不允许读取。
+
+    **成功修复：** source 指向预期项目目录，Nginx 能读取文件，挂载仍为只读。
+
+    **不要做：** 不要把权限改成 777，也不要把更大的主机目录挂进去。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="变量缺失或应用配置错误">
+    **先看：** Compose 解析结果、变量名、env file 路径和镜像官方文档。
+
+    **常见原因：** 误以为 `.env` 自动进入容器、文件没有被 service 引用、变量名称不受镜像支持。
+
+    **成功修复：** 使用无敏感值的检查确认所需配置存在，应用恢复。
+
+    **不要做：** 不要把完整环境变量和秘密打印到日志或聊天中。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="镜像拉取、架构或网络失败">
+    **先看：** 镜像完整名称、tag、服务器架构、Docker Hub 连接、DNS 和磁盘。
+
+    **常见原因：** tag 不存在、镜像不支持 amd64、网络超时或磁盘不足。
+
+    **成功修复：** 官方镜像能够完成 pull，并与已记录的来源和架构一致。
+
+    **不要做：** 不要改用来源不明的 registry、关闭 TLS 校验或运行未知安装脚本。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="服务器本机成功，电脑浏览器失败">
+    **先看：** 当前是否绑定 `127.0.0.1`、SSH 隧道、本地端口和访问地址。
+
+    **常见原因：** 本章设计为本机绑定，电脑没有建立隧道，或误用了 VPS 公网地址。
+
+    **成功修复：** SSH 隧道工作，电脑访问自己的 `127.0.0.1:18080`。
+
+    **不要做：** 不要为了排错直接把 8080 发布到全部公网地址。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="ch10-stop">
+  ## 什么时候应该停止尝试
+
+  出现下列任一情况时，停止修改并保存证据：
+
+  - 你无法确认当前目录或项目名称；
+  - 命令将影响多个 Compose 项目或所有 Docker 对象；
+  - 磁盘接近满，但不知道空间属于日志、镜像还是数据；
+  - 需要删除 volume、项目目录或真实数据才能继续；
+  - 日志出现真实密码、令牌或私钥；
+  - 第二册或其他业务也同时异常；
+  - 已经连续做了两次修改，却没有在每次修改后验证；
+  - 最后已知正常配置和备份位置不明确。
+
+  保存以下不含秘密的信息：
+
+  - 发生时间和刚才做的动作；
+  - `compose ps -a`；
+  - 最近 50 行经过脱敏的日志；
+  - `compose config` 中不含秘密的结构；
+  - 主机磁盘、内存和端口状态；
+  - 你已经尝试过的单一修改。
+
+  <Callout type="tip" title="一次只改变一个变量">
+    修改后立即验证。如果同时换镜像、改端口、改挂载和改变量，即使服务恢复，也无法知道哪一步有效；如果更坏，也难以回退。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch10-finish">
+  ## 本章完成标准
+
+  本章结束时：
+
+  - Compose 项目已经恢复到 Running；
+  - `config -q`、端口和本机 curl 均通过；
+  - `site/index.html` 已恢复，不遗留 `.disabled` 状态；
+  - 你已经读取带时间范围的最近日志；
+  - 你已经用 inspect 检查状态、重启次数和挂载；
+  - 你只执行了受控的 `nginx -t` 和目录读取命令；
+  - 没有通过 restart、prune 或删除数据碰运气；
+  - 你能把故障定位到主机、daemon、配置、进程、挂载、端口或外部入口中的至少一层。
+
+  <ChapterChecklist chapterId="book03-chapter-10">
+    我能沿固定顺序收集状态、日志、挂载、端口和请求证据，完成了默认页面缺失故障的定位与恢复，而且知道什么时候应该停止修改。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch10-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 故障注入实测校订：
+
+  - [`docker compose ps`](https://docs.docker.com/reference/cli/docker/compose/ps/)
+  - [`docker compose logs`](https://docs.docker.com/reference/cli/docker/compose/logs/)
+  - [`docker compose exec`](https://docs.docker.com/reference/cli/docker/compose/exec/)
+  - [`docker inspect`](https://docs.docker.com/reference/cli/docker/inspect/)
+  - [`docker stats`](https://docs.docker.com/reference/cli/docker/container/stats/)
+  - [Restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/)
+
+  Nginx 错误日志措辞、Compose 状态列和时间格式会随版本变化。本次实测在网页文件移走后得到 HTTP 403，service 与端口保持正常；恢复文件后无需重启即可恢复页面。每个发布候选仍应按当时版本抽样复核。
+</section>

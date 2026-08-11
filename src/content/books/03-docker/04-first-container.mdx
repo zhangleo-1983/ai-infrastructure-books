@@ -1,0 +1,398 @@
+---
+book: "03-docker"
+order: 4
+slug: "04-first-container"
+title: "运行第一个容器，看懂 docker run"
+shortTitle: "运行第一个容器"
+description: "使用具名 hello-world 容器观察镜像查找、拉取、创建、启动、输出和退出，并理解 run 不等于 start。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 4
+duration: "预计 15—25 分钟"
+labels:
+  - "docker run"
+  - "hello-world"
+  - "容器状态"
+completionId: "book03-chapter-04"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const helloNameCheck =
+  'sudo docker ps -a --filter "name=book03-hello"';
+
+export const helloRun =
+  "sudo docker run --name book03-hello hello-world:latest";
+
+export const helloInspect =
+  "sudo docker inspect --format '状态={{.State.Status}} 退出码={{.State.ExitCode}} 镜像={{.Config.Image}}' book03-hello";
+
+<LearningGoals
+  audience="已经完成官方安装，并希望真正看懂 docker run 做了什么的读者"
+  duration="预计 15—25 分钟"
+  outcome="创建一个名为 book03-hello 的容器，确认它正常输出并以退出码 0 停止，同时能区分 image、run、container 与 output"
+/>
+
+<section className="book-section" id="ch4-result">
+  ## 这一章不只是再跑一次 hello-world
+
+  第 3 章已经用 `hello-world` 验证 Docker 安装。本章继续使用同一个小镜像，但会给容器一个固定名称，并逐层检查它留下的对象。
+
+  你将看清：
+
+  - Docker 怎样判断本地是否已有镜像；
+  - `run` 为什么可能先拉取镜像；
+  - 镜像怎样变成一个新容器；
+  - 容器怎样把输出显示到当前终端；
+  - 主进程完成后为什么自动停止；
+  - 停止的容器为什么仍能在 `docker ps -a` 中找到；
+  - 再次执行 `run` 为什么不是启动原容器。
+
+  <Callout type="info" title="本章不发布端口，也不运行后台业务">
+    `hello-world` 只打印说明文字，没有 Web 服务、数据库或公网端口。端口映射从第 6 章开始。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch4-before">
+  ## 开始前检查
+
+  本章要求：
+
+  - 第 3 章的 Docker service 仍是 `active`；
+  - `sudo docker version` 同时显示 Client 与 Server；
+  - 当前账户能够使用 `sudo`；
+  - 服务器能访问 Docker Hub；
+  - 没有不认识的 Docker 业务需要保护。
+
+  先确认 daemon：
+
+  <CodeBlock
+    label="确认 Docker daemon 可响应"
+    code="sudo docker info --format 'Docker daemon 可用'"
+  />
+
+  成功状态：输出 `Docker daemon 可用`。
+
+  失败判断：
+
+  - daemon 连接错误：返回第 3 章检查 service；
+  - 权限错误：确认命令前包含 `sudo`；
+  - 模板报错：检查引号是否完整复制；
+  - 当前服务器已经出现未知容器：返回“开始之前”清点，而不是继续创建。
+</section>
+
+<section className="book-section" id="ch4-name">
+  ## 第一步：确认练习名称没有被占用
+
+  Docker 容器名称在同一个 daemon 中必须唯一。本章固定使用 `book03-hello`，先只读检查：
+
+  <CodeBlock
+    label="检查 book03-hello 是否已经存在"
+    code={helloNameCheck}
+  />
+
+  没有输出：名称可用，继续下一步。
+
+  有输出：先看 `IMAGE`、`STATUS` 和 `NAMES`。
+
+  - 如果它确实是你之前完成本章留下的 `hello-world` 练习容器，并且状态是 Exited，可以在确认后删除它再重做；
+  - 如果镜像、名称或用途无法确认，不要删除，换一个明确的练习环境。
+
+  仅在确认是本章旧练习对象时：
+
+  <CodeBlock
+    label="仅删除已确认的旧 book03-hello 练习容器"
+    code="sudo docker rm book03-hello"
+  />
+
+  成功输出是容器名称 `book03-hello`。如果提示容器仍在运行，不要加 `-f`；先确认为什么它与预期不同。
+</section>
+
+<section className="book-section" id="ch4-run">
+  ## 第二步：创建并运行具名容器
+
+  <InstructionStep number={1} title="执行一条最小 run 命令">
+    这条命令不包含端口、目录、环境变量或高权限参数，只指定容器名称和镜像引用。
+  </InstructionStep>
+
+  <CodeBlock
+    label="运行 book03-hello"
+    code={helloRun}
+  />
+
+  把命令拆开：
+
+  <ComparisonTable>
+
+  | 片段 | 含义 | 影响对象 |
+  | --- | --- | --- |
+  | `sudo` | 以管理员权限调用 Docker CLI | 当前命令权限 |
+  | `docker` | Docker CLI | 向 daemon 发送请求 |
+  | `run` | 创建并运行一个新容器 | 每次成功都会创建新容器 |
+  | `--name book03-hello` | 指定容易辨认的容器名称 | container |
+  | `hello-world:latest` | 使用的镜像引用 | image |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="这里使用 latest 只为一次性安装验证">
+    `hello-world` 不承载长期业务。本书长期运行的 Nginx 服务会使用明确版本标签；不要从这个例子推导出所有服务都应该使用 `latest`。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch4-six-actions">
+  ## docker run 背后发生的六个动作
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>1. 查找镜像</strong>
+      <small>本地是否有 hello-world</small>
+    </div>
+    <div className="flow-node">
+      <strong>2. 必要时拉取</strong>
+      <small>从 registry 下载镜像层</small>
+    </div>
+    <div className="flow-node">
+      <strong>3. 创建容器</strong>
+      <small>增加配置和可写层</small>
+    </div>
+    <div className="flow-node">
+      <strong>4. 准备网络</strong>
+      <small>加入默认网络，不发布端口</small>
+    </div>
+    <div className="flow-node">
+      <strong>5. 启动主进程</strong>
+      <small>运行镜像定义的程序</small>
+    </div>
+    <div className="flow-node">
+      <strong>6. 输出并退出</strong>
+      <small>终端显示文字，容器停止</small>
+    </div>
+  </FlowDiagram>
+
+  Docker 官方把 `docker run` 定义为“从镜像创建并运行新容器”；镜像缺失时会根据 pull policy 拉取。默认 pull policy 是 `missing`，即本地缺失时才拉取。
+
+  因为第 3 章已经运行过 `hello-world`，本次可能直接使用本地镜像，不再显示完整下载进度。这两种结果都正常：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本地没有镜像</p>
+
+      先出现拉取信息，再看到 `Hello from Docker!`。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本地已有镜像</p>
+
+      直接创建新容器并输出成功文字。
+    </section>
+  </InfoGrid>
+</section>
+
+<section className="book-section" id="ch4-output">
+  ## 第三步：读懂终端输出
+
+  成功输出会包含：
+
+  <TerminalMock title="book03-hello 成功输出节选">
+    <span className="term-green">Hello from Docker!</span><br />
+    This message shows that your installation appears to be working correctly.<br />
+    ...<br />
+    Docker streamed that output to the Docker client,<br />
+    which sent it to your terminal.
+  </TerminalMock>
+
+  这段输出来自容器中的程序，不是 Docker 网站弹出的提示框。
+
+  输出链路是：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>容器主进程</strong>
+      <small>打印说明文字</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker daemon</strong>
+      <small>接收容器输出</small>
+    </div>
+    <div className="flow-node">
+      <strong>Docker CLI</strong>
+      <small>保持附着并转发</small>
+    </div>
+    <div className="flow-node">
+      <strong>你的 SSH 终端</strong>
+      <small>显示最终文字</small>
+    </div>
+  </FlowDiagram>
+
+  成功状态：
+
+  - 看到 `Hello from Docker!`；
+  - 命令完成后回到 Ubuntu 提示符；
+  - 没有 daemon、权限、镜像或架构错误。
+
+  <Callout type="info" title="回到提示符不等于容器被删除">
+    `hello-world` 主进程已经结束，容器进入 Exited；因为本章没有使用 `--rm`，这个容器对象仍然存在。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch4-running-list">
+  ## 第四步：为什么 docker ps 看不到它
+
+  先查看当前正在运行的容器：
+
+  <CodeBlock
+    label="只查看运行中的容器"
+    code="sudo docker ps"
+  />
+
+  `book03-hello` 通常不在列表中，因为它已经停止。
+
+  再查看包括已停止容器的完整列表：
+
+  <CodeBlock
+    label="查看运行中和已停止容器"
+    code={helloNameCheck}
+  />
+
+  你应当看到类似：
+
+  <TerminalMock title="已停止容器列表">
+    CONTAINER ID&nbsp;&nbsp; IMAGE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; STATUS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NAMES<br />
+    a1b2c3d4e5f6&nbsp;&nbsp; hello-world:latest&nbsp;&nbsp; Exited (0) ...&nbsp; book03-hello
+  </TerminalMock>
+
+  容器 ID 是 Docker 分配的标识，实际值每次不同。本书用稳定名称操作，避免把随机 ID 抄进后续步骤。
+
+  `Exited (0)` 中：
+
+  - `Exited` 表示容器主进程已经结束；
+  - `0` 是退出码，通常表示程序正常完成；
+  - 非零退出码通常表示程序报告错误，但仍要结合日志和应用文档判断。
+</section>
+
+<section className="book-section" id="ch4-inspect">
+  ## 第五步：用 inspect 读取指定字段
+
+  `docker inspect` 可以返回大量 JSON 数据。JSON 是一种结构化文本格式；本章不要求阅读全部字段，而是用模板只取三个值：
+
+  <CodeBlock
+    label="读取状态、退出码和镜像引用"
+    code={helloInspect}
+  />
+
+  主线预期：
+
+  ```text
+  状态=exited 退出码=0 镜像=hello-world:latest
+  ```
+
+  这证明三个对象关系：
+
+  - `book03-hello` 是容器名称；
+  - 容器状态是 `exited`；
+  - 它由 `hello-world:latest` 镜像创建。
+
+  失败判断：
+
+  - `No such object`：容器没有成功创建，或名称写错；
+  - 模板解析错误：检查单引号、双花括号和中文空格；
+  - 状态不是 `exited`：先用 `docker ps -a` 核对对象；
+  - 退出码不是 0：保留输出，检查上一条 `run` 的完整错误。
+</section>
+
+<section className="book-section" id="ch4-run-start">
+  ## run 与 start 不是同一个动作
+
+  <ComparisonTable>
+
+  | 命令 | 对哪个对象操作 | 结果 |
+  | --- | --- | --- |
+  | `docker run IMAGE` | image | 创建一个新 container，再启动它 |
+  | `docker start NAME` | 已存在的 container | 启动原容器，不创建新容器 |
+  | `docker restart NAME` | 已存在的 container | 停止后再启动原容器 |
+  | `docker rm NAME` | 已停止的 container | 删除容器对象 |
+
+  </ComparisonTable>
+
+  如果再次执行同一条 `helloRun`，Docker 会试图创建另一个名为 `book03-hello` 的新容器，于是得到名称冲突；它不会自动复用旧容器。
+
+  <Callout type="warning" title="名称冲突是保护信号，不是让你加 force">
+    先用 `docker ps -a` 找到占用者，确认镜像、状态和用途。只有确定是可重建的练习容器，才执行定向删除。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch4-options">
+  ## 这次为什么没有使用 -d 或 --rm
+
+  <ComparisonTable>
+
+  | 选项 | 作用 | 本章为什么不用 |
+  | --- | --- | --- |
+  | `-d` / `--detach` | 在后台运行并打印容器 ID | 需要直接观察 hello-world 输出 |
+  | `--rm` | 容器退出时自动删除 | 需要保留容器检查 Exited 状态 |
+  | `-p` / `--publish` | 把容器端口发布到主机 | hello-world 没有 Web 端口 |
+  | `--privileged` | 赋予扩展主机能力 | 完全不需要，且会显著扩大风险 |
+
+  </ComparisonTable>
+
+  选项不是越多越完整。每个参数都应当对应明确需求。
+</section>
+
+<section className="book-section" id="ch4-failures">
+  ## 常见失败与判断
+
+  <ComparisonTable>
+
+  | 现象 | 先判断什么 | 不要立刻做什么 |
+  | --- | --- | --- |
+  | daemon 连接失败 | Docker service 是否 active | 不要重装 Docker |
+  | `permission denied` | 是否使用 `sudo` | 不要盲目加入 docker 组 |
+  | 镜像拉取超时 | DNS、服务器出口、Docker Hub 状态 | 不要使用未知镜像站 |
+  | `no matching manifest` | 当前 CPU 架构与镜像平台 | 不要强制错误平台 |
+  | 名称冲突 | `book03-hello` 是否已存在 | 不要加 `--rm -f` |
+  | 输出后立即 Exited | 退出码是否为 0 | 不要把正常结束当崩溃 |
+  | `No such object` | 容器名称和创建步骤 | 不要用随机 ID 猜对象 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch4-finish">
+  ## 本章完成标准
+
+  本章结束时保留 `book03-hello` 容器为 Exited，供下一章对照运行中容器。
+
+  你应当能够：
+
+  - 从 `hello-world:latest` 创建 `book03-hello`；
+  - 解释 `run` 包含查找、拉取、创建、启动和附着输出；
+  - 解释为什么容器主进程完成后会停止；
+  - 在 `docker ps -a` 中找到 Exited 容器；
+  - 用 inspect 看到状态、退出码和镜像引用；
+  - 区分 `run` 与 `start`；
+  - 知道 `-d`、`--rm`、`-p` 为什么没有出现在本章命令里。
+
+  <ChapterChecklist chapterId="book03-chapter-04">
+    我已经创建具名 hello-world 容器，看到正常输出和退出码 0，并能解释 run 会创建新容器、主进程结束后容器停止但不会自动删除。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch4-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 实测校订：
+
+  - [`docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+  - [`docker container ls`](https://docs.docker.com/reference/cli/docker/container/ls/)
+  - [`docker container inspect`](https://docs.docker.com/reference/cli/docker/container/inspect/)
+  - [What is a container?](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/)
+
+  仿真输出省略实际容器 ID、时间和镜像摘要，不是某一 Docker 版本的完整终端截图。
+</section>

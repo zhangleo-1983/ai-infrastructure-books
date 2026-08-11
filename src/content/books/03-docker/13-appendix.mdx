@@ -1,0 +1,500 @@
+---
+book: "03-docker"
+order: 13
+slug: "appendix"
+title: "附录：命令地图、检查清单与术语表"
+shortTitle: "附录"
+description: "按对象整理 Docker 与 Compose 常用命令、端口和存储决策、更新与排错清单、交接字段以及核心术语。"
+chapterType: "appendix"
+updatedAt: "2026-07-28"
+labels:
+  - "命令地图"
+  - "检查清单"
+  - "术语表"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Glossary from "../../../components/book/Glossary.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book03-appendix-use">
+  ## 怎样使用这份附录
+
+  这份附录用于“已经学过，但一时忘记从哪里查”。它不能替代正文中的影响范围、成功状态和失败判断。
+
+  使用速查命令前，先回答：
+
+  1. 当前终端是在自己的电脑，还是已经进入 VPS；
+  2. 当前目录是不是目标 Compose 项目；
+  3. 目标名称是否属于本书的 `book03-` 教学对象；
+  4. 命令只读取状态，还是会创建、停止、重建或删除对象；
+  5. 如果涉及数据，是否有已经验证过的备份。
+
+  <Callout type="warning" title="表格中的命令不是无条件复制清单">
+    表格为了方便查找，只显示命令和用途。第一次执行、遇到故障或准备删除数据时，必须回到对应章节阅读完整步骤。没有复制按钮的高风险命令只用于识别，不表示本书建议执行。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-appendix-object-map">
+  ## Docker 对象关系图
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Registry</strong>
+      <small>保存和分发镜像的服务</small>
+    </div>
+    <div className="flow-node">
+      <strong>Image</strong>
+      <small>只读模板、tag 与 digest</small>
+    </div>
+    <div className="flow-node">
+      <strong>Container</strong>
+      <small>由镜像创建的运行实例</small>
+    </div>
+    <div className="flow-node">
+      <strong>Service</strong>
+      <small>Compose 中的一组期望配置</small>
+    </div>
+    <div className="flow-node">
+      <strong>Port / Mount</strong>
+      <small>访问入口和持久数据边界</small>
+    </div>
+    <div className="flow-node">
+      <strong>Project</strong>
+      <small>Compose 文件与关联对象</small>
+    </div>
+  </FlowDiagram>
+
+  对象之间不是“同一个东西的不同叫法”：
+
+  - registry 中保存镜像；
+  - image 是创建容器的只读模板；
+  - container 是实际运行或已经停止的实例；
+  - Compose service 描述容器应该怎样创建；
+  - port 决定从哪里访问；
+  - volume 或 bind mount 决定重要文件保存在哪里；
+  - Compose project 用项目名把 service、容器和网络组织起来。
+</section>
+
+<section className="book-section" id="book03-appendix-command-map">
+  ## 常用命令：先按对象分类
+
+  ### Docker Engine 与版本
+
+  <ComparisonTable>
+
+  | 想回答的问题 | 命令 | 是否改变状态 |
+  | --- | --- | --- |
+  | Docker 系统服务是否运行 | `sudo systemctl is-active docker` | 否 |
+  | CLI 与 daemon 是否都可连接 | `sudo docker version` | 否 |
+  | Compose plugin 是否存在 | `sudo docker compose version` | 否 |
+  | 查看 daemon 概况 | `sudo docker info` | 否 |
+
+  </ComparisonTable>
+
+  ### 镜像
+
+  <ComparisonTable>
+
+  | 想做什么 | 命令模式 | 影响 |
+  | --- | --- | --- |
+  | 查看本地镜像 | `sudo docker image ls` | 只读 |
+  | 拉取明确 tag | `sudo docker pull 镜像:tag` | 下载或更新本地镜像 |
+  | 读取镜像元数据 | `sudo docker image inspect 镜像:tag` | 只读 |
+  | 查看 ID 与 repo digest | `sudo docker image inspect --format '…' 镜像:tag` | 只读 |
+  | 删除一个明确镜像 | `sudo docker image rm 镜像或ID` | 删除本地镜像；先核对容器引用和回退需求 |
+
+  </ComparisonTable>
+
+  ### 容器
+
+  <ComparisonTable>
+
+  | 想做什么 | 命令模式 | 影响 |
+  | --- | --- | --- |
+  | 查看运行中容器 | `sudo docker ps` | 只读 |
+  | 查看包括已停止容器 | `sudo docker ps -a` | 只读 |
+  | 查看详细配置和状态 | `sudo docker inspect 容器名` | 只读 |
+  | 查看最近日志 | `sudo docker logs --tail=50 --timestamps 容器名` | 只读 |
+  | 启动已存在容器 | `sudo docker start 容器名` | 启动 |
+  | 正常停止容器 | `sudo docker stop 容器名` | 停止主进程 |
+  | 删除已停止容器 | `sudo docker rm 容器名` | 删除容器，不自动删除镜像和 named volume |
+
+  </ComparisonTable>
+
+  ### Volume 与 bind mount
+
+  <ComparisonTable>
+
+  | 想做什么 | 命令模式 | 影响 |
+  | --- | --- | --- |
+  | 列出 named volume | `sudo docker volume ls` | 只读 |
+  | 创建一个明确 volume | `sudo docker volume create 名称` | 创建 |
+  | 查看 volume 元数据 | `sudo docker volume inspect 名称` | 只读 |
+  | 找出引用 volume 的容器 | `sudo docker ps -a --filter volume=名称` | 只读 |
+  | 查看容器实际挂载 | `sudo docker inspect --format '…Mounts…' 容器名` | 只读 |
+  | 删除一个明确 volume | `sudo docker volume rm 完整名称` | 永久删除数据；只在备份和恢复验证后执行 |
+
+  </ComparisonTable>
+
+  bind mount 是主机路径，不由 `docker volume ls` 管理。查找它时应从 Compose 文件、`docker inspect` 和项目交接卡入手，不要进入 `/var/lib/docker` 猜测。
+
+  ### Compose 项目
+
+  <ComparisonTable>
+
+  | 想做什么 | 命令 | 影响 |
+  | --- | --- | --- |
+  | 检查配置语法和解析 | `sudo docker compose config -q` | 只读 |
+  | 查看 service 状态 | `sudo docker compose ps` | 只读 |
+  | 查看包括已停止 service | `sudo docker compose ps -a` | 只读 |
+  | 查看最近日志 | `sudo docker compose logs --tail=50 --timestamps service名` | 只读 |
+  | 启动或应用配置 | `sudo docker compose up -d` | 创建、启动，必要时重建 |
+  | 停止 service | `sudo docker compose stop` | 停止，保留容器和网络 |
+  | 启动已停止 service | `sudo docker compose start` | 启动已有容器 |
+  | 拉取 service 镜像 | `sudo docker compose pull service名` | 拉取镜像，不启动容器 |
+  | 删除项目运行对象 | `sudo docker compose down` | 删除容器和默认网络；不应随意增加 `-v` |
+
+  </ComparisonTable>
+
+  <Callout type="info" title="Compose 命令依赖项目上下文">
+    默认情况下，Compose 从当前目录寻找 `compose.yaml`。先用 `pwd` 和 `sudo docker compose config -q` 确认项目，再执行会改变状态的命令。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-appendix-run-compose">
+  ## `docker run` 与 Compose 字段对照
+
+  <ComparisonTable>
+
+  | `docker run` 中的作用 | Compose 字段 | 本书示例 |
+  | --- | --- | --- |
+  | `--name` 指定容器名 | 通常交给 Compose 按 project 和 service 生成 | project `book03-compose-demo`、service `web` |
+  | 命令末尾的镜像 | `services.<name>.image` | `nginx:1.30.4-alpine` |
+  | `-p` / `--publish` | `ports` | `"127.0.0.1:8080:80"` |
+  | `--mount type=bind,…` | `volumes` | `./site:/usr/share/nginx/html:ro` |
+  | `--mount type=volume,…` | `volumes` + 可选顶层 `volumes` | named volume |
+  | `-e` / `--env` | `environment` | 只放普通配置 |
+  | `--env-file` | `env_file` | 文件仍是普通文本，不是保险箱 |
+  | `--restart` | `restart` | `unless-stopped` |
+  | 日志 driver 和 options | `logging` | `local`、`10m`、`3` |
+  | 容器启动命令 | `command` | 本书 Nginx 主线使用镜像默认命令 |
+
+  </ComparisonTable>
+
+  Compose 文件的价值不是让配置变得“更高级”，而是把创建条件写成可以审阅、备份、比较和重复应用的文本。
+</section>
+
+<section className="book-section" id="book03-appendix-port-check">
+  ## 端口映射检查表
+
+  看到 `127.0.0.1:8080:80` 时，从右向左读：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>容器端口 80</strong>
+      <small>应用在容器内接收请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>主机端口 8080</strong>
+      <small>VPS 上的入口端口</small>
+    </div>
+    <div className="flow-node">
+      <strong>主机地址 127.0.0.1</strong>
+      <small>只从 VPS 本机访问</small>
+    </div>
+  </FlowDiagram>
+
+  <ComparisonTable>
+
+  | 检查项 | 正常证据 | 异常时先看 |
+  | --- | --- | --- |
+  | 容器是否运行 | `compose ps` 为 Up / Running | 状态、退出码、日志 |
+  | Compose 映射 | `compose port web 80` 返回本机地址和端口 | `compose.yaml` 的 `ports` |
+  | 主机监听 | `ss -lntp` 能找到主机端口 | 端口冲突、容器是否创建成功 |
+  | VPS 本机请求 | `curl 127.0.0.1:主机端口` 返回预期内容 | 应用、挂载、端口 |
+  | 监听范围 | 预期是 `127.0.0.1`，不是 `0.0.0.0` | Compose 端口左侧地址 |
+  | 公网入口 | 本书主项目没有公网入口 | 云防火墙、主机防火墙和 Docker 规则需要另行设计 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="容器端口不是云防火墙规则">
+    云防火墙、VPS 主机地址、主机端口、Docker 发布规则和容器端口是不同层级。浏览器打不开时，不要在不知道哪一层失败的情况下同时修改全部层级。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-appendix-storage-choice">
+  ## Volume、bind mount 与容器可写层怎样选择
+
+  <ComparisonTable>
+
+  | 位置 | 谁管理 | 适合什么 | 删除边界 |
+  | --- | --- | --- | --- |
+  | 容器可写层 | Docker 随容器管理 | 临时文件、可丢弃缓存 | 删除容器时一起消失 |
+  | named volume | Docker | 应用数据、希望独立于容器生命周期的数据 | 删除容器后通常仍在；必须单独核对和备份 |
+  | bind mount | 主机管理员 | 需要直接编辑、审阅或纳入项目备份的文件 | 容器可能修改主机文件；只读挂载可减少风险 |
+  | 镜像只读层 | 镜像发布者与构建过程 | 程序和默认文件 | 换镜像或重建时重新获得，不是业务数据位置 |
+
+  </ComparisonTable>
+
+  选择问题：
+
+  1. 文件是否需要在删除容器后保留；
+  2. 是否需要在主机上直接编辑；
+  3. 应用是否要求特定文件所有者或权限；
+  4. 容器是否只需要读取；
+  5. 怎样备份、恢复和验证；
+  6. 删除时怎样确认没有其他容器引用。
+
+  <Callout type="warning" title="持久化与备份不是同一个词">
+    数据放进 volume 或主机目录，只说明它独立于容器可写层。磁盘损坏、VPS 删除、误操作和应用写坏数据仍可能造成丢失。
+  </Callout>
+</section>
+
+<section className="book-section" id="book03-appendix-update-check">
+  ## 更新前后检查表
+
+  ### 更新前
+
+  - □ 已确认项目目录和 service 名称；
+  - □ `docker compose config -q` 通过；
+  - □ 当前状态、页面和最近日志正常；
+  - □ Compose 文件与 bind mount 内容已备份；
+  - □ 持久数据已按应用一致性要求备份；
+  - □ 至少一次恢复验证已经完成；
+  - □ 当前镜像 tag、ID 与 digest 已记录；
+  - □ 磁盘有容纳新镜像和备份的空间；
+  - □ 已知道怎样回到最后已知正常版本；
+  - □ 没有同时夹带无关配置、网络或防火墙变更。
+
+  ### 更新时
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>pull</strong>
+      <small>拉取 service 镜像</small>
+    </div>
+    <div className="flow-node">
+      <strong>up -d</strong>
+      <small>必要时重建容器</small>
+    </div>
+    <div className="flow-node">
+      <strong>ps</strong>
+      <small>确认状态与重启次数</small>
+    </div>
+    <div className="flow-node">
+      <strong>curl</strong>
+      <small>验证实际功能</small>
+    </div>
+    <div className="flow-node">
+      <strong>logs</strong>
+      <small>检查更新后的错误</small>
+    </div>
+    <div className="flow-node">
+      <strong>记录</strong>
+      <small>保存新镜像身份与日期</small>
+    </div>
+  </FlowDiagram>
+
+  ### 更新后
+
+  - □ service 持续 Running，而不是不断 Restarting；
+  - □ 端口、挂载和日志 driver 与更新前一致；
+  - □ 本机功能验证通过；
+  - □ 没有新的持续错误日志；
+  - □ 数据和配置仍在预期位置；
+  - □ 新镜像 ID / digest 已记录；
+  - □ 旧镜像没有在验证前被删除；
+  - □ 交接卡已更新。
+</section>
+
+<section className="book-section" id="book03-appendix-danger">
+  ## 高风险命令识别表
+
+  以下内容没有复制按钮，只用于识别影响范围。
+
+  <ComparisonTable>
+
+  | 命令或参数 | 可能影响 | 执行前至少确认 |
+  | --- | --- | --- |
+  | `docker rm -f` | 强制停止并删除容器 | 容器身份、正常 stop 是否可用、现场是否需要保留 |
+  | `docker compose down` | 当前 Compose 项目的容器和默认网络 | 当前目录、project 名称、是否允许短时中断 |
+  | `docker compose down -v` | 还会删除 Compose 声明的 volume | 数据备份、恢复验证、volume 归属 |
+  | `docker volume rm` | 一个明确 volume 中的数据 | 完整名称、容器引用、备份和恢复结果 |
+  | `docker volume prune` | 没有被容器引用的 volume；选项可能扩大范围 | 全部项目清单和每个离线数据用途 |
+  | `docker image prune` | 符合条件的本地镜像 | 是否仍需用于回退或离线重建 |
+  | `docker system prune` | 多类 unused 对象；选项会扩大到 volume | 全机 Docker 对象、多个项目和回退计划 |
+  | `--privileged` | 大幅增加容器对主机的能力 | 镜像来源、真实必要性和更小权限替代方案 |
+  | 挂载 `/var/run/docker.sock` | 容器可能控制 Docker daemon | 应用信任、攻击面和独立管理方案 |
+  | 挂载 `/`、`/etc` 或其他敏感主机目录 | 容器可读取或修改关键主机文件 | 最小路径、只读需求和隔离环境 |
+
+  </ComparisonTable>
+
+  “unused” 是 Docker 根据对象引用关系做出的技术判断，不等于作者、团队或业务负责人已经确认数据无价值。
+</section>
+
+<section className="book-section" id="book03-appendix-troubleshooting">
+  ## 故障定位决策树
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>1. 主机正常吗</strong>
+      <small>磁盘、内存、网络、系统状态</small>
+    </div>
+    <div className="flow-node">
+      <strong>2. daemon 可用吗</strong>
+      <small>systemctl 与 docker version</small>
+    </div>
+    <div className="flow-node">
+      <strong>3. 配置能解析吗</strong>
+      <small>compose config -q</small>
+    </div>
+    <div className="flow-node">
+      <strong>4. 容器运行吗</strong>
+      <small>ps -a、inspect、退出码</small>
+    </div>
+    <div className="flow-node">
+      <strong>5. 应用可工作吗</strong>
+      <small>日志、挂载、配置与进程</small>
+    </div>
+    <div className="flow-node">
+      <strong>6. 请求能到达吗</strong>
+      <small>port、ss、curl、外部入口</small>
+    </div>
+  </FlowDiagram>
+
+  <ComparisonTable>
+
+  | 第一处失败 | 优先证据 | 先不要做 |
+  | --- | --- | --- |
+  | 主机资源 | `df -h /`、`free -h`、系统日志 | 不要直接 system prune |
+  | Docker daemon | `systemctl is-active docker`、`docker version` | 不要改 Compose 或云防火墙 |
+  | Compose 配置 | `pwd`、`config -q`、解析后的配置 | 不要反复 up |
+  | 容器状态 | `ps -a`、inspect、最近日志 | 不要反复 restart |
+  | 应用或挂载 | 配置验证、挂载、文件、权限 | 不要在容器里做永久修补 |
+  | 主机端口 | `compose port`、`ss` | 不要先开放公网 |
+  | 本机 curl | HTTP 状态、应用日志 | 不要把问题归因于浏览器 |
+  | 外部访问 | 绑定地址、SSH 隧道、主机与云防火墙 | 不要同时改多个网络层 |
+
+  </ComparisonTable>
+
+  一旦上一层失败，就先停在这一层。排错的结束条件是找到第一处偏离预期的证据，并用最小范围恢复，而不是让报错暂时消失。
+</section>
+
+<section className="book-section" id="book03-appendix-handoff">
+  ## Compose 项目交接卡速查
+
+  完整模板在第 12 章。交接卡至少记录：
+
+  <ComparisonTable>
+
+  | 分类 | 必填字段 | 禁止写入 |
+  | --- | --- | --- |
+  | 项目标识 | 项目目录、project、service、用途、负责人 | 账户密码 |
+  | 运行入口 | 监听地址、主机端口、容器端口、本机验证命令 | 未脱敏公网 IP |
+  | 镜像 | 镜像名、tag、实际 ID / digest、记录日期 | 仓库 token |
+  | 数据 | bind mount、volume、配置和环境文件位置 | `.env` 真实内容 |
+  | 维护 | config、ps、logs、更新与回退步骤 | shell 历史中的秘密 |
+  | 备份 | 文件位置、日期、异机副本、恢复验证日期 | 云存储访问密钥 |
+  | 边界 | 是否公网开放、未配置功能、相邻项目 | 第二册 UUID、Reality 私钥或订阅 URL |
+
+  </ComparisonTable>
+
+  交接卡的目标是让另一位维护者知道“从哪里验证”，不是把所有敏感材料复制到一个文件。
+</section>
+
+<section className="book-section" id="book03-appendix-desktop">
+  ## Docker Engine 与 Docker Desktop 概念对照
+
+  <ComparisonTable>
+
+  | 项目 | 本书服务器主线 | Docker Desktop |
+  | --- | --- | --- |
+  | 使用位置 | Ubuntu VPS | Windows、macOS 或 Linux 桌面电脑 |
+  | 核心目标 | 在服务器运行 Docker Engine 与 Compose | 为本地开发提供 Docker、虚拟化和图形界面整合 |
+  | 本书是否安装 | 是，使用 Docker 官方 APT 软件源 | 否 |
+  | 命令关系 | 使用 `docker` 与 `docker compose` | 也可提供相同 CLI，但后台运行环境不同 |
+  | 网络差异 | 直接面对 VPS 主机网络和防火墙 | 通常还经过 Desktop 管理的 VM 或本地集成层 |
+  | 文件差异 | bind mount 直接来自 VPS 文件系统 | 文件共享受 Desktop 设置和桌面权限影响 |
+
+  </ComparisonTable>
+
+  不要把 Docker Desktop 教程中的按钮、路径和网络结论直接套到 Ubuntu VPS，也不要因为桌面电脑安装了 Desktop，就认为远程 VPS 已经安装 Docker Engine。
+</section>
+
+<section className="book-section" id="book03-appendix-dockerfile">
+  ## 最小认读：Dockerfile 是什么
+
+  Dockerfile 是构建镜像时使用的文本说明，不是 Compose 文件，也不是正在运行的容器。
+
+  <ComparisonTable>
+
+  | 文件或对象 | 回答的问题 |
+  | --- | --- |
+  | Dockerfile | 这个镜像怎样构建 |
+  | Image | 构建或拉取后得到的只读模板 |
+  | `compose.yaml` | 一套 service 应该怎样运行 |
+  | Container | Compose 或 run 实际创建的运行实例 |
+
+  </ComparisonTable>
+
+  本册不要求编写或发布镜像。看到陌生 Dockerfile 时，至少先检查基础镜像来源、复制进镜像的文件、安装命令、运行用户、暴露端口和启动命令；不要只因为它能 build 就认定安全。
+</section>
+
+<section className="book-section" id="book03-appendix-glossary">
+  ## 核心术语
+
+  <Glossary>
+    <dt>VPS</dt><dd>运行在云服务商数据中心的虚拟服务器。第三册把 Docker Engine 安装在 VPS 的 Ubuntu 系统中。</dd>
+    <dt>Docker Engine</dt><dd>在服务器上创建和管理镜像、容器、网络与 volume 的 Docker 运行环境。</dd>
+    <dt>Docker CLI</dt><dd>读者在终端输入的 <code>docker</code> 命令行客户端；它向 Docker daemon 发出请求。</dd>
+    <dt>Docker daemon</dt><dd>通常指 <code>dockerd</code> 后台服务，实际管理 Docker 对象。控制 daemon 接近主机管理员权限。</dd>
+    <dt>Registry</dt><dd>保存和分发镜像的服务。Docker Hub 是 registry 的一个例子。</dd>
+    <dt>Repository</dt><dd>registry 中组织同一镜像不同版本或变体的仓库路径。</dd>
+    <dt>Image</dt><dd>用于创建容器的只读分层模板，包含程序、依赖和默认文件。</dd>
+    <dt>Tag</dt><dd>镜像引用中便于人阅读的标签；同一个 tag 以后可能指向不同内容。</dd>
+    <dt>Digest</dt><dd>根据镜像内容生成的摘要标识，用于更准确地记录实际镜像身份。</dd>
+    <dt>Layer</dt><dd>镜像由多个只读层组成；共享已有层可以减少重复下载和存储。</dd>
+    <dt>Container</dt><dd>由镜像创建的运行实例，本质上是主机上的隔离进程和相关文件、网络配置。</dd>
+    <dt>Writable layer</dt><dd>容器自己的可写层。删除容器时其中未持久化的数据一起消失。</dd>
+    <dt>Port</dt><dd>网络服务在主机或容器中接收连接的编号。主机端口和容器端口属于不同层级。</dd>
+    <dt>Publish</dt><dd>把容器端口映射到 Docker 主机地址和端口，使主机或外部网络能够访问。</dd>
+    <dt>Loopback</dt><dd>回环地址，例如 <code>127.0.0.1</code>；本书用它限制服务只从 VPS 本机访问。</dd>
+    <dt>Volume</dt><dd>由 Docker 管理、生命周期独立于单个容器的数据存储对象。</dd>
+    <dt>Named volume</dt><dd>具有稳定名称的 volume，便于 Compose 引用、检查、备份和精确管理。</dd>
+    <dt>Bind mount</dt><dd>把明确的主机文件或目录映射进容器。默认可能可写，应按需要使用只读挂载。</dd>
+    <dt>Mount target</dt><dd>挂载在容器内部出现的目标路径。</dd>
+    <dt>Environment variable</dt><dd>以名称和值传入进程的配置方式；可能通过 inspect、日志或进程环境暴露，不应默认当作秘密保险箱。</dd>
+    <dt>Secret</dt><dd>密码、API key、私钥、令牌等必须受限保存的敏感值。Compose secret 是一种文件挂载模型，不是自动托管的云密码库。</dd>
+    <dt>Compose</dt><dd>读取 Compose 文件并管理一套 service、网络和挂载的 Docker 工具。</dd>
+    <dt>Compose project</dt><dd>由项目名组织的一组 Compose 对象，通常与一个固定项目目录对应。</dd>
+    <dt>Service</dt><dd>Compose 文件中对一类容器期望状态的定义，例如镜像、端口、挂载和重启策略。</dd>
+    <dt>YAML</dt><dd>Compose 文件使用的结构化文本格式。空格缩进和字段层级具有含义。</dd>
+    <dt>Restart policy</dt><dd>容器退出或 Docker daemon 重启时，Docker 是否尝试重新启动容器的规则。</dd>
+    <dt>Logging driver</dt><dd>Docker 收集和保存容器标准输出、标准错误的方式；应控制日志增长。</dd>
+    <dt>Exit code</dt><dd>主进程结束时返回的数字。0 常表示正常结束，非 0 需要结合日志和应用文档判断。</dd>
+    <dt>Healthcheck</dt><dd>周期检查容器内应用健康状态的机制。没有配置 healthcheck 时，Running 不自动等于应用功能正常。</dd>
+    <dt>Prune</dt><dd>按 Docker 的 unused 条件批量删除一类或多类对象。技术上的 unused 不代表业务数据没有价值。</dd>
+    <dt>Dockerfile</dt><dd>描述怎样构建镜像的文本文件；与描述怎样运行 service 的 Compose 文件不同。</dd>
+    <dt>Docker Desktop</dt><dd>面向桌面电脑的 Docker 产品整合，不是本册 Ubuntu VPS 的安装主线。</dd>
+  </Glossary>
+</section>
+
+<section className="book-section" id="book03-appendix-final">
+  ## 最后一张安全检查卡
+
+  在下一次复制 Docker 命令前，确认：
+
+  - □ 我知道当前操作对象的完整名称；
+  - □ 我知道命令会读取、创建、停止、重建还是删除；
+  - □ 我没有把未知镜像、未知 Compose 文件或未知脚本当作可信输入；
+  - □ 我没有使用 `--privileged`、Docker socket 或宽泛主机目录挂载绕过问题；
+  - □ 端口监听范围符合预期，没有意外新增公网入口；
+  - □ 敏感值没有进入命令、日志、截图、Compose 文件或 Git；
+  - □ 数据位置已经确认，删除前有备份和恢复验证；
+  - □ 我先收集状态与日志，没有用 restart 覆盖现场；
+  - □ 操作不会停止或修改第二册的 3X-UI / Xray；
+  - □ 交接卡和校订日期会随真实状态更新。
+</section>

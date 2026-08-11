@@ -1,0 +1,459 @@
+---
+book: "03-docker"
+order: 12
+slug: "12-handoff"
+title: "整理 Compose 项目，进入下一册"
+shortTitle: "整理与交接"
+description: "把运行状态、配置、端口、数据、日志、备份和维护入口整理为不含秘密的交接记录。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 12
+duration: "预计 25—35 分钟"
+labels:
+  - "项目交接"
+  - "最终检查"
+  - "系列衔接"
+completionId: "book03-chapter-12"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const finalBaseline =
+  `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const projectFiles =
+  `cd "$HOME/docker-labs/compose-web"
+find . -maxdepth 3 -type f -print | sort`;
+
+export const runtimeInventory =
+  `cd "$HOME/docker-labs/compose-web"
+CONTAINER_ID="$(sudo docker compose ps -q web)"
+sudo docker compose images
+sudo docker compose port web 80
+sudo docker inspect --format '{{range .Mounts}}{{.Type}} source={{.Source}} target={{.Destination}} rw={{.RW}}{{println}}{{end}}' "$CONTAINER_ID"
+sudo docker inspect --format 'restart={{.HostConfig.RestartPolicy.Name}} log={{.HostConfig.LogConfig.Type}} max-size={{index .HostConfig.LogConfig.Config "max-size"}} max-file={{index .HostConfig.LogConfig.Config "max-file"}}' "$CONTAINER_ID"`;
+
+export const imageIdentity =
+  `IMAGE_ID="$(sudo docker compose images -q web)"
+sudo docker image inspect --format 'id={{.Id}} digests={{json .RepoDigests}} created={{.Created}}' "$IMAGE_ID"`;
+
+export const backupInventory =
+  `cd "$HOME/docker-labs/backups"
+printf '项目备份：'
+cat latest-compose-backup.txt
+printf '数据备份：'
+cat latest-volume-backup.txt
+ls -lh "$(cat latest-compose-backup.txt)" "$(cat latest-volume-backup.txt)"
+tar -tzf "$(cat latest-compose-backup.txt)" | sed -n '1,20p'
+tar -tzf "$(cat latest-volume-backup.txt)" | sed -n '1,20p'`;
+
+export const handoffTemplate = `# book03-compose-demo 交接卡
+
+校验日期：<YYYY-MM-DD>
+
+## 项目标识
+
+- 用途：第三册 Docker / Compose 教学 Web 服务
+- 项目目录：$HOME/docker-labs/compose-web
+- Compose project name：book03-compose-demo
+- service：web
+- 负责人或维护联系人：<姓名或团队，不写登录凭证>
+
+## 运行入口
+
+- 容器内端口：80/tcp
+- 主机监听：127.0.0.1:8080
+- 公网暴露：否
+- 本机验证：curl --fail --show-error http://127.0.0.1:8080
+
+## 镜像与运行策略
+
+- 镜像声明：nginx:1.30.4-alpine
+- 当前 image ID：<粘贴检查结果，不写密钥>
+- 当前 digest：<粘贴检查结果>
+- restart policy：unless-stopped
+- logging driver：local
+- 日志限制：max-size=10m，max-file=3
+
+## 配置与数据
+
+- Compose 文件：$HOME/docker-labs/compose-web/compose.yaml
+- Web 内容：$HOME/docker-labs/compose-web/site/
+- 挂载方式：bind mount，容器内只读
+- volume：当前主 service 不使用 named volume
+- 秘密存放位置：无；未来只记录位置和负责人，不写秘密值
+
+## 备份与恢复
+
+- 项目备份指针：$HOME/docker-labs/backups/latest-compose-backup.txt
+- 教学 volume 备份指针：$HOME/docker-labs/backups/latest-volume-backup.txt
+- 最近一次恢复验证：<YYYY-MM-DD>
+- 异机副本位置：<真实项目必须填写；不要记录访问密钥>
+
+## 维护入口
+
+- 配置检查：sudo docker compose config -q
+- 状态检查：sudo docker compose ps
+- 日志检查：sudo docker compose logs --tail=50 --timestamps web
+- 更新步骤：先备份和记录镜像，再 pull、up、验证
+- 回退依据：项目备份、更新前镜像记录和已验证数据备份
+
+## 已知边界
+
+- 只监听服务器回环地址，不能直接从公网访问 8080
+- 没有配置域名、DNS、TLS、反向代理或应用鉴权
+- 不应停止或修改第二册的 3X-UI / Xray 服务
+- 不执行 system prune、volume prune 或 down -v 作为日常清理`;
+
+export const verifyHandoff =
+  `cd "$HOME/docker-labs/compose-web"
+chmod 600 HANDOFF.md
+grep -E '项目目录|主机监听|镜像声明|项目备份指针|已知边界' HANDOFF.md
+grep -En 'BEGIN .*PRIVATE KEY|password[[:space:]]*[:=]|token[[:space:]]*[:=]' HANDOFF.md
+grep -En '([0-9]{1,3}\\.){3}[0-9]{1,3}' HANDOFF.md | grep -v '127\\.0\\.0\\.1'`;
+
+export const maintainerReadOnlyCheck =
+  `cd "$HOME/docker-labs/compose-web"
+pwd
+sed -n '1,220p' HANDOFF.md
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080
+sudo docker compose logs --tail=20 --timestamps web`;
+
+export const finalObjectCheck =
+  `sudo docker ps --filter label=com.docker.compose.project=book03-compose-demo
+sudo docker ps -a --filter name=book03-
+sudo docker volume ls --filter name=book03-
+sudo ss -lntp | grep ':8080 '`;
+
+<LearningGoals
+  audience="已经完成 Docker 基础练习，希望把服务交给未来的自己或另一位维护者的读者"
+  duration="预计 25—35 分钟"
+  outcome="得到一份不含敏感凭证的 Compose 项目交接卡，完成配置、运行、备份和安全边界的最终核验，并知道怎样进入后续图书"
+/>
+
+<section className="book-section" id="ch12-result">
+  ## 这一章要解决什么
+
+  一套服务“今天能打开”，不等于“下个月还能维护”。当你忘记项目目录、端口、镜像版本、数据位置和备份方法时，即使容器仍在运行，也很容易因为一次更新或清理失去控制。
+
+  本章不再增加新的 Docker 功能，而是把前面章节已经完成的结果整理成可交接状态：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>声明</strong>
+      <small>compose.yaml 能解析</small>
+    </div>
+    <div className="flow-node">
+      <strong>运行</strong>
+      <small>service、镜像、端口和策略</small>
+    </div>
+    <div className="flow-node">
+      <strong>数据</strong>
+      <small>bind mount 与备份位置</small>
+    </div>
+    <div className="flow-node">
+      <strong>验证</strong>
+      <small>状态、curl 和日志证据</small>
+    </div>
+    <div className="flow-node">
+      <strong>边界</strong>
+      <small>没有公网入口与敏感值</small>
+    </div>
+    <div className="flow-node">
+      <strong>下一步</strong>
+      <small>域名或新的 Compose 应用</small>
+    </div>
+  </FlowDiagram>
+
+  最终交付物是一份 `HANDOFF.md`。它记录“去哪里查”和“怎样验证”，但绝不记录密码、SSH 私钥、API token、第二册 UUID、Reality 私钥或订阅 URL。
+</section>
+
+<section className="book-section" id="ch12-baseline">
+  ## 第一步：确认项目仍然正常
+
+  <CodeBlock label="执行最终基线" code={finalBaseline} />
+
+  成功状态：
+
+  - `config -q` 没有输出；
+  - `web` service 为 Up 或 Running；
+  - PORTS 仍然是 `127.0.0.1:8080 → 80/tcp`；
+  - curl 返回第 9 章修改后的“Compose 项目可以直接维护”页面。
+
+  失败判断：任何一项异常都返回第 10 章定位，不要在交接卡里把预期状态写成实际状态。
+
+  <Callout type="warning" title="本章不会用重启伪装验证">
+    `restart: unless-stopped` 描述 Docker daemon 重启后如何处理容器，但手动执行一次 `compose restart` 不能证明整台 VPS 重启流程正常。本章不重启共用服务器；真实服务应在维护窗口安排主机重启测试。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch12-files">
+  ## 第二步：列出项目文件
+
+  <CodeBlock label="查看项目文件树" code={projectFiles} />
+
+  主线应至少包含：
+
+  <TerminalMock title="预期项目结构">
+    <span className="term-blue">~/docker-labs/compose-web</span><br />
+    ├── compose.yaml<br />
+    ├── HANDOFF.md <span className="term-muted">（本章稍后创建）</span><br />
+    └── site/<br />
+    &nbsp;&nbsp;&nbsp;&nbsp;└── index.html
+  </TerminalMock>
+
+  如果出现 `.env`、密钥、备份压缩包或陌生二进制文件，先判断来源。项目备份应放在相邻的 `backups/`，真实 secrets 应由明确的秘密管理方式保存，不应因为“方便”塞进项目目录。
+
+  <ComparisonTable>
+
+  | 文件或目录 | 是否应该交接 | 交接内容 |
+  | --- | --- | --- |
+  | `compose.yaml` | 是 | 完整文件和校验方法 |
+  | `site/` | 是 | 路径、用途、是否只读挂载 |
+  | `HANDOFF.md` | 是 | 非敏感运行与维护信息 |
+  | `.env` / secrets | 只交接位置和负责人 | 不在文档中复制真实值 |
+  | Docker 数据目录 | 否 | 不手工移动 daemon 内部文件 |
+  | 本机备份 | 是 | 文件名、日期、异机副本状态 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch12-runtime">
+  ## 第三步：把声明与真实运行状态对上
+
+  先读取 service 使用的镜像、端口、挂载、重启策略和日志设置：
+
+  <CodeBlock label="采集运行清单" code={runtimeInventory} />
+
+  再记录镜像内容身份：
+
+  <CodeBlock label="记录当前 image ID 与 digest" code={imageIdentity} />
+
+  <MockWindow title="交接核对板">
+    <div slot="toolbar">
+      <MockStatusBadge>声明与运行证据一致</MockStatusBadge>
+    </div>
+    <div className="mock-grid">
+      <div className="mock-card">
+        <strong>镜像</strong>
+        <span>nginx:1.30.4-alpine + 实际 ID / digest</span>
+      </div>
+      <div className="mock-card">
+        <strong>端口</strong>
+        <span>127.0.0.1:8080 → 80/tcp</span>
+      </div>
+      <div className="mock-card">
+        <strong>挂载</strong>
+        <span>./site → Nginx html，rw=false</span>
+      </div>
+      <div className="mock-card">
+        <strong>策略</strong>
+        <span>unless-stopped；local 10m × 3</span>
+      </div>
+    </div>
+  </MockWindow>
+
+  这里比较的是两个来源：
+
+  - `compose.yaml` 表达希望的状态；
+  - `docker inspect` 表达当前容器真实采用的状态。
+
+  如果两者不一致，不要只改交接文档。先回到第 9、11 章重新应用配置并验证，再记录真实结果。
+</section>
+
+<section className="book-section" id="ch12-backups">
+  ## 第四步：确认备份仍然可见
+
+  <CodeBlock label="核对备份指针与归档目录" code={backupInventory} />
+
+  成功状态：
+
+  - 两个指针文件都能读出文件名；
+  - 对应压缩包存在且大小大于 0；
+  - 项目归档包含 `compose.yaml` 和 `site/index.html`；
+  - volume 归档包含第 7 章的网页文件；
+  - 没有 `gzip: unexpected end of file` 等损坏提示。
+
+  这一步只能证明本机文件当前可读。真实服务还要在交接卡中记录异机副本位置、加密方式、保留期和最近恢复日期，但不能把访问凭证写进卡片。
+
+  <Callout type="info" title="删除教学 volume 不等于删除备份">
+    第 11 章删除的是已经恢复验证过的原教学 volume；它的压缩包仍保留。当前运行的 Compose service 使用 `site/` bind mount，不依赖那个 volume。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch12-handoff-card">
+  ## 第五步：创建不含秘密的交接卡
+
+  <InstructionStep number={1} title="在项目目录创建 HANDOFF.md">
+    打开文件，把下面模板完整粘贴进去，再用本章命令的真实输出替换尖括号占位项。
+  </InstructionStep>
+
+  <CodeBlock label="打开交接卡" code={'cd "$HOME/docker-labs/compose-web"\nnano HANDOFF.md'} />
+
+  <CodeBlock label="HANDOFF.md 模板" code={handoffTemplate} printBreak />
+
+  保存后，把权限限制为只有当前账户可以读写，并做一次敏感信息模式检查：
+
+  <CodeBlock label="限制权限并检查交接卡" code={verifyHandoff} />
+
+  成功状态：
+
+  - 第一条 grep 能列出五类必要信息；
+  - 后两条敏感模式检查没有输出；
+  - 模板中的 `<YYYY-MM-DD>`、负责人和镜像占位项已经替换；
+  - 文件没有真实登录凭证、IP 地址、私钥、token 或订阅信息。
+
+  失败判断：
+
+  - 后两条检查有输出：人工检查命中行；如果是真实公网 IP 或凭证，立即从文档删除，凭证还要按泄漏处理流程轮换；
+  - 仍有尖括号占位项：交接尚未完成；
+  - 记录的路径或端口与 inspect 不一致：以验证过的运行状态为依据修正文档；
+  - 备份只记录“已备份”而没有文件位置和日期：未来维护者无法验证。
+
+  <Callout type="warning" title="正则检查只是辅助">
+    grep 无输出不能证明文件绝对没有秘密。它只能发现几种常见模式，最终仍需人工逐行阅读；提交到 Git 前还要再次检查 diff。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch12-maintainer">
+  ## 第六步：用另一位维护者的视角验证
+
+  假设几个月后的你只拿到项目路径和服务器管理员权限。下面的只读检查应该足以理解当前状态：
+
+  <CodeBlock label="从交接卡开始的只读检查" code={maintainerReadOnlyCheck} />
+
+  成功状态：不用查看 shell 历史，也不用猜容器名称，就能找到项目、读懂边界、验证配置、查看 service、请求页面并读取最近日志。
+
+  如果必须依赖“我记得当时执行过什么”，说明信息还没有进入 `compose.yaml`、项目文件或交接卡。补齐记录后再继续。
+</section>
+
+<section className="book-section" id="ch12-object-check">
+  ## 第七步：确认没有遗留练习对象
+
+  <CodeBlock label="核对 book03 对象和监听端口" code={finalObjectCheck} />
+
+  预期结果：
+
+  - 第一条只看到主 Compose service；
+  - 第二条不会看到 `book03-hello`、`book03-lifecycle`、`book03-port-local`、`book03-volume-a`、`book03-volume-b`、`book03-bind-web`、`book03-env-inspect`、`book03-restore-check` 等已结束练习；
+  - volume 列表没有 `book03-web-data-restore-test`，第 11 章完成清理后也没有 `book03-web-data`；
+  - TCP 8080 只监听 `127.0.0.1` 或 `::1`，不是 `0.0.0.0`。
+
+  如果发现额外对象，先回到创建它的章节确认用途。不要为了得到“干净输出”而批量 prune，也不要删除不确定是否属于其他项目的对象。
+
+  `$HOME/docker-labs/bind-web` 和 `$HOME/docker-labs/config-demo` 是主机上的教学目录，不是运行中的容器。它们不会占用端口；可以在完成全书并确认不再需要后，按明确路径另行归档或清理，本章不自动删除。
+</section>
+
+<section className="book-section" id="ch12-next-books">
+  ## 这套项目怎样进入后续图书
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">第四册：域名与 Cloudflare</p>
+
+      在理解 DNS、HTTPS 和反向代理后，为本机 service 设计受控入口；不要直接把 8080 暴露公网。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">第五册及以后：AI 应用</p>
+
+      为每个应用建立独立项目目录、Compose 文件、端口与数据边界，不复制本书 Nginx 配置冒充真实部署。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">继续共用 VPS</p>
+
+      每次先检查 CPU、内存、磁盘、已有端口与第二册服务；资源或风险边界不合适时使用另一台服务器。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">维护习惯</p>
+
+      先备份和记录，再更新；先取得证据，再恢复；先核对对象，再精确清理。
+    </section>
+  </InfoGrid>
+
+  当前 Nginx 只监听 `127.0.0.1:8080`，这正是一个安全的交接状态：服务可以在 VPS 本机验证，却没有为了“看起来完成”提前建立公网入口。
+
+  后续域名与 Cloudflare 章节需要重新设计访问链路。它可能加入反向代理、HTTPS 和访问控制，但不会改变本册已经建立的原则：应用 service 的内部职责、主机入口、数据和秘密必须分别说明。
+</section>
+
+<section className="book-section" id="ch12-finish">
+  ## 第三册最终交付状态
+
+  完成本册后，你得到的不是一组零散命令，而是一条可复现的维护链：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>安装</strong>
+      <small>官方 APT 源、Engine 与 Compose</small>
+    </div>
+    <div className="flow-node">
+      <strong>理解</strong>
+      <small>镜像、容器、端口与挂载</small>
+    </div>
+    <div className="flow-node">
+      <strong>声明</strong>
+      <small>compose.yaml 保存期望状态</small>
+    </div>
+    <div className="flow-node">
+      <strong>诊断</strong>
+      <small>状态、日志、inspect 与 curl</small>
+    </div>
+    <div className="flow-node">
+      <strong>维护</strong>
+      <small>备份、恢复、更新与精确清理</small>
+    </div>
+    <div className="flow-node">
+      <strong>交接</strong>
+      <small>HANDOFF.md 与下一册边界</small>
+    </div>
+  </FlowDiagram>
+
+  <ChapterChecklist
+    chapterId="book03-chapter-12"
+    items={[
+      "Docker Engine 和 Compose plugin 均可用",
+      "我能区分镜像、容器、service、端口和挂载",
+      "compose.yaml 能通过配置检查并重复创建 service",
+      "主 service 只监听 127.0.0.1:8080，未新增公网入口",
+      "页面、状态和最近日志均已实际验证",
+      "镜像 ID、digest、重启策略和日志限制已经记录",
+      "项目文件和备份目录位置已经核对",
+      "至少一次数据备份已完成恢复验证",
+      "没有遗留恢复测试容器或测试 volume",
+      "HANDOFF.md 已填写且不含密码、IP、私钥、token 或订阅信息",
+      "我知道批量 prune 与 down -v 不属于日常安全清理",
+      "我知道进入第四册前仍需设计域名、HTTPS、反向代理与访问控制",
+    ]}
+  />
+
+  当 12 个正式章节全部标记完成，且上面的结果都与服务器实际状态一致时，第三册才算完成。现在可以保留 Compose Web service 作为后续学习的本机示例，不需要为了结束本书而停止它。
+</section>
+
+<section className="book-section" id="ch12-sources">
+  ## 本章技术来源
+
+  本章校订日期：2026-08-11；最终运行清单、交接卡敏感模式检查和对象清单已在隔离 Ubuntu VPS 实测。
+
+  - [Docker Docs：How Compose works](https://docs.docker.com/compose/intro/compose-application-model/)
+  - [Docker Docs：docker compose config](https://docs.docker.com/reference/cli/docker/compose/config/)
+  - [Docker Docs：docker compose ps](https://docs.docker.com/reference/cli/docker/compose/ps/)
+  - [Docker Docs：docker compose images](https://docs.docker.com/reference/cli/docker/compose/images/)
+  - [Docker Docs：docker inspect](https://docs.docker.com/reference/cli/docker/inspect/)
+  - [Docker Docs：Start containers automatically](https://docs.docker.com/engine/containers/start-containers-automatically/)
+  - [Docker Docs：Bind mounts](https://docs.docker.com/engine/storage/bind-mounts/)
+</section>
