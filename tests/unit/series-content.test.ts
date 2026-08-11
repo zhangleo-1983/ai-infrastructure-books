@@ -115,9 +115,18 @@ describe("系列级内容规范", () => {
 
       expect(new Set(slugs).size).toBe(slugs.length);
       expect(new Set(orders).size).toBe(orders.length);
-      expect([...orders].sort((left, right) => left - right)).toEqual(
-        Array.from({ length: entries.length }, (_, index) => index),
-      );
+
+      const book = getBookById(bookId);
+      if (book && isReadableBook(book)) {
+        expect([...orders].sort((left, right) => left - right)).toEqual(
+          Array.from({ length: entries.length }, (_, index) => index),
+        );
+      } else {
+        expect(
+          orders.every((order) => Number.isInteger(order) && order >= 0),
+          `${bookId} 的草稿 order 必须是非负整数`,
+        ).toBe(true);
+      }
     },
   );
 
@@ -159,6 +168,39 @@ describe("系列级内容规范", () => {
       "10-instance-ready",
       "11-purchase-troubleshooting",
       "12-first-login-and-handoff",
+      "appendix",
+      "sources",
+    ]);
+    expect(entries.every(({ data }) => !data.draft)).toBe(true);
+    expect(
+      entries.filter(({ data }) => data.chapterType === "chapter"),
+    ).toHaveLength(12);
+    expect(entries.at(0)?.data.chapterType).toBe("introduction");
+    expect(entries.at(-2)?.data.chapterType).toBe("appendix");
+    expect(entries.at(-1)?.data.chapterType).toBe("sources");
+  });
+
+  it("第三册 Release Candidate 包含开始之前、第 1—12 章、附录和资料来源", () => {
+    const entries = bookContent("03-docker");
+
+    expect(entries).toHaveLength(15);
+    expect(entries.map(({ data }) => data.order)).toEqual(
+      Array.from({ length: 15 }, (_, index) => index),
+    );
+    expect(entries.map(({ data }) => data.slug)).toEqual([
+      "start",
+      "01-why-docker",
+      "02-image-and-container",
+      "03-install-docker",
+      "04-first-container",
+      "05-container-lifecycle",
+      "06-publish-ports",
+      "07-persist-data",
+      "08-config-and-secrets",
+      "09-docker-compose",
+      "10-troubleshooting",
+      "11-update-backup-cleanup",
+      "12-handoff",
       "appendix",
       "sources",
     ]);

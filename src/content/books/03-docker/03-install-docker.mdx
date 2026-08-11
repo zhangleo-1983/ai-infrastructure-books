@@ -1,0 +1,640 @@
+---
+book: "03-docker"
+order: 3
+slug: "03-install-docker"
+title: "从官方软件源安装 Docker Engine"
+shortTitle: "安装 Docker Engine"
+description: "在 Ubuntu 24.04 LTS 上配置 Docker 官方 APT 软件源，安装 Engine、CLI、containerd、Buildx 与 Compose plugin，并完成端到端验证。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 3
+duration: "预计 20—35 分钟，下载速度较慢时可能更久"
+labels:
+  - "核心样章"
+  - "官方软件源"
+  - "安装与验证"
+completionId: "book03-chapter-03"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const environmentCheck = `cat /etc/os-release
+dpkg --print-architecture
+whoami
+sudo -v
+df -h /`;
+
+export const conflictingPackageCheck = `dpkg --get-selections \\
+  docker.io docker-compose docker-compose-v2 docker-doc docker-buildx \\
+  podman-docker containerd runc 2>/dev/null | \\
+  awk '$2 == "install" {print $1}'`;
+
+export const removeConflictingPackages = `sudo apt remove $(dpkg --get-selections \\
+  docker.io docker-compose docker-compose-v2 docker-doc docker-buildx \\
+  podman-docker containerd runc 2>/dev/null | cut -f1)`;
+
+export const addDockerRepository = `sudo apt update
+sudo apt install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \\
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "\${UBUNTU_CODENAME:-\$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt update`;
+
+export const installDockerPackages = `sudo apt install \\
+  docker-ce \\
+  docker-ce-cli \\
+  containerd.io \\
+  docker-buildx-plugin \\
+  docker-compose-plugin`;
+
+export const versionChecks = `sudo docker version
+sudo docker compose version
+sudo docker buildx version`;
+
+<LearningGoals
+  audience="拥有一台可通过 SSH 登录的 Ubuntu 24.04 LTS VPS，并且从未安装过 Docker 的读者"
+  duration="预计 20—35 分钟，下载速度较慢时可能更久"
+  outcome="Docker Engine、Compose plugin 与 Buildx 均已安装，服务正常运行，hello-world 验证通过"
+/>
+
+<section className="book-section" id="ch3-result">
+  ## 这一章要完成什么
+
+  本章会在服务器上安装 Docker Engine。Docker Engine 是负责创建和运行容器的核心程序，其中常驻后台工作的部分叫 **Docker daemon**，中文常称“Docker 守护进程”。你在终端输入的 `docker` 命令，会由 Docker CLI（命令行工具）发送给这个守护进程执行。
+
+  我们不会使用来源不明的一键脚本，也不会把 Ubuntu 自带的 `docker.io` 软件包作为主线。本章采用 Docker 官方文档给出的 APT 软件源安装流程。
+
+  APT 是 Ubuntu 的软件包管理工具。**软件源**可以理解为 APT 查找和下载软件包的地址；把 Docker 官方软件源加入服务器以后，Docker 的安装和后续更新仍然可以由 APT 统一管理。
+
+  完成本章后，你应当得到：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Docker Engine</p>
+
+      后台服务处于 `active`，CLI 能同时显示 Client 与 Server 信息。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Compose plugin</p>
+
+      `sudo docker compose version` 可以正常显示版本。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">端到端验证</p>
+
+      `hello-world` 镜像可以下载、创建容器、运行并正常退出。
+    </section>
+  </InfoGrid>
+
+  <Callout type="warning" title="本章会修改服务器的软件源并安装系统服务">
+    安装过程会在 `/etc/apt/` 下增加 Docker 官方软件源和签名密钥，并安装会随系统启动的 Docker 服务。如果这台服务器已经运行你无法辨认的重要业务，先不要继续；安装 Docker 不应当成为“顺便重装服务器”的理由。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch3-model">
+  ## 先看懂安装链路
+
+  本章不是把一大段命令一次性粘贴进去。安装链路分成四层，每一层都要单独验证：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Ubuntu 与权限</strong>
+      <small>系统、架构、磁盘、`sudo`</small>
+    </div>
+    <div className="flow-node">
+      <strong>信任官方来源</strong>
+      <small>GPG key 与 APT source</small>
+    </div>
+    <div className="flow-node">
+      <strong>安装软件包</strong>
+      <small>Engine、CLI、containerd、plugins</small>
+    </div>
+    <div className="flow-node">
+      <strong>运行验证</strong>
+      <small>service、version、hello-world</small>
+    </div>
+  </FlowDiagram>
+
+  GPG key 是一份用于验证软件包来源的公开签名密钥。APT 会用它判断从 Docker 软件源取得的元数据是否带有对应签名。它不是你的服务器私钥，也不是登录凭证，可以由服务器读取。
+
+  <Callout type="info" title="签名验证不等于“任何 Docker 镜像都可信”">
+    本章的签名密钥用于验证 Docker 官方 APT 软件包。以后从镜像仓库下载的应用镜像属于另一条供应链，仍要检查镜像来源、发布者、标签和权限要求。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch3-before">
+  ## 开始前检查
+
+  本章主线环境是：
+
+  - Ubuntu 24.04 LTS；
+  - x86_64 / amd64 架构；
+  - `root` 账户，或可以使用 `sudo` 的管理员账户；
+  - 至少约 2 GB 可用磁盘空间；
+  - 服务器能够访问 Ubuntu 软件源、`download.docker.com` 和 Docker Hub；
+  - 如果与第二册共用服务器，已经记录 3X-UI、Xray 和其他现有服务。
+
+  Docker 官方在 2026-07-28 的 Ubuntu 安装文档中仍把 Ubuntu 24.04 LTS 列为受支持系统，并支持 amd64 架构。衍生发行版即使看起来像 Ubuntu，也不自动等于官方支持环境。
+
+  <Callout type="danger" title="不要为了跟随本章而重装一台正在使用的服务器">
+    系统或架构不符合主线时先停止，核对官方支持范围并决定是否换练习机。不要在没有备份、不了解现有业务的情况下重装系统，也不要删除第二册的面板、节点或入站配置。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch3-environment">
+  ## 第一步：确认系统、架构、权限和磁盘
+
+  <InstructionStep number={1} title="读取服务器自己的环境信息">
+    不要只凭云厂商控制台上的套餐名称判断。下面的命令直接读取当前登录服务器的系统信息。
+  </InstructionStep>
+
+  <CodeBlock
+    label="环境检查"
+    code={environmentCheck}
+  />
+
+  这些命令分别回答：
+
+  <ComparisonTable>
+
+  | 命令 | 你要看什么 | 本书主线期望 |
+  | --- | --- | --- |
+  | `cat /etc/os-release` | `NAME`、`VERSION_ID`、`VERSION_CODENAME` | Ubuntu、`24.04`、`noble` |
+  | `dpkg --print-architecture` | Ubuntu 软件包架构名 | `amd64` |
+  | `whoami` | 当前登录账户 | `root` 或已知管理员账户 |
+  | `sudo -v` | 当前账户能否取得管理员权限 | 没有报错，可能不显示任何文字 |
+  | `df -h /` | 根文件系统的剩余空间 | `Avail` 至少约 2 GB |
+
+  </ComparisonTable>
+
+  `x86_64` 和 `amd64` 在本书场景中指向同一类 64 位 CPU 架构。Linux 的 `uname` 常写 `x86_64`，Ubuntu 软件包系统使用 `amd64`，名称不同不代表买错了服务器。
+
+  成功状态：
+
+  - 系统是 Ubuntu 24.04 LTS；
+  - 架构是 `amd64`；
+  - `sudo -v` 没有出现权限错误；
+  - 根文件系统还有足够空间。
+
+  失败判断：
+
+  - `VERSION_ID` 不是 `24.04`：先核对是否仍在 Docker 官方支持范围，不要直接套用本章输出；
+  - 架构不是 `amd64`：Docker 可能仍支持，但镜像与命令输出需要单独校订；
+  - 出现 `is not in the sudoers file`：当前账户没有管理员权限；
+  - 磁盘接近 100%：先查明占用来源，不要靠盲目删除系统目录腾空间；
+  - `cat /etc/os-release` 显示 Debian、Linux Mint 等其他系统：停止使用本章 Ubuntu 主线。
+</section>
+
+<section className="book-section" id="ch3-inventory">
+  ## 第二步：确认服务器上有没有冲突安装
+
+  Ubuntu 软件源中的 `docker.io`、旧的独立 `docker-compose`，以及单独安装的 `containerd`、`runc` 等软件包，可能与 Docker 官方软件包发生冲突。
+
+  先只检查，不删除：
+
+  <CodeBlock
+    label="列出已安装的冲突软件包"
+    code={conflictingPackageCheck}
+  />
+
+  成功状态：
+
+  - 全新服务器通常没有任何输出，可以直接进入下一步；
+  - 如果有输出，每一行应当是一个已经安装的软件包名。
+
+  <Callout type="danger" title="看到输出时，不要马上复制卸载命令">
+    如果服务器上已经存在容器、镜像或业务服务，卸载软件包可能中断它们。先执行 `sudo docker ps -a`、查看运维记录，并确认这套 Docker 由谁安装、承载什么数据。无法确认时，本章应在这里暂停。
+  </Callout>
+
+  只有同时满足以下条件，才进入冲突包移除分支：
+
+  1. 你确认这是一台尚未承载 Docker 业务的练习服务器；
+  2. 上一步确实列出了冲突软件包；
+  3. 你已经知道移除的是软件包，不是为了清空 `/var/lib/docker` 数据目录；
+  4. 现有 `containerd` 或 `runc` 没有被其他你要保留的系统使用。
+
+  满足条件后，使用 Docker 官方当前列出的移除方式：
+
+  <CodeBlock
+    label="仅在已确认无现有 Docker 业务时移除冲突包"
+    code={removeConflictingPackages}
+  />
+
+  APT 会先列出计划移除的包，并询问是否继续。逐项核对后再输入 `Y`；如果列表里出现你不认识的重要软件，输入 `N` 取消。
+
+  <Callout type="info" title="移除软件包不会自动清空 Docker 数据目录">
+    Docker 官方文档说明，卸载冲突包不会自动删除 `/var/lib/docker/` 中的镜像、容器、volume 和网络。本章既不清空该目录，也不提供 `rm -rf` 清理命令；旧数据如何迁移必须另行评估。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch3-repository">
+  ## 第三步：加入 Docker 官方 APT 软件源
+
+  这一组操作会：
+
+  1. 更新 Ubuntu 已知的软件包列表；
+  2. 安装 HTTPS 证书支持和下载工具 `curl`；
+  3. 创建 APT 保存签名密钥的目录；
+  4. 从 Docker 官方域名下载公开签名密钥；
+  5. 写入一份 Docker 官方软件源配置；
+  6. 再次更新软件包列表，让 APT 读取新来源。
+
+  <InstructionStep number={1} title="逐行执行官方软件源配置">
+    可以整块复制，但执行后仍要按下面的小节验证结果。`EOF` 是用于结束多行文件输入的标记，最后一行必须单独出现，前面不要增加空格。
+  </InstructionStep>
+
+  <CodeBlock
+    label="配置 Docker 官方 APT 软件源"
+    code={addDockerRepository}
+  />
+
+  执行时可能看到 APT 下载索引、确认安装 `ca-certificates` 与 `curl`。服务器速度和输出行数会变化，不要用下载进度百分比判断最终是否成功。
+
+  <Callout type="info" title="这里没有把 Ubuntu 代号手写成 noble">
+    `Suites` 会从 `/etc/os-release` 读取当前 Ubuntu 代号。这样可以避免把另一版本服务器错误指向 `noble` 软件包；但自动读取也不能把不受支持的衍生系统变成受支持环境。
+  </Callout>
+
+  现在读取刚写入的文件：
+
+  <CodeBlock
+    label="检查 Docker 软件源配置"
+    code="cat /etc/apt/sources.list.d/docker.sources"
+  />
+
+  在本书主线环境中，关键字段应接近：
+
+  <TerminalMock title="Docker 软件源配置示意">
+    Types: deb<br />
+    URIs: https://download.docker.com/linux/ubuntu<br />
+    Suites: noble<br />
+    Components: stable<br />
+    Architectures: amd64<br />
+    Signed-By: /etc/apt/keyrings/docker.asc
+  </TerminalMock>
+
+  这是按文档字段绘制的示意输出，不是某个版本 Ubuntu 或 Docker 控制台的像素级截图。
+
+  再检查 APT 能否找到 Docker Engine 候选版本：
+
+  <CodeBlock
+    label="查看 Docker Engine 候选来源"
+    code="apt-cache policy docker-ce"
+  />
+
+  成功状态：
+
+  - `Candidate` 后面不是 `(none)`；
+  - 输出来源包含 `https://download.docker.com/linux/ubuntu`；
+  - Ubuntu 24.04 主线通常能看到 `noble/stable`。
+
+  失败判断：
+
+  - `curl: (6) Could not resolve host`：服务器 DNS 无法解析官方域名；
+  - `curl: (28) ... timed out`：服务器到 Docker 官方域名的连接超时；
+  - `Certificate verification failed`：先检查系统时间和 CA 证书，不要关闭 TLS 校验；
+  - APT 出现 `NO_PUBKEY` 或签名错误：检查 `docker.asc` 路径与 `Signed-By` 是否完全一致；
+  - `Candidate: (none)`：检查系统代号、架构和最后一次 `sudo apt update` 的错误；
+  - 软件源地址不是 Docker 官方域名：不要继续安装，先找出是谁写入了该配置。
+
+  <Callout type="warning" title="不要用“忽略签名”解决软件源错误">
+    不要加入 `trusted=yes`，不要关闭证书验证，也不要从论坛复制未知 GPG key。签名或证书错误意味着信任链没有建立，应当修复原因，而不是取消验证。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch3-packages">
+  ## 第四步：认识即将安装的五组软件包
+
+  本章安装命令看起来包含五个名字，它们的职责不同：
+
+  <ComparisonTable>
+
+  | 软件包 | 主要职责 | 本书什么时候会用到 |
+  | --- | --- | --- |
+  | `docker-ce` | Docker Engine 与后台服务 | 创建、运行和管理容器 |
+  | `docker-ce-cli` | `docker` 命令行客户端 | 本书所有 `sudo docker ...` 命令 |
+  | `containerd.io` | Docker 使用的容器运行时组件 | 由 Engine 管理，不要求读者直接操作 |
+  | `docker-buildx-plugin` | `docker buildx` 构建插件 | 本册只验证安装，不深入镜像构建 |
+  | `docker-compose-plugin` | Compose plugin | 从第 9 章开始管理 `compose.yaml` |
+
+  </ComparisonTable>
+
+  CE 是 Community Edition（社区版）的缩写。它不代表“缺少容器基本功能”；本系列服务器主线使用 Docker Engine 社区版。
+
+  Compose plugin 安装后的命令是带空格的 `docker compose`。旧资料里的 `docker-compose` 是另一种独立命令形式，本书不以它为主线。
+</section>
+
+<section className="book-section" id="ch3-install">
+  ## 第五步：安装 Docker Engine 与插件
+
+  <InstructionStep number={1} title="让 APT 安装官方软件包">
+    下面的命令只列出包名，不固定一个容易过时的具体版本号。APT 会从刚配置的 Docker stable 软件源选择当前候选版本。
+  </InstructionStep>
+
+  <CodeBlock
+    label="安装 Docker Engine、CLI、containerd、Buildx 与 Compose"
+    code={installDockerPackages}
+  />
+
+  APT 会显示：
+
+  - 即将新增或升级的软件包；
+  - 需要下载的数据量；
+  - 安装后预计占用的磁盘空间；
+  - 是否继续。
+
+  先确认列表主要来自 Docker 官方软件源，再输入 `Y` 并按 <kbd>Enter</kbd>。安装耗时取决于服务器地区、网络和软件源状态。
+
+  <Callout type="warning" title="不要重复运行一键安装脚本来“加速”">
+    Docker 官方说明，`get.docker.com` 便捷脚本主要面向测试和开发环境，不推荐作为生产安装主线。脚本会自动判断和安装多项依赖，也不适合用来升级已有安装。本书通过 APT 软件源保留可检查的安装来源与更新路径。
+  </Callout>
+
+  成功状态：命令返回终端提示符，最后没有 `E:` 开头的错误，APT 没有报告软件包配置失败。
+
+  失败判断：
+
+  - `Unable to locate package docker-ce`：Docker 软件源没有正确加入或 `apt update` 失败；
+  - `held broken packages` 或依赖冲突：返回第二步检查冲突包，不要强制覆盖依赖；
+  - 下载超时：先确认 DNS 与官方域名连接，稍后重试；不要临时换成来源不明的软件包；
+  - 磁盘空间不足：停止安装并查明空间占用，不要删除不认识的系统目录；
+  - 安装过程中 SSH 断开：重新登录后先查看 `sudo dpkg --audit`，不要连续重复粘贴所有命令。
+</section>
+
+<section className="book-section" id="ch3-service">
+  ## 第六步：确认 Docker 服务已经运行
+
+  Docker Engine 安装完成后，Ubuntu 通常会自动启动 Docker 服务，并默认在以后开机时启动。先读取状态：
+
+  <CodeBlock
+    label="查看 Docker 服务状态"
+    code="sudo systemctl status docker --no-pager"
+  />
+
+  重点看 `Active:` 行：
+
+  <TerminalMock title="Docker 服务状态示意">
+    ● docker.service - Docker Application Container Engine<br />
+    &nbsp;&nbsp;&nbsp;&nbsp;Loaded: loaded (...; <span className="term-green">enabled</span>; ...)<br />
+    &nbsp;&nbsp;&nbsp;&nbsp;Active: <span className="term-green">active (running)</span> since ...<br />
+    &nbsp;&nbsp;&nbsp;&nbsp;Docs: https://docs.docker.com
+  </TerminalMock>
+
+  实际时间、进程编号、内存占用和日志行会变化。成功判断不是逐字相同，而是同时看到：
+
+  - `Loaded`；
+  - `enabled`；
+  - `active (running)`。
+
+  还可以用更短的机器可读命令确认：
+
+  <CodeBlock
+    label="确认当前运行与开机启动状态"
+    code={"sudo systemctl is-active docker\nsudo systemctl is-enabled docker"}
+  />
+
+  主线成功输出应是两行：`active` 与 `enabled`。
+
+  如果服务已经安装但没有运行：
+
+  <CodeBlock
+    label="仅在 Docker 为 inactive 时启动服务"
+    code="sudo systemctl start docker"
+  />
+
+  然后重新查看状态。若出现 `failed`，不要反复执行 `start`；先读取最近日志：
+
+  <CodeBlock
+    label="Docker 服务启动失败时查看日志"
+    code="sudo journalctl -u docker --no-pager -n 50"
+  />
+
+  常见线索包括配置文件格式错误、磁盘不足、网络规则冲突或底层运行时启动失败。保留完整错误行，进入第 10 章时再按层排查。
+</section>
+
+<section className="book-section" id="ch3-versions">
+  ## 第七步：验证 Client、Server、Compose 与 Buildx
+
+  服务运行只说明后台进程已经启动，还要验证命令行客户端能够与它通信。
+
+  <CodeBlock
+    label="检查 Docker 与插件版本"
+    code={versionChecks}
+  />
+
+  `sudo docker version` 的输出分成两部分：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Client</p>
+
+      你正在终端中调用的 Docker CLI。只看到 Client，不能证明后台 Engine 可用。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Server</p>
+
+      Docker daemon 返回的信息。Client 与 Server 都出现，才证明通信链路成立。
+    </section>
+  </InfoGrid>
+
+  成功状态：
+
+  - `sudo docker version` 同时显示 `Client:` 与 `Server:`；
+  - `sudo docker compose version` 显示 `Docker Compose version` 和具体版本号；
+  - `sudo docker buildx version` 能显示 Buildx 版本。
+
+  失败判断：
+
+  - `Cannot connect to the Docker daemon`：Docker 服务没有运行，或 CLI 连接的 socket 不可用；
+  - `permission denied while trying to connect`：命令缺少 `sudo`，或权限配置已被其他教程修改；
+  - `docker: 'compose' is not a docker command`：Compose plugin 未成功安装；
+  - 只有 `docker-compose` 可用：当前仍是旧的独立 Compose 安装，不符合本书主线；
+  - Client 有输出但 Server 报错：不要把“客户端已安装”误判为 Docker Engine 已可用。
+</section>
+
+<section className="book-section" id="ch3-sudo">
+  ## 为什么本书暂时保留 `sudo docker`
+
+  Docker daemon 默认以 root 权限运行，并通过 Unix socket 接收 CLI 请求。很多教程会把当前用户加入 `docker` 用户组，从而省略每条命令前的 `sudo`。
+
+  但 Docker 官方明确提醒：`docker` 用户组会给成员 root 级权限。能够控制 Docker 的用户，可以通过容器挂载主机目录等方式影响整个服务器。
+
+  <Callout type="danger" title="本章不执行 usermod -aG docker">
+    省略五个字符不值得隐藏权限变化。本书继续使用 `sudo docker ...`，让每次高权限操作都保持可见。以后若选择 rootless 模式或调整用户组，应当作为独立的安全决策进行，而不是安装后的顺手动作。
+  </Callout>
+
+  `sudo` 也不是安全保证。它只让权限提升更明确；你仍然必须在执行前知道命令会创建、停止、删除或挂载什么。
+</section>
+
+<section className="book-section" id="ch3-hello">
+  ## 第八步：运行 `hello-world` 端到端验证
+
+  版本命令通过以后，运行 Docker 官方的最小测试镜像：
+
+  <CodeBlock
+    label="下载并运行 hello-world"
+    code="sudo docker run --rm hello-world"
+  />
+
+  第一次运行时，服务器本地通常还没有这个镜像。Docker 会依次完成：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>查找本地镜像</strong>
+      <small>没有 `hello-world`</small>
+    </div>
+    <div className="flow-node">
+      <strong>从 Registry 拉取</strong>
+      <small>下载镜像层</small>
+    </div>
+    <div className="flow-node">
+      <strong>创建并启动容器</strong>
+      <small>运行镜像中的程序</small>
+    </div>
+    <div className="flow-node">
+      <strong>打印说明并退出</strong>
+      <small>临时容器随后自动移除</small>
+    </div>
+  </FlowDiagram>
+
+  成功输出中会看到一句以 `Hello from Docker!` 开头的确认文字，并解释 Docker client、daemon、镜像下载和容器输出之间发生了什么。
+
+  <TerminalMock title="hello-world 成功输出节选">
+    Unable to find image 'hello-world:latest' locally<br />
+    latest: Pulling from library/hello-world<br />
+    ...<br /><br />
+    <span className="term-green">Hello from Docker!</span><br />
+    This message shows that your installation appears to be working correctly.
+  </TerminalMock>
+
+  仿真终端省略了摘要、下载进度和平台相关细节。它用于标出成功文字，不代表任何固定 Docker 版本的完整输出。
+
+  <Callout type="info" title="容器自动退出是预期结果">
+    `hello-world` 的任务只是打印说明。主进程完成后，容器就会停止；这不代表 Docker 崩溃。这里的 `--rm` 会在进程退出后自动删除这一个临时验证容器，避免留下随机名称的练习对象。第 4 章会另行创建具名容器，用它观察 Exited 状态和容器生命周期。
+  </Callout>
+
+  失败判断：
+
+  - `pull access denied` 或找不到镜像：检查镜像名是否完整写成 `hello-world`；
+  - `Could not resolve`：服务器 DNS 无法解析镜像仓库；
+  - `i/o timeout`、TLS timeout：服务器到 Docker Hub 的连接超时；
+  - `no matching manifest for ...`：镜像不支持当前 CPU 架构；
+  - daemon 连接失败：返回第六步检查服务；
+  - 权限错误：确认命令前包含 `sudo`。
+
+  下载问题不应通过复制未知“镜像加速器”配置解决。先保留错误原文，确认服务器时间、DNS、出口网络和 Docker 官方服务状态。
+</section>
+
+<section className="book-section" id="ch3-firewall">
+  ## 安装完成后，先记住两个网络边界
+
+  本章的 `hello-world` 没有监听网络端口，也没有把应用发布到公网。单独完成这一章，不会凭空得到一个公开 Web 服务。
+
+  但 Docker 安装后会管理自己的网络接口和防火墙规则。Docker 官方特别提醒：以后用 Docker 发布容器端口时，这些端口可能绕过 UFW 或 firewalld 规则带来的直觉预期；自定义过滤还需要考虑 `DOCKER-USER` 链。
+
+  <Callout type="warning" title="不要因为 UFW 显示 deny，就假设 Docker 端口一定不可访问">
+    第 6 章会分别检查容器监听、Docker 端口发布、主机防火墙和云防火墙。本章不开放练习端口，也不修改第二册已有端口规则。
+  </Callout>
+
+  另一个边界是 Docker daemon API。不要把 Docker socket 挂载给来源不明的容器，也不要照抄教程把 daemon 以未加密 TCP 方式暴露到公网。能够控制 daemon，通常就接近能够控制整台服务器。
+</section>
+
+<section className="book-section" id="ch3-failures">
+  ## 常见失败：先判断卡在哪一层
+
+  <ComparisonTable>
+
+  | 现象 | 所在层 | 先检查 | 不要立刻做什么 |
+  | --- | --- | --- | --- |
+  | `sudo apt update` 就失败 | Ubuntu 软件源或网络 | DNS、系统时间、错误中的域名 | 不要继续安装 Docker |
+  | 下载 GPG key 失败 | Docker 官方域名连接 | `download.docker.com`、证书与时间 | 不要关闭 TLS 校验 |
+  | `NO_PUBKEY` | APT 签名配置 | key 文件路径与 `Signed-By` | 不要加 `trusted=yes` |
+  | `Candidate: (none)` | Docker APT source | 系统代号、架构、`apt update` | 不要改用未知脚本 |
+  | 包依赖冲突 | 旧安装或被保留的软件包 | 第二步的冲突包清单 | 不要强制覆盖依赖 |
+  | Docker 为 `failed` | systemd / daemon | `journalctl -u docker` | 不要反复重启 |
+  | 只有 Client，没有 Server | CLI 到 daemon | Docker service 与 socket 权限 | 不要说“安装完成” |
+  | Compose 命令不存在 | Compose plugin | 软件包是否安装成功 | 不要混用旧命令 |
+  | `hello-world` 拉取超时 | DNS 或镜像仓库网络 | 错误域名、服务器出口、官方状态 | 不要使用未知镜像站 |
+
+  </ComparisonTable>
+
+  推荐的排查顺序是：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>环境</strong>
+      <small>Ubuntu、amd64、磁盘、sudo</small>
+    </div>
+    <div className="flow-node">
+      <strong>软件源</strong>
+      <small>GPG、source、candidate</small>
+    </div>
+    <div className="flow-node">
+      <strong>软件包</strong>
+      <small>Engine 与 plugins</small>
+    </div>
+    <div className="flow-node">
+      <strong>后台服务</strong>
+      <small>active 与日志</small>
+    </div>
+    <div className="flow-node">
+      <strong>镜像链路</strong>
+      <small>DNS、Registry、run</small>
+    </div>
+  </FlowDiagram>
+
+  前一层未通过时，不要跳到后一层反复试命令。保留错误原文比只记“安装失败”更有用。
+</section>
+
+<section className="book-section" id="ch3-finish">
+  ## 本章完成标准
+
+  请逐项确认：
+
+  - 服务器是 Ubuntu 24.04 LTS、amd64；
+  - Docker 软件源来自 `https://download.docker.com/linux/ubuntu`；
+  - `docker-ce` 有可安装的 Candidate；
+  - Docker service 显示 `active (running)`；
+  - `sudo docker version` 同时显示 Client 与 Server；
+  - `sudo docker compose version` 显示 Compose plugin 的具体版本；
+  - `sudo docker buildx version` 可以执行；
+  - `sudo docker run --rm hello-world` 输出成功说明、正常退出并自动移除临时容器；
+  - 你知道本书为什么继续使用 `sudo docker`；
+  - 本章没有修改第二册现有入站、面板端口或云防火墙；
+  - 你知道安装成功不等于已经向公网开放了容器服务。
+
+  <ChapterChecklist chapterId="book03-chapter-03">
+    我已从 Docker 官方 APT 软件源安装 Docker Engine 与 Compose plugin，能够看到 Client 和 Server 信息，并完成 hello-world 端到端验证。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch3-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 实测校订：
+
+  - [在 Ubuntu 上安装 Docker Engine](https://docs.docker.com/engine/install/ubuntu/)
+  - [Linux 安装后设置](https://docs.docker.com/engine/install/linux-postinstall/)
+  - [Docker Engine 安全说明](https://docs.docker.com/engine/security/)
+  - [Docker 与 UFW](https://docs.docker.com/engine/network/packet-filtering-firewalls/#docker-and-ufw)
+
+  支持的 Ubuntu 版本、软件包名、软件源格式、签名密钥路径和服务行为都可能随时间变化。批量撰写和发布候选验收时，应重新对照官方页面；不要只依据搜索摘要或旧教程更新安装命令。
+</section>

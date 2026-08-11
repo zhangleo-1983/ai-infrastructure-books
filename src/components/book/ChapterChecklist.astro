@@ -1,9 +1,10 @@
 ---
 interface Props {
   chapterId: string;
+  items?: string[];
 }
 
-const { chapterId } = Astro.props;
+const { chapterId, items } = Astro.props;
 const messageId = `${chapterId}-status`;
 ---
 
@@ -12,6 +13,13 @@ const messageId = `${chapterId}-status`;
   data-chapter-checklist
   data-pagefind-ignore
 >
+  {
+    items && (
+      <ul class="chapter-checklist__items">
+        {items.map((item) => <li>{item}</li>)}
+      </ul>
+    )
+  }
   <label>
     <input
       type="checkbox"
@@ -20,7 +28,9 @@ const messageId = `${chapterId}-status`;
       aria-describedby={messageId}
       data-chapter-complete-control
     />
-    <span><slot /></span>
+    <span>
+      {items ? "以上检查均已完成" : <slot />}
+    </span>
   </label>
   <small
     id={messageId}
@@ -43,6 +53,15 @@ const messageId = `${chapterId}-status`;
     gap: var(--space-3);
     cursor: pointer;
     font-weight: 680;
+  }
+
+  .chapter-checklist__items {
+    margin: 0 0 var(--space-4);
+    padding-left: 1.4em;
+  }
+
+  .chapter-checklist__items li + li {
+    margin-top: var(--space-2);
   }
 
   input {

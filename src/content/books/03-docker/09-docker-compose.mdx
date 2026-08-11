@@ -1,0 +1,659 @@
+---
+book: "03-docker"
+order: 9
+slug: "09-docker-compose"
+title: "用 Compose 管理一套服务"
+shortTitle: "用 Compose 管理服务"
+description: "把一条越来越长的 docker run 命令整理成可阅读、可验证、可重复执行的 compose.yaml。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 9
+duration: "预计 25—35 分钟"
+labels:
+  - "核心样章"
+  - "Compose"
+  - "可重复部署"
+completionId: "book03-chapter-09"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const composeFile = `name: book03-compose-demo
+
+services:
+  web:
+    image: nginx:1.30.4-alpine
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    restart: unless-stopped`;
+
+export const indexFile = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>我的 Compose 服务</title>
+  </head>
+  <body>
+    <h1>Compose 已经接管这套服务</h1>
+    <p>这个页面来自服务器上的 site 目录。</p>
+  </body>
+</html>`;
+
+<LearningGoals
+  audience="已经完成镜像、容器、端口和目录映射章节的零基础读者"
+  duration="预计 25—35 分钟"
+  outcome="得到一个可以检查、启动、停止、删除并重新创建的 Compose 项目"
+/>
+
+<section className="book-section" id="ch9-result">
+  ## 这一章要解决什么
+
+  到目前为止，你已经可以用一条 `docker run` 命令启动容器。但随着端口、目录映射、容器名称和重启策略逐渐增加，这条命令会越来越长。
+
+  长命令有三个问题：
+
+  1. 过几天以后，你很难回忆每一段参数的作用；
+  2. 重新部署时，漏掉一个参数就会得到不同结果；
+  3. 别人只看到一个正在运行的容器，不知道它原本应该怎样创建。
+
+  Docker Compose 解决的是“怎样把一套容器配置写下来，并重复应用”的问题。Compose 是 Docker 用来定义和管理一个或多个服务的工具；`compose.yaml` 是供人阅读和维护的配置文件。
+
+  <Callout type="info" title="Compose 不是另一个容器">
+    Compose 会读取配置，然后要求 Docker Engine 创建容器、网络和挂载。关闭当前终端不会让后台容器自动停止，删除 `compose.yaml` 也不会自动删除已经运行的容器。
+  </Callout>
+
+  本章会把前面使用过的 Nginx Web 服务整理成一个 Compose 项目。Nginx 是一种 Web 服务器；这里使用 Docker Official Image，只用它展示页面，不配置域名、HTTPS 或反向代理。
+</section>
+
+<section className="book-section" id="ch9-model">
+  ## 先看清文件与运行对象的关系
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">📁</span>
+      <strong>项目目录</strong>
+      <small>`compose.yaml` 与 `site/`</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🧩</span>
+      <strong>Docker Compose</strong>
+      <small>解析并应用配置</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">⚙️</span>
+      <strong>Docker Engine</strong>
+      <small>创建网络与容器</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>Web 服务</strong>
+      <small>监听 `127.0.0.1:8080`</small>
+    </div>
+  </FlowDiagram>
+
+  这四部分不能互相替代：
+
+  - 项目目录保存“你希望服务怎样运行”；
+  - Compose 把文件转换成 Docker 能执行的配置；
+  - Docker Engine 负责实际创建和运行对象；
+  - 容器里的 Nginx 进程负责返回网页。
+
+  <Callout type="warning" title="必须在项目目录中执行本章命令">
+    Compose 默认会在当前目录寻找 `compose.yaml`。如果终端所在目录错误，可能看到“没有找到配置文件”，也可能意外操作另一套同名服务。每次执行前都先用 `pwd` 确认位置。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch9-prepare">
+  ## 开始前检查
+
+  本章默认前面章节已经完成以下事项：
+
+  <ul className="preparation-list">
+    <li>Docker Engine 正常运行</li>
+    <li>`docker compose version` 可以执行</li>
+    <li>知道 Nginx 容器内监听 TCP 80</li>
+    <li>知道 `127.0.0.1` 只允许服务器本机访问</li>
+    <li>知道 bind mount 会把主机目录映射进容器</li>
+    <li>8080 没有被现有服务占用</li>
+  </ul>
+
+  先确认 Compose plugin：
+
+  <CodeBlock
+    label="确认 Compose plugin"
+    code="sudo docker compose version"
+  />
+
+  成功状态：输出中能看到 `Docker Compose version` 和具体版本号。插件版本号会继续演进；实机校订时的输出为 v5 系列，因此不要把“必须以 v2 开头”当作成功条件。
+
+  失败判断：
+
+  - 出现 `docker: 'compose' is not a docker command`：Compose plugin 尚未安装；
+  - 只能执行带连字符的 `docker-compose`：这是旧的独立命令，不进入本书主线；
+  - 出现 Docker daemon 连接错误：先返回安装章节检查 Docker 服务；
+  - 出现权限错误：确认当前账户能使用 `sudo`。
+
+  再确认主机端口 8080 没有被占用：
+
+  <CodeBlock
+    label="检查 TCP 8080"
+    code={"sudo ss -lntp | grep ':8080 '"}
+  />
+
+  没有输出通常表示当前没有进程监听 TCP 8080，可以继续。有输出时不要停止不认识的服务；返回第 6 章选择另一个空闲主机端口，并同步修改本章所有 `8080`。
+</section>
+
+<section className="book-section" id="ch9-project">
+  ## 第一步：建立固定项目目录
+
+  <InstructionStep number={1} title="创建项目和网页目录">
+    把本书练习集中放在当前用户的 `docker-labs` 目录，不与系统配置或第二册服务混放。
+  </InstructionStep>
+
+  <CodeBlock
+    label="创建项目目录"
+    code={'mkdir -p "$HOME/docker-labs/compose-web/site"'}
+  />
+
+  <InstructionStep number={2} title="进入项目目录并确认位置">
+    后续 Compose 命令都从这个目录执行。
+  </InstructionStep>
+
+  <CodeBlock
+    label="进入并检查目录"
+    code={'cd "$HOME/docker-labs/compose-web"\npwd'}
+  />
+
+  成功状态：`pwd` 输出以 `/docker-labs/compose-web` 结尾。
+
+  失败判断：当前目录仍是 `/root`、用户家目录或另一套服务目录；先重新执行 `cd`，不要继续创建文件。
+
+  <TerminalMock title="项目目录结构">
+    <span className="term-blue">~/docker-labs/compose-web</span><br />
+    ├── compose.yaml<br />
+    └── site/<br />
+    &nbsp;&nbsp;&nbsp;&nbsp;└── index.html
+  </TerminalMock>
+
+  `compose.yaml` 描述服务，`site/index.html` 是 Nginx 要返回的页面。配置和内容分开放置，后续查找与备份会更清楚。
+</section>
+
+<section className="book-section" id="ch9-page">
+  ## 第二步：准备一个可观察的网页
+
+  打开网页文件：
+
+  <CodeBlock
+    label="打开网页文件"
+    code="nano site/index.html"
+  />
+
+  把下面内容完整粘贴进去：
+
+  <CodeBlock label="site/index.html" code={indexFile} />
+
+  在 nano 中按 <kbd>Ctrl</kbd> + <kbd>O</kbd> 保存，按 <kbd>Enter</kbd> 确认文件名，再按 <kbd>Ctrl</kbd> + <kbd>X</kbd> 退出。
+
+  为什么先准备页面：本章会把 `site` 目录只读映射到容器。只要页面内容能够显示，就说明 Compose、端口和目录映射三部分同时生效。
+
+  成功状态：下面的命令能找到标题文字。
+
+  <CodeBlock
+    label="检查网页文件"
+    code="grep 'Compose 已经接管' site/index.html"
+  />
+
+  失败判断：出现 `No such file or directory`，或者没有任何输出；重新检查当前目录和文件名。文件必须叫 `index.html`，不是 `index.html.txt`。
+</section>
+
+<section className="book-section" id="ch9-compose-file">
+  ## 第三步：写下 `compose.yaml`
+
+  打开 Compose 文件：
+
+  <CodeBlock
+    label="打开 Compose 文件"
+    code="nano compose.yaml"
+  />
+
+  粘贴下面的完整配置：
+
+  <CodeBlock label="compose.yaml" code={composeFile} />
+
+  保存并退出后，先不要启动。逐项读懂这份文件：
+
+  <ComparisonTable>
+
+  | 字段 | 当前值 | 作用 |
+  | --- | --- | --- |
+  | `name` | `book03-compose-demo` | 给整套 Compose 项目一个稳定名称 |
+  | `services` | — | 下面开始定义这套项目包含的服务 |
+  | `web` | — | 服务名；Compose 命令和日志会使用它 |
+  | `image` | `nginx:1.30.4-alpine` | 指定经过本书校订的 Nginx Official Image 标签 |
+  | `ports` | `127.0.0.1:8080:80` | 主机本地 8080 转发到容器 80 |
+  | `volumes` | `./site:...:ro` | 把项目中的网页目录只读映射进容器 |
+  | `restart` | `unless-stopped` | Docker 重启时恢复服务，除非它被明确停止 |
+
+  </ComparisonTable>
+
+  `services`、`web`、`image` 等词前面的空格是 YAML 结构的一部分。YAML 是一种用缩进表达层级的配置格式；这里统一使用空格，不使用 Tab。
+
+  `./site` 中的 `.` 表示当前项目目录。只要你从正确目录执行 Compose，它就会指向刚才创建的 `site`。
+
+  末尾的 `:ro` 表示 read-only，也就是“容器内只读”。Nginx 可以读取网页，但不能通过这个挂载修改主机上的文件。
+
+  <Callout type="info" title="为什么没有 version 字段？">
+    当前 Compose Specification 不要求在文件顶部写 `version: "3"`。旧教程中的 `version` 属于历史格式标记；本书使用当前 `docker compose` 插件能直接解析的结构。
+  </Callout>
+
+  <Callout type="warning" title="镜像标签不是永远不变的身份证">
+    本样章在 2026-07-28 校订时使用 `nginx:1.30.4-alpine`。重新部署前仍要核对镜像页面、架构和升级说明；后续维护章节会说明怎样记录镜像摘要与回退信息。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch9-validate">
+  ## 第四步：先验证配置，再创建容器
+
+  `docker compose config` 会解析 Compose 文件、展开简写并检查配置模型。它不会因为检查成功就启动服务。
+
+  先使用安静模式，只检查是否有效：
+
+  <CodeBlock
+    label="验证 Compose 配置"
+    code="sudo docker compose config -q"
+  />
+
+  成功状态：命令结束后没有输出，并且终端重新出现提示符。
+
+  <Callout type="info" title="没有输出在这里就是成功状态">
+    `-q` 表示 quiet，只做验证。不要因为没有绿色提示就反复执行；可以运行下一条命令查看 Compose 实际解析出的完整配置。
+  </Callout>
+
+  再查看解析结果：
+
+  <CodeBlock
+    label="查看 Compose 实际配置"
+    code="sudo docker compose config"
+  />
+
+  重点检查：
+
+  - 项目中只有一个名为 `web` 的 service；
+  - 镜像仍是 `nginx:1.30.4-alpine`；
+  - 发布地址是 `127.0.0.1`；
+  - published，也就是主机端口，是 `8080`；
+  - target，也就是容器端口，是 `80`；
+  - 主机 `site` 目录被解析成当前项目下的绝对路径；
+  - 挂载的 read-only 状态为 true。
+
+  常见失败：
+
+  <ComparisonTable>
+
+  | 提示特征 | 常见原因 | 先怎么处理 |
+  | --- | --- | --- |
+  | `no configuration file provided` | 不在项目目录，或文件名错误 | 执行 `pwd` 和 `ls` |
+  | `yaml: line ...` | 缩进、冒号或引号错误 | 回到提示行附近逐项对照 |
+  | `services must be a mapping` | `services` 下的层级不正确 | 检查 `web` 前面的两个空格 |
+  | 路径指向意外目录 | 在错误目录执行 Compose | 停止，不要启动；先进入项目目录 |
+  | 端口显示为全部地址 | 丢失 `127.0.0.1:` | 修正 ports 后重新验证 |
+
+  </ComparisonTable>
+
+  失败时只修复文件并重新运行 `config -q`。不要用“先启动看看”绕过配置错误。
+</section>
+
+<section className="book-section" id="ch9-up">
+  ## 第五步：创建并在后台启动服务
+
+  <CodeBlock
+    label="启动 Compose 项目"
+    code="sudo docker compose up -d"
+  />
+
+  `up` 表示让实际运行状态符合 Compose 文件；`-d` 是 detached，表示容器在后台运行，终端可以继续使用。
+
+  第一次执行时，Docker 可能先下载 Nginx 镜像层。看到 Pulling、Downloading 或 Extracting 不等于失败；等待最终状态。
+
+  <TerminalMock title="首次启动的成功输出">
+    <span className="term-green">✔</span> web Pulled<br />
+    <span className="term-green">✔</span> Network book03-compose-demo_default Created<br />
+    <span className="term-green">✔</span> Container book03-compose-demo-web-1 Started
+  </TerminalMock>
+
+  Compose 为这个项目创建了：
+
+  - 一个默认网络 `book03-compose-demo_default`；
+  - 一个由 `web` service 生成的容器；
+  - 一个从主机 `site` 目录到容器网页目录的 bind mount；
+  - 一条仅绑定 `127.0.0.1:8080` 的端口发布规则。
+
+  它没有创建新的 VPS，也没有把 Nginx 安装到 Ubuntu 主机的软件包系统中。
+
+  <Callout type="tip" title="Started 不等于应用已经完成初始化">
+    Compose 显示容器 Started，表示容器进程已经启动，不保证 Nginx 此刻已经能响应请求。如果下一步第一次 curl 出现连接被重置或空响应，先运行 `sudo docker compose ps` 和 `sudo docker compose logs --tail=30 web`；只要 service 保持 Up 且日志仍在正常初始化，等待几秒后重试。不要立刻 down、重建或修改防火墙。
+  </Callout>
+
+  失败判断：
+
+  - `pull access denied`：镜像名或仓库访问有问题；
+  - `port is already allocated`：主机 8080 已被其他进程占用；
+  - `permission denied`：目录权限或 Docker 权限不正确；
+  - 容器显示 Started 后很快 Exited：进入本章故障小节查看日志；
+  - 长时间停在拉取阶段：分开检查服务器 DNS、网络和 Docker Hub 连通性。
+</section>
+
+<section className="book-section" id="ch9-status">
+  ## 第六步：检查状态，不只看“命令没有报错”
+
+  <CodeBlock
+    label="查看 Compose 服务"
+    code="sudo docker compose ps"
+  />
+
+  <MockWindow title="docker compose ps · 终端结果仿真">
+    <div slot="toolbar">
+      <MockStatusBadge>1 个服务正在运行</MockStatusBadge>
+    </div>
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr>
+            <th>NAME</th>
+            <th>SERVICE</th>
+            <th>STATUS</th>
+            <th>PORTS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>book03-compose-demo-web-1</td>
+            <td>web</td>
+            <td><MockStatusBadge>Up</MockStatusBadge></td>
+            <td>127.0.0.1:8080 → 80/tcp</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  成功状态必须同时满足：
+
+  - `SERVICE` 是 `web`；
+  - `STATUS` 以 `Up` 或 `Running` 表示正在运行；
+  - `PORTS` 明确显示主机 `127.0.0.1:8080` 到容器 `80/tcp`；
+  - 没有持续出现 Restarting。
+
+  `docker compose ps` 只看当前 Compose 项目。你也可以用 `sudo docker ps` 查看整台服务器的容器，但不要把其他项目的容器当成本章对象。
+</section>
+
+<section className="book-section" id="ch9-request">
+  ## 第七步：从服务器本机验证网页
+
+  <CodeBlock
+    label="请求本地 Web 服务"
+    code="curl http://127.0.0.1:8080"
+  />
+
+  成功状态：输出中包含：
+
+  <TerminalMock title="curl 返回的关键内容">
+    <span className="term-white">&lt;h1&gt;Compose 已经接管这套服务&lt;/h1&gt;</span><br />
+    &lt;p&gt;这个页面来自服务器上的 site 目录。&lt;/p&gt;
+  </TerminalMock>
+
+  这一次成功同时证明：
+
+  1. Nginx 容器正在运行；
+  2. 容器内 80 端口可以响应；
+  3. 主机 8080 已正确转发；
+  4. `site` bind mount 指向了正确目录；
+  5. Nginx 读到了你创建的 `index.html`。
+
+  <Callout type="warning" title="电脑浏览器现在打不开是预期结果">
+    当前只绑定服务器的 `127.0.0.1`。从你的电脑访问 `http://服务器IP:8080` 应当失败，这不是 Compose 故障。第 6 章已经解释过受控公网开放；本章不会为了“方便看页面”而悄悄扩大暴露范围。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch9-change">
+  ## 第八步：修改文件，观察 bind mount
+
+  再次打开网页文件：
+
+  <CodeBlock
+    label="修改网页"
+    code="nano site/index.html"
+  />
+
+  把标题中的“Compose 已经接管这套服务”改为“Compose 项目可以直接维护”，保存并退出，然后重新请求：
+
+  <CodeBlock
+    label="重新请求网页"
+    code="curl http://127.0.0.1:8080"
+  />
+
+  成功状态：新标题立即出现，不需要删除或重建容器。
+
+  为什么：`site` 是 bind mount。Nginx 每次读取网页时，看到的是主机项目目录中的当前文件，而不是创建容器时复制进去的一份旧文件。
+
+  如果内容没有变化：
+
+  - 确认修改的是当前项目中的 `site/index.html`；
+  - 运行 `sudo docker compose config` 检查 source 路径；
+  - 确认 Nginx 实际返回的不是另一个端口上的旧容器；
+  - 使用下一节的日志命令确认请求确实到达 `web` service。
+</section>
+
+<section className="book-section" id="ch9-logs">
+  ## 第九步：查看这套服务的日志
+
+  <CodeBlock
+    label="查看最近 20 行日志"
+    code="sudo docker compose logs --tail=20 web"
+  />
+
+  这里的 `web` 是 Compose service 名，不是自动生成的完整容器名。日志中应当能看到刚才 `curl` 发出的 HTTP 请求。
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>logs</code></p>
+
+      查看容器已经写出的标准输出和错误输出。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--tail=20</code></p>
+
+      只显示最后 20 行，避免旧日志淹没当前问题。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>web</code></p>
+
+      只查看这个 service，不混入其他服务。
+    </section>
+  </InfoGrid>
+
+  如果想临时持续观察新日志，可以使用 `sudo docker compose logs -f web`。按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 只会停止跟随日志，不会停止后台容器。
+
+  <Callout type="info" title="日志可见不等于日志会永久安全保存">
+    Docker 日志仍会占用主机磁盘，应用也可能把敏感信息写入日志。第 11 章会处理日志增长、保留和备份边界。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch9-control">
+  ## 第十步：停止、启动和删除运行对象
+
+  这一步用来验证“Compose 文件”和“正在运行的容器”是两种对象。
+
+  <InstructionStep number={1} title="停止容器但保留它">
+    `stop` 让 service 停止，容器仍然存在。
+  </InstructionStep>
+
+  <CodeBlock
+    label="停止服务"
+    code="sudo docker compose stop"
+  />
+
+  <CodeBlock
+    label="查看包括已停止容器的状态"
+    code="sudo docker compose ps -a"
+  />
+
+  成功状态：`web` 容器仍在列表中，但状态为 Exited 或 Stopped。
+
+  <InstructionStep number={2} title="重新启动同一个容器">
+    `start` 不重新读取一套全新配置，只启动已经存在的 service 容器。
+  </InstructionStep>
+
+  <CodeBlock
+    label="重新启动服务"
+    code="sudo docker compose start"
+  />
+
+  再次执行 `curl http://127.0.0.1:8080`，页面应当恢复。
+
+  <InstructionStep number={3} title="删除容器和项目默认网络">
+    `down` 会移除由当前 Compose 项目创建的容器和网络，但不会删除项目目录中的 `compose.yaml` 和 `site`。
+  </InstructionStep>
+
+  <CodeBlock
+    label="移除当前运行对象"
+    code="sudo docker compose down"
+  />
+
+  <Callout type="danger" title="不要在这里增加 -v">
+    `docker compose down -v` 还会删除 Compose 文件声明的 named volume，以及附着在容器上的匿名 volume。真实应用的数据可能因此永久丢失。本章使用 bind mount，但仍不把 `-v` 培养成随手清理的习惯。
+  </Callout>
+
+  `down` 之后再次查看：
+
+  <CodeBlock
+    label="确认当前项目没有容器"
+    code="sudo docker compose ps -a"
+  />
+
+  成功状态：列表为空；同时 `ls site` 仍然能看到 `index.html`。
+</section>
+
+<section className="book-section" id="ch9-recreate">
+  ## 第十一步：根据文件重新创建
+
+  现在容器已经不存在，但项目文件仍在。重新执行：
+
+  <CodeBlock
+    label="重新创建服务"
+    code="sudo docker compose up -d"
+  />
+
+  Compose 会再次读取同一个 `compose.yaml`，创建网络和容器。因为 Nginx 镜像已经存在于本机，这次通常不需要重新下载全部镜像层。
+
+  依次验证：
+
+  <CodeBlock
+    label="完成重建验证"
+    code={"sudo docker compose ps\ncurl http://127.0.0.1:8080"}
+  />
+
+  成功状态：
+
+  - `web` service 正在运行；
+  - 端口仍是 `127.0.0.1:8080 → 80/tcp`；
+  - 页面仍然显示你修改后的标题；
+  - 不需要重新手写一条长 `docker run` 命令。
+
+  这就是“可重复部署”的最小含义：运行对象可以删除，但用于描述它的配置和需要保留的文件仍然存在。
+</section>
+
+<section className="book-section" id="ch9-failures">
+  ## 常见失败：按层检查，不要反复重启
+
+  <ComparisonTable>
+
+  | 现象 | 先检查 | 不要立刻做什么 |
+  | --- | --- | --- |
+  | `config -q` 报 YAML 错误 | 缩进、冒号、引号和当前目录 | 不要执行 `up -d` |
+  | 镜像拉取失败 | 镜像名、服务器 DNS、到 Docker Hub 的网络 | 不要换来源不明的镜像站 |
+  | `port is already allocated` | `ss -lntp` 与其他容器端口 | 不要停止不认识的服务 |
+  | service 为 Exited | `docker compose logs --tail=50 web` | 不要先删除容器 |
+  | service 持续 Restarting | 日志、挂载路径、配置和主进程 | 不要不断执行 restart |
+  | 服务器本机 curl 失败 | 容器状态、PORTS、Nginx 日志 | 不要先改云防火墙 |
+  | 本机 curl 成功、电脑浏览器失败 | 当前是否只绑定 `127.0.0.1` | 不要把它误判为容器故障 |
+  | 页面还是旧内容 | bind mount source、编辑的文件、访问的端口 | 不要删除项目目录 |
+
+  </ComparisonTable>
+
+  一个可靠的排查顺序是：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>配置</strong>
+      <small>`compose config -q`</small>
+    </div>
+    <div className="flow-node">
+      <strong>状态</strong>
+      <small>`compose ps`</small>
+    </div>
+    <div className="flow-node">
+      <strong>日志</strong>
+      <small>`compose logs`</small>
+    </div>
+    <div className="flow-node">
+      <strong>端口</strong>
+      <small>`ss` 与 PORTS</small>
+    </div>
+    <div className="flow-node">
+      <strong>请求</strong>
+      <small>先服务器本机 `curl`</small>
+    </div>
+  </FlowDiagram>
+
+  只要前一层还没有通过，就不要跳到云防火墙或浏览器层。
+</section>
+
+<section className="book-section" id="ch9-finish">
+  ## 本章完成标准
+
+  你现在应当拥有：
+
+  - 固定目录 `$HOME/docker-labs/compose-web`；
+  - 一份能够通过 `docker compose config -q` 的 `compose.yaml`；
+  - 一个名为 `web` 的 service；
+  - 一个只监听服务器本机 `127.0.0.1:8080` 的 Web 服务；
+  - 一个以只读方式映射的 `site` 目录；
+  - 一次 stop、start、down 和重新 up 的完整验证；
+  - 一套明确的状态、日志和端口排查顺序。
+
+  本章结束时保留 Compose 项目运行，供下一章进行故障排查练习。不要删除 `compose.yaml`、`site` 目录或 Nginx 镜像。
+
+  <ChapterChecklist chapterId="book03-chapter-09">
+    我能从正确项目目录验证、启动、检查、停止、删除并重新创建 `web` service，而且知道哪些文件和数据不会随容器一起删除。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch9-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 实测校订：
+
+  - [Docker Compose Quickstart](https://docs.docker.com/compose/gettingstarted/)
+  - [`docker compose config`](https://docs.docker.com/reference/cli/docker/compose/config/)
+  - [`docker compose up`](https://docs.docker.com/reference/cli/docker/compose/up/)
+  - [`docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/)
+  - [Compose 网络](https://docs.docker.com/compose/how-tos/networking/)
+  - [Nginx Docker Official Image](https://hub.docker.com/_/nginx)
+
+  仿真终端只表达应关注的字段，实际 Docker 版本、下载进度和耗时可能不同。
+</section>

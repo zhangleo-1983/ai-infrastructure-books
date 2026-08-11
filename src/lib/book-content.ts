@@ -28,6 +28,10 @@ export interface BookEntryLike {
   data: BookChapterMetadata;
 }
 
+interface EntriesForBookOptions {
+  includeDrafts?: boolean;
+}
+
 export function sortBookChapters<T extends BookEntryLike>(
   entries: readonly T[],
 ): T[] {
@@ -37,9 +41,15 @@ export function sortBookChapters<T extends BookEntryLike>(
 export function entriesForBook<T extends BookEntryLike>(
   entries: readonly T[],
   book: BookDefinition,
+  options: EntriesForBookOptions = {},
 ): T[] {
+  const { includeDrafts = false } = options;
   return sortBookChapters(
-    entries.filter((entry) => entry.data.book === book.id && !entry.data.draft),
+    entries.filter(
+      (entry) =>
+        entry.data.book === book.id &&
+        (includeDrafts || !entry.data.draft),
+    ),
   );
 }
 

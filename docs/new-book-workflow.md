@@ -30,6 +30,10 @@
 
 章节标题、章节 slug 和顺序不得写入注册表。
 
+`drafting` 书籍中带有 `draft: true` 的样章只在 `npm run dev` 的本地开发环境进入通用
+封面、章节和打印路由。production build 仍只生成 `release-candidate` 与 `published`
+书籍，因此单章草稿不会被 Pagefind、sitemap 或线上目录公开。
+
 ## 3. 使用脚手架
 
 仅创建目录和 QA 台账：

@@ -5,8 +5,10 @@ import ChapterNavigation from "../../../components/book/ChapterNavigation.astro"
 import TableOfContents from "../../../components/book/TableOfContents.astro";
 import type { BookDefinition } from "../../../data/books";
 import {
+  books,
   getBookById,
   getReadableBooks,
+  isReadableBook,
 } from "../../../data/books";
 import {
   chapterHref,
@@ -25,11 +27,21 @@ interface Props {
   entry: ChapterEntry;
 }
 
+const includeDrafts = import.meta.env.DEV;
+
 export async function getStaticPaths() {
-  const readableBookIds = new Set(getReadableBooks().map((book) => book.id));
+  const includeDraftEntries = import.meta.env.DEV;
+  const availableBooks = includeDraftEntries
+    ? books.filter(
+        (book) => isReadableBook(book) || book.status === "drafting",
+      )
+    : getReadableBooks();
+  const readableBookIds = new Set(availableBooks.map((book) => book.id));
   const chapters = await getCollection(
     "chapters",
-    ({ data }) => !data.draft && readableBookIds.has(data.book),
+    ({ data }) =>
+      (includeDraftEntries || !data.draft) &&
+      readableBookIds.has(data.book),
   );
 
   return chapters.flatMap((entry) => {
@@ -50,9 +62,10 @@ const { book, entry }: Props = Astro.props;
 const { Content, headings } = await render(entry);
 const allEntries = await getCollection(
   "chapters",
-  ({ data }) => data.book === book.id && !data.draft,
+  ({ data }) =>
+    data.book === book.id && (includeDrafts || !data.draft),
 );
-const bookEntries = entriesForBook(allEntries, book);
+const bookEntries = entriesForBook(allEntries, book, { includeDrafts });
 const tocItems = toBookTocItems(bookEntries, book);
 const currentEntryIndex = bookEntries.findIndex(
   (item) => item.data.slug === entry.data.slug,
@@ -92,6 +105,10 @@ const completionEligible = isCompletionEligible(
   entry.data.chapterType,
 );
 const searchEligible = isSearchEligible(book, entry.data.chapterType);
+const isDraftPreview = entry.data.draft || book.status === "drafting";
+const draftLayoutProps = isDraftPreview
+  ? { robots: "noindex,nofollow" }
+  : {};
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
@@ -116,6 +133,7 @@ const structuredData = {
   bookTitle={book.shortTitle}
   ogType="article"
   structuredData={structuredData}
+  {...draftLayoutProps}
 >
   <TableOfContents
     slot="sidebar"

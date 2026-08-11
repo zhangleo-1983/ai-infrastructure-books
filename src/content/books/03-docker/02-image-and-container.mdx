@@ -1,0 +1,416 @@
+---
+book: "03-docker"
+order: 2
+slug: "02-image-and-container"
+title: "镜像、容器、仓库和标签是什么？"
+shortTitle: "镜像、容器与仓库"
+description: "拆解 registry、namespace、repository、image、tag、digest 和 container，理解镜像分层、标签变化与来源审查。"
+chapterType: "chapter"
+updatedAt: "2026-07-28"
+chapterNumber: 2
+duration: "预计 20—25 分钟"
+labels:
+  - "镜像引用"
+  - "Registry"
+  - "供应链安全"
+completionId: "book03-chapter-02"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="已经知道容器是隔离进程，但还看不懂 nginx:1.30.4-alpine 这类镜像名称的读者"
+  duration="预计 20—25 分钟"
+  outcome="能从完整镜像引用中指出 registry、namespace、repository 与 tag，并解释 tag、digest、image 和 container 的差异"
+/>
+
+<section className="book-section" id="ch2-problem">
+  ## 为什么不能只说“下载一个 Docker”
+
+  Docker Engine 是运行容器的平台，应用本身通常以 **image（镜像）** 的形式保存和分发。
+
+  镜像不是一个随便下载的压缩包。一个镜像引用可能同时表达：
+
+  - 从哪个 registry 查找；
+  - 由哪个用户或组织发布；
+  - 属于哪个 repository；
+  - 选择哪个版本或变体；
+  - 对应哪一份具体内容；
+  - 支持哪些操作系统与 CPU 架构。
+
+  这些信息决定你拿到什么，以及是否适合在当前服务器运行。
+
+  <Callout type="warning" title="名称看起来熟悉，不等于来源可信">
+    攻击者可以发布一个名字相似的 repository。运行前要核对完整名称、发布者、标签、支持架构和权限要求，不能只看到“Nginx”“Redis”或“AI”几个字就执行。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch2-relationship">
+  ## 六个对象先排成一条线
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Registry</strong>
+      <small>集中保存与分发镜像</small>
+    </div>
+    <div className="flow-node">
+      <strong>Repository</strong>
+      <small>同一项目的一组镜像引用</small>
+    </div>
+    <div className="flow-node">
+      <strong>Tag / Digest</strong>
+      <small>选择版本变体或具体内容</small>
+    </div>
+    <div className="flow-node">
+      <strong>Image</strong>
+      <small>本地只读分层模板</small>
+    </div>
+    <div className="flow-node">
+      <strong>Container</strong>
+      <small>由镜像创建的可运行实例</small>
+    </div>
+  </FlowDiagram>
+
+  `docker run` 在需要时会先从 registry 拉取镜像，再根据镜像和运行参数创建一个新容器。一个镜像可以创建多个容器，每个容器有自己的名称、状态和可写层。
+</section>
+
+<section className="book-section" id="ch2-terms">
+  ## 逐个解释专业词
+
+  <ComparisonTable>
+
+  | 术语 | 可以怎样理解 | 不是什么 |
+  | --- | --- | --- |
+  | registry | 保存和分发镜像的服务 | 正在运行的应用 |
+  | namespace | 发布者、用户或组织的命名空间 | Linux 文件目录 |
+  | repository | 同一镜像项目的名称和标签集合 | 你的本地容器 |
+  | image | 创建容器所需的只读分层模板 | 已经运行的进程 |
+  | tag | 指向某个镜像内容的可读标签 | 永远不变的内容保证 |
+  | digest | 根据内容计算的加密摘要引用 | 密码或私钥 |
+  | container | 镜像加运行配置形成的可运行实例 | 镜像仓库本身 |
+
+  </ComparisonTable>
+
+  Docker Hub 是 Docker 默认使用的公共 registry。Registry 是一类服务，Docker Hub 是其中一个具体实例；企业或团队也可以使用其他公共或私有 registry。
+</section>
+
+<section className="book-section" id="ch2-reference">
+  ## 拆开一个完整镜像引用
+
+  本书 Compose 样章使用：
+
+  ```text
+  docker.io/library/nginx:1.30.4-alpine
+  ```
+
+  <MockWindow title="镜像引用拆解 · 教学示意">
+    <div slot="toolbar">
+      <MockStatusBadge>完整引用</MockStatusBadge>
+    </div>
+    <div className="mock-form-grid">
+      <MockField label="Registry host">docker.io</MockField>
+      <MockField label="Namespace">library</MockField>
+      <MockField label="Repository">nginx</MockField>
+      <MockField label="Tag">1.30.4-alpine</MockField>
+      <MockField label="常见简写" wide>nginx:1.30.4-alpine</MockField>
+    </div>
+  </MockWindow>
+
+  各部分含义：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>docker.io</code></p>
+
+      Docker Hub 的 registry host。省略 host 时，Docker 默认使用 Docker Hub。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>library</code></p>
+
+      Docker Official Images 使用的默认 namespace。常见简写会省略它。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>nginx</code></p>
+
+      repository 名称，表示 Nginx 镜像项目。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>1.30.4-alpine</code></p>
+
+      tag，选择版本和 Alpine 变体。
+    </section>
+  </InfoGrid>
+
+  Docker 官方的镜像引用格式可写成：
+
+  ```text
+  [HOST[:PORT]/]NAMESPACE/REPOSITORY[:TAG]
+  ```
+
+  方括号表示该部分可以省略，不是镜像名称中真的要输入方括号。
+</section>
+
+<section className="book-section" id="ch2-defaults">
+  ## 省略的部分会使用默认值
+
+  <ComparisonTable>
+
+  | 你看到的写法 | Docker 会怎样补全 | 隐含内容 |
+  | --- | --- | --- |
+  | `nginx` | `docker.io/library/nginx:latest` | 默认 registry、namespace 和 tag |
+  | `nginx:1.30.4-alpine` | `docker.io/library/nginx:1.30.4-alpine` | 指定 tag |
+  | `example/team-app:2.0` | `docker.io/example/team-app:2.0` | namespace 为 `example` |
+  | `registry.example.com/team/app:2.0` | 保持完整写法 | 使用指定 registry |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="latest 只是一个默认标签名称">
+    省略 tag 时默认使用 `latest`，但 `latest` 不表示“已经适合生产”“最安全”或“永远是相同内容”。它和其他 tag 一样，可以由发布者重新指向新的镜像内容。
+  </Callout>
+
+  本书对长期运行服务尽量使用明确版本标签，并在更新与备份章节记录实际摘要。`hello-world` 是一次性安装验证，不承担长期业务版本锁定。
+</section>
+
+<section className="book-section" id="ch2-layers">
+  ## 镜像为什么是“分层模板”
+
+  镜像通常由多个只读 layer（层）组成。每一层记录一组文件系统变化，例如：
+
+  - 增加基础系统文件；
+  - 安装运行库；
+  - 复制应用文件；
+  - 加入默认配置；
+  - 声明启动命令。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>基础层</strong>
+      <small>最小文件系统</small>
+    </div>
+    <div className="flow-node">
+      <strong>运行环境层</strong>
+      <small>库与二进制文件</small>
+    </div>
+    <div className="flow-node">
+      <strong>应用层</strong>
+      <small>程序和默认配置</small>
+    </div>
+    <div className="flow-node">
+      <strong>镜像引用</strong>
+      <small>tag 或 digest 指向结果</small>
+    </div>
+  </FlowDiagram>
+
+  Docker 官方把镜像描述为不可变对象：已经创建的镜像层不会被原地编辑。需要变化时，会构建新的镜像内容或增加新的层。
+
+  “不可变”不表示某个 tag 永远不变。镜像内容本身产生变化会得到新的内容和摘要，但发布者仍然可以把原来的 tag 移到新内容上。
+</section>
+
+<section className="book-section" id="ch2-writable">
+  ## 容器为什么还会产生文件变化
+
+  创建容器时，Docker 会在镜像只读层之上增加一个容器自己的可写层：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>镜像只读层</strong>
+      <small>可被多个容器复用</small>
+    </div>
+    <div className="flow-node">
+      <strong>容器可写层 A</strong>
+      <small>只属于容器 A</small>
+    </div>
+    <div className="flow-node">
+      <strong>容器可写层 B</strong>
+      <small>只属于容器 B</small>
+    </div>
+  </FlowDiagram>
+
+  两个容器可以来自同一个镜像，但它们的运行状态和可写层互相独立。
+
+  <Callout type="danger" title="容器可写层不是可靠的唯一数据位置">
+    删除容器时，没有放进持久存储的可写层改动会一起消失。数据库、上传文件和重要配置不能只依赖容器可写层；第 7 章会用 volume 与 bind mount 验证这一点。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch2-tag-digest">
+  ## Tag 与 digest 的区别
+
+  **Digest（摘要）**是根据镜像内容计算出的加密标识，常以 `sha256:` 开头。它不是密码，也不能用来登录 registry。
+
+  <ComparisonTable>
+
+  | 对比 | Tag | Digest |
+  | --- | --- | --- |
+  | 例子 | `nginx:1.30.4-alpine` | `nginx@sha256:…` |
+  | 是否方便阅读 | 较方便 | 较长 |
+  | 发布者能否让同一引用指向新内容 | 通常可以移动 tag | 内容变化会产生不同 digest |
+  | 适合什么 | 选择版本与变体 | 锁定一份具体镜像内容 |
+  | 是否代表镜像安全 | 不代表 | 也不代表，只锁定内容 |
+
+  </ComparisonTable>
+
+  Digest 能回答“是不是同一份内容”，不能回答“这份内容有没有漏洞”“发布者是否可信”或“运行参数是否安全”。
+
+  <Callout type="info" title="本书不会把一串过期 digest 永久写死">
+    镜像摘要与平台会随发布变化。样章先锁定明确 tag，实机校订时记录 amd64 实际摘要；第 11 章再用更新、验证和回退流程管理变化。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch2-platform">
+  ## 同一个 tag 可能包含多个平台版本
+
+  镜像发布者可以让同一个 tag 对应一份多平台 manifest。Manifest 可以理解为镜像内容清单；Docker 会根据服务器系统和 CPU 架构选择适合的版本。
+
+  例如同一个镜像 tag 可能同时提供：
+
+  - Linux amd64；
+  - Linux arm64；
+  - 其他受支持平台。
+
+  这就是“镜像 tag 存在”但仍可能出现 `no matching manifest` 的原因：当前服务器架构没有对应条目。
+
+  本书主线使用 Ubuntu amd64，并在选择练习镜像时核对 amd64 支持。不要用强制 `--platform` 掩盖镜像本身不支持当前架构的问题。
+</section>
+
+<section className="book-section" id="ch2-trust">
+  ## 怎样初步判断镜像来源
+
+  Docker Hub 当前把部分内容区分为 Docker Official Images、Verified Publishers、Docker-Sponsored Open Source 等类型。界面标识可能变化，因此本书不使用真实 Hub 截图。
+
+  <MockWindow title="镜像来源审查 · 教学清单">
+    <div slot="toolbar">
+      <MockStatusBadge tone="warning">运行前逐项确认</MockStatusBadge>
+    </div>
+    <div className="mock-form-grid">
+      <MockField label="完整镜像名">registry / namespace / repository</MockField>
+      <MockField label="发布者">官方项目、已验证厂商或可核实维护者</MockField>
+      <MockField label="Tag">明确版本和变体，不只看 latest</MockField>
+      <MockField label="架构">包含 linux/amd64</MockField>
+      <MockField label="文档">端口、目录、变量、升级方式可查</MockField>
+      <MockField label="权限要求">不无故要求 privileged 或 Docker socket</MockField>
+      <MockField label="维护状态" wide>最近更新、版本说明、漏洞和弃用信息可以核对</MockField>
+    </div>
+  </MockWindow>
+
+  Docker Official Image 是较好的起点，但仍要阅读具体镜像文档、固定合适版本并了解数据目录。官方来源不是“不需要更新和备份”的同义词。
+</section>
+
+<section className="book-section" id="ch2-red-flags">
+  ## 看到这些要求先停下来
+
+  <ComparisonTable>
+
+  | 要求 | 风险 | 本书处理 |
+  | --- | --- | --- |
+  | `--privileged` | 容器可能获得接近主机的能力 | 不作为普通应用默认项 |
+  | 挂载 `/var/run/docker.sock` | 容器可控制 Docker daemon | 不交给未知镜像 |
+  | 挂载主机 `/` 或 `/etc` | 容器可读取或修改关键主机文件 | 不用于练习 |
+  | 使用不明 registry | 无法确认发布与更新责任 | 优先官方来源 |
+  | 要求复制真实密码进命令 | 可能进入历史、日志或截图 | 使用安全配置流程 |
+  | 要求关闭签名或 TLS 校验 | 破坏软件供应链验证 | 先修复验证错误 |
+
+  </ComparisonTable>
+
+  参数报错不意味着应该不断增加权限。先查镜像官方文档，明确每个挂载、能力和端口的目的。
+</section>
+
+<section className="book-section" id="ch2-practice">
+  ## 用三个例子检查理解
+
+  ### 例子一
+
+  ```text
+  nginx:1.30.4-alpine
+  ```
+
+  - registry：省略，默认 Docker Hub；
+  - namespace：省略，Official Image 默认 `library`；
+  - repository：`nginx`；
+  - tag：`1.30.4-alpine`；
+  - 这是镜像引用，不是容器名称。
+
+  ### 例子二
+
+  ```text
+  example/team-app:2.0
+  ```
+
+  - registry：省略，默认 Docker Hub；
+  - namespace：`example`；
+  - repository：`team-app`；
+  - tag：`2.0`；
+  - 是否可信还要核对 `example` 发布者和镜像文档。
+
+  ### 例子三
+
+  ```text
+  registry.example.com/team/app@sha256:教学示例摘要
+  ```
+
+  - registry：`registry.example.com`；
+  - namespace：`team`；
+  - repository：`app`；
+  - digest：教学示例值，用于表示锁定具体内容；
+  - 真实 digest 应当是完整 SHA-256 摘要，不能照抄教学文字。
+</section>
+
+<section className="book-section" id="ch2-failures">
+  ## 常见理解错误
+
+  <ComparisonTable>
+
+  | 错误理解 | 正确边界 |
+  | --- | --- |
+  | 删除容器会自动删除镜像 | 它们是不同对象，镜像通常仍在本地 |
+  | 相同 tag 永远是相同内容 | tag 可能被重新指向 |
+  | digest 是镜像密码 | digest 是内容标识，不提供认证能力 |
+  | 一个镜像只能运行一个容器 | 同一镜像可以创建多个独立容器 |
+  | 镜像带 Official 标识就不需要备份 | 来源审查与数据备份是不同责任 |
+  | `latest` 一定是最新稳定版 | 它只是一个标签名称 |
+  | 容器里的文件都会永久保存 | 容器可写层会随容器删除而丢失 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch2-finish">
+  ## 本章完成标准
+
+  你现在应当能够：
+
+  - 区分 registry、namespace 与 repository；
+  - 从完整引用中找出 tag；
+  - 解释省略 tag 时为什么会使用 `latest`；
+  - 解释 tag 为什么可能变化；
+  - 解释 digest 能锁定内容，但不能证明安全；
+  - 说明镜像只读层与容器可写层的关系；
+  - 判断一个镜像是否支持当前 amd64 服务器；
+  - 识别 `--privileged`、Docker socket 和主机根目录挂载等高风险要求。
+
+  <ChapterChecklist chapterId="book03-chapter-02">
+    我能拆解镜像引用，区分 tag、digest、image 和 container，并且不会把熟悉的名称或 latest 标签当作可信与稳定的保证。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch2-sources">
+  ## 本章事实依据
+
+  本章于 2026-07-28 依据 Docker 官方资料校订：
+
+  - [What is an image?](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/)
+  - [What is a registry?](https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/)
+  - [Docker image reference](https://docs.docker.com/reference/cli/docker/image/tag/)
+  - [Image digests](https://docs.docker.com/dhi/explore/security-concepts/digests/)
+  - [`docker image pull`](https://docs.docker.com/reference/cli/docker/image/pull/)
+
+  Docker Hub 分类、标签、镜像摘要和支持架构都可能变化，发布候选阶段必须重新核验。仿真窗口只表达审查字段，不是 Docker Hub 当前版本的像素级截图。
+</section>

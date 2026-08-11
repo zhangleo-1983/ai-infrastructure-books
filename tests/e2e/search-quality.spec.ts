@@ -5,6 +5,7 @@ import {
 } from "@playwright/test";
 import { book01SearchSamples } from "../fixtures/book01-search-samples";
 import { book02SearchSamples } from "../fixtures/book02-search-samples";
+import { book03SearchSamples } from "../fixtures/book03-search-samples";
 
 async function observeSearchSamples(
   page: Page,
@@ -87,6 +88,21 @@ test("第二册 16 个中文搜索样本命中预期章节", async ({
   const observations = await observeSearchSamples(page, book02SearchSamples);
 
   await testInfo.attach("book02-search-observations", {
+    body: JSON.stringify(observations, null, 2),
+    contentType: "application/json",
+  });
+});
+
+test("第三册 25 个中文搜索样本命中预期章节", async ({
+  page,
+  browserName,
+}, testInfo) => {
+  test.skip(browserName !== "chromium");
+  await page.goto("books/03-docker/09-docker-compose/");
+  await page.getByRole("button", { name: "搜索全书" }).click();
+  const observations = await observeSearchSamples(page, book03SearchSamples);
+
+  await testInfo.attach("book03-search-observations", {
     body: JSON.stringify(observations, null, 2),
     contentType: "application/json",
   });

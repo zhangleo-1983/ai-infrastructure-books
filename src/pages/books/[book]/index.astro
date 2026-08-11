@@ -3,7 +3,11 @@ import { getCollection } from "astro:content";
 import BookCover from "../../../components/book/BookCover.astro";
 import TableOfContents from "../../../components/book/TableOfContents.astro";
 import type { BookDefinition } from "../../../data/books";
-import { getReadableBooks } from "../../../data/books";
+import {
+  books,
+  getReadableBooks,
+  isReadableBook,
+} from "../../../data/books";
 import {
   chapterHref,
   entriesForBook,
@@ -20,13 +24,21 @@ interface Props {
 }
 
 export async function getStaticPaths() {
+  const includeDraftEntries = import.meta.env.DEV;
   const chapters = await getCollection(
     "chapters",
-    ({ data }) => !data.draft,
+    ({ data }) => includeDraftEntries || !data.draft,
   );
+  const availableBooks = includeDraftEntries
+    ? books.filter(
+        (book) => isReadableBook(book) || book.status === "drafting",
+      )
+    : getReadableBooks();
 
-  return getReadableBooks().flatMap((book) => {
-    const entries = entriesForBook(chapters, book);
+  return availableBooks.flatMap((book) => {
+    const entries = entriesForBook(chapters, book, {
+      includeDrafts: includeDraftEntries,
+    });
     if (entries.length === 0) return [];
 
     return [{
@@ -57,6 +69,10 @@ const structuredData = {
   bookEdition: book.version,
   ...(canonicalUrl ? { url: canonicalUrl } : {}),
 };
+const draftLayoutProps =
+  book.status === "drafting"
+    ? { robots: "noindex,nofollow" }
+    : {};
 ---
 
 <BookLayout
@@ -65,6 +81,7 @@ const structuredData = {
   bookTitle={book.shortTitle}
   ogType="book"
   structuredData={structuredData}
+  {...draftLayoutProps}
 >
   <BookCover
     book={book}

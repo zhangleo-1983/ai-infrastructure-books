@@ -21,10 +21,11 @@
 
 ## 当前状态
 
-当前已有两册 Release Candidate：
+当前已有三册 Release Candidate：
 
 1. **《15分钟搞定你的VPS》**
 2. **《拥有自己的海外网络：从 VPS 到 Clash，只需要 30 分钟》**
+3. **《一篇文章掌握 Docker：从容器到 Compose》**
 
 公开 RC 站点：
 
@@ -50,16 +51,16 @@ source/book02-v1.html
 
 在完成正式项目迁移之前，不应删除或覆盖该文件。
 
-工程迁移的五个里程碑已经完成，系列工程目前提供第一册与第二册发布候选：
+工程迁移的五个里程碑已经完成，系列工程目前提供前三册发布候选：
 
 - Astro 静态站点骨架
 - TypeScript 严格模式和 MDX 内容集合
 - 设计 Token 与基础 Layout
-- 系列首页、书目页、两册正式封面与完整目录
-- 两册“开始之前”、第 1—12 章、附录和资料来源的独立页面
+- 系列首页、书目页、三册正式封面与完整目录
+- 三册“开始之前”、第 1—12 章、附录和资料来源的独立页面
 - 以 MDX frontmatter 为单一来源的章节元数据与显式排序
 - 浅层章节组件、仿真终端、仿真软件界面和代码复制
-- 两册完整打印路由与不依赖 JavaScript 的打印正文
+- 三册完整打印路由与不依赖 JavaScript 的打印正文
 - 全部内容单元的逐章正文、命令与数量完整性检查
 - Pagefind 中文静态全文搜索
 - system / light / dark 三态主题选择与首屏初始化
@@ -90,7 +91,18 @@ source/book02-v1.html
 第一册厂商页面使用 HTML 与 CSS 教学仿真，并把价格、库存、支付和验证流程作为
 时效性信息管理。第一册 RC 范围、验收结果与后续边界记录在
 [`docs/qa/01-first-vps/release-candidate.md`](docs/qa/01-first-vps/release-candidate.md)。
-第三册及后续正文尚未开始。
+第三册“开始之前”、第 1—12 章、附录与资料来源已经进入 `1.0.0-rc.1` 发布候选：
+
+- 已进入 production build、Pagefind 索引、完成状态和独立打印页；
+- 命令与状态连续性已于 2026-08-11 在隔离的 Ubuntu 24.04 amd64 VPS 完成实机验证，结果见 `docs/qa/03-docker/vps-validation.md`；
+- 15 个内容单元已经通过第三册专用结构和安全边界检查；
+- 当前进度与安全边界见
+  [`docs/qa/03-docker/content-progress.md`](docs/qa/03-docker/content-progress.md)。
+
+第三册已经完成本轮实机命令校订、中文搜索样本、A4 PDF、跨浏览器回归、子路径部署
+模拟和完整 RC 检查，验收结果见
+[`docs/qa/03-docker/release-candidate.md`](docs/qa/03-docker/release-candidate.md)。候选版本标识为
+`book03-v1.0.0-rc.1`；实际提交与部署状态以 Git 标签和静态站点为准。
 
 ------------------------------------------------------------------------
 

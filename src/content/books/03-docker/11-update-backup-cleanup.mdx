@@ -1,0 +1,532 @@
+---
+book: "03-docker"
+order: 11
+slug: "11-update-backup-cleanup"
+title: "更新、备份、恢复与安全清理"
+shortTitle: "更新、备份与清理"
+description: "先备份并验证恢复，再更新镜像、限制日志增长，最后只清理已经核对过的教学对象。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 11
+duration: "预计 45—60 分钟"
+labels:
+  - "备份恢复"
+  - "镜像更新"
+  - "安全清理"
+completionId: "book03-chapter-11"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const projectBaseline =
+  'cd "$HOME/docker-labs/compose-web"\nsudo docker compose config -q\nsudo docker compose ps\ncurl --fail --show-error http://127.0.0.1:8080';
+
+export const createProjectBackup =
+  `mkdir -p "$HOME/docker-labs/backups"
+cd "$HOME/docker-labs"
+PROJECT_BACKUP="compose-web-$(date +%Y%m%d-%H%M%S).tar.gz"
+tar -czf "$HOME/docker-labs/backups/$PROJECT_BACKUP" compose-web
+printf '%s\n' "$PROJECT_BACKUP" > "$HOME/docker-labs/backups/latest-compose-backup.txt"
+tar -tzf "$HOME/docker-labs/backups/$PROJECT_BACKUP"`;
+
+export const createVolumeBackup =
+  `cd "$HOME/docker-labs/backups"
+VOLUME_BACKUP="book03-web-data-$(date +%Y%m%d-%H%M%S).tar.gz"
+sudo docker run --rm \
+  --mount type=volume,src=book03-web-data,dst=/source,readonly \
+  --mount "type=bind,src=$HOME/docker-labs/backups,dst=/backup" \
+  nginx:1.30.4-alpine \
+  sh -c "tar -C /source -czf /backup/$VOLUME_BACKUP ."
+printf '%s\n' "$VOLUME_BACKUP" > latest-volume-backup.txt
+ls -lh "$VOLUME_BACKUP"
+tar -tzf "$VOLUME_BACKUP"`;
+
+export const restoreVolumeTest =
+  `cd "$HOME/docker-labs/backups"
+VOLUME_BACKUP="$(cat latest-volume-backup.txt)"
+sudo docker volume create book03-web-data-restore-test
+sudo docker run --rm \
+  --mount type=volume,src=book03-web-data-restore-test,dst=/restore \
+  --mount "type=bind,src=$HOME/docker-labs/backups,dst=/backup,readonly" \
+  nginx:1.30.4-alpine \
+  sh -c "tar -C /restore -xzf /backup/$VOLUME_BACKUP"
+sudo docker run -d \
+  --name book03-restore-check \
+  -p 127.0.0.1:18081:80 \
+  --mount type=volume,src=book03-web-data-restore-test,dst=/usr/share/nginx/html,readonly \
+  nginx:1.30.4-alpine
+curl --fail --show-error --retry 5 --retry-delay 2 --retry-all-errors http://127.0.0.1:18081`;
+
+export const removeRestoreTest =
+  `sudo docker stop book03-restore-check
+sudo docker rm book03-restore-check
+sudo docker ps -a --filter volume=book03-web-data-restore-test
+sudo docker volume rm book03-web-data-restore-test`;
+
+export const recordImage =
+  `cd "$HOME/docker-labs/compose-web"
+sudo docker compose images
+sudo docker image inspect --format 'id={{.Id}} digests={{json .RepoDigests}}' nginx:1.30.4-alpine | tee "$HOME/docker-labs/backups/nginx-image-before-update.txt"`;
+
+export const updateService =
+  `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose pull web
+sudo docker compose up -d web`;
+
+export const verifyUpdate =
+  `sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080
+sudo docker compose logs --tail=30 --timestamps web
+sudo docker compose images`;
+
+export const composeWithLogging = `name: book03-compose-demo
+
+services:
+  web:
+    image: nginx:1.30.4-alpine
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"`;
+
+export const verifyLogging =
+  `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose up -d web
+CONTAINER_ID="$(sudo docker compose ps -q web)"
+sudo docker inspect --format 'driver={{.HostConfig.LogConfig.Type}} max-size={{index .HostConfig.LogConfig.Config "max-size"}} max-file={{index .HostConfig.LogConfig.Config "max-file"}}' "$CONTAINER_ID"
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const diskAudit =
+  `df -h /
+sudo docker system df -v
+sudo docker ps -a --size
+sudo docker volume ls`;
+
+export const editCompose =
+  'cd "$HOME/docker-labs/compose-web"\nnano compose.yaml';
+
+export const removeKnownPracticeVolume =
+  `sudo docker ps -a --filter volume=book03-web-data
+sudo docker volume inspect book03-web-data
+sudo docker volume rm book03-web-data`;
+
+<LearningGoals
+  audience="已经有一套运行中的 Compose 服务，但还没有形成更新、备份和清理顺序的读者"
+  duration="预计 45—60 分钟"
+  outcome="为 Compose 项目和 named volume 建立可验证备份，完成一次可控更新与日志限制，并只删除核对过的教学数据卷"
+/>
+
+<section className="book-section" id="ch11-result">
+  ## 这一章要解决什么
+
+  运行容器只是开始。真正长期维护一套服务时，最危险的时刻往往不是安装，而是“准备更新”“磁盘快满了”或“想把旧东西清掉”。
+
+  本章固定采用下面的顺序：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>确认正常</strong>
+      <small>配置、状态和本机请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>建立备份</strong>
+      <small>项目文件与数据分开处理</small>
+    </div>
+    <div className="flow-node">
+      <strong>验证恢复</strong>
+      <small>恢复到新对象，不覆盖原数据</small>
+    </div>
+    <div className="flow-node">
+      <strong>执行更新</strong>
+      <small>拉取、重建、逐项验证</small>
+    </div>
+    <div className="flow-node">
+      <strong>核对空间</strong>
+      <small>先看占用，再判断对象</small>
+    </div>
+    <div className="flow-node">
+      <strong>精确清理</strong>
+      <small>只删除已知名称的练习对象</small>
+    </div>
+  </FlowDiagram>
+
+  顺序不能颠倒。没有验证过恢复的压缩包，只能叫“生成过一个文件”；没有记录旧镜像的更新，很难在出错时知道要退回哪里；没有逐个核对对象的清理，可能把仍然有价值的数据一起删除。
+
+  <Callout type="danger" title="本章不使用一键清理">
+    本章不会执行 `docker system prune`、`docker volume prune` 或 `docker compose down -v`。这些命令可能一次影响多个项目；即使 Docker 把对象标记为 unused，也不代表其中的数据已经没有业务价值。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-baseline">
+  ## 开始前：只处理本书对象
+
+  第 9、10 章留下的主项目是：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">项目目录</p>
+
+      `$HOME/docker-labs/compose-web`
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Compose 项目</p>
+
+      `book03-compose-demo`
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">运行 service</p>
+
+      `web`
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本机入口</p>
+
+      `127.0.0.1:8080`
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">待备份数据卷</p>
+
+      `book03-web-data`
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">备份目录</p>
+
+      `$HOME/docker-labs/backups`
+    </section>
+  </InfoGrid>
+
+  先确认主项目仍处于最后已知正常状态：
+
+  <CodeBlock label="检查更新前基线" code={projectBaseline} />
+
+  成功状态：配置检查无输出、`web` 为 Up 或 Running，并且 curl 返回 Compose 页面。
+
+  失败判断：任何一项失败都先回到第 10 章排查。不要在故障状态下同时加入更新和清理变量。
+
+  <Callout type="warning" title="先确认磁盘有空间">
+    压缩包和新镜像都会临时增加磁盘占用。先用 `df -h /` 确认根文件系统有合理余量；如果已经接近 100%，停止本章，不要靠未经核对的一键清理抢空间。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-backup-model">
+  ## 先区分三类需要保留的东西
+
+  <ComparisonTable>
+
+  | 类型 | 本书示例 | 备份目的 | 不能混淆 |
+  | --- | --- | --- | --- |
+  | 配置与内容 | `compose-web/` | 重建 service 所需的声明与网页 | 不是容器本体 |
+  | 业务数据 | `book03-web-data` | 保留 volume 中独立于容器的数据 | volume 不是自动备份 |
+  | 恢复记录 | 镜像 ID、digest、校验日期 | 知道原来使用什么版本 | tag 可能在未来指向新内容 |
+
+  </ComparisonTable>
+
+  容器本身通常是可重建对象。需要备份的是“怎样重建”以及“重建后需要接回什么数据”。
+
+  <Callout type="info" title="真实服务还要单独处理数据库一致性">
+    本书的 volume 只保存静态网页，可以直接归档。MySQL、PostgreSQL 等数据库可能需要应用停写、快照或官方导出工具，不能把复制数据目录当成通用数据库备份方案。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-project-backup">
+  ## 第一步：备份 Compose 项目
+
+  <InstructionStep number={1} title="建立专用备份目录">
+    备份放在 `$HOME/docker-labs/backups`，不塞进正在备份的项目目录，否则下一次归档可能把旧归档再次装进去。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="生成带时间的压缩包并立即查看目录">
+    `tar` 会保留 `compose-web/` 的相对路径；指针文件记录最近一次归档名，下一章可以引用。
+  </InstructionStep>
+
+  <CodeBlock label="备份并列出 Compose 项目" code={createProjectBackup} />
+
+  成功状态：
+
+  - 末尾列表同时包含 `compose-web/compose.yaml` 与 `compose-web/site/index.html`；
+  - `latest-compose-backup.txt` 中只有本次压缩包的文件名；
+  - 命令没有出现 `Cannot stat`、`Permission denied` 或 `No space left on device`。
+
+  失败判断：
+
+  - 缺少 `compose.yaml`：你可能从错误目录归档；
+  - 压缩包大小为 0 或 `tar -tzf` 报错：归档没有成功；
+  - 磁盘空间不足：停止后续更新，先把备份安全复制到另一位置，再规划磁盘处理；
+  - 项目中存在真实 `.env` 或 secrets：不要把归档发送给他人或提交到 Git，先为敏感备份设定独立存储和访问权限。
+
+  <Callout type="warning" title="备份目录仍然在同一台 VPS">
+    这份本机归档能防止误改文件，却不能防止整台 VPS 故障。真实服务至少还要把加密备份复制到另一故障域，并定期验证那份副本可以读取。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-volume-backup">
+  ## 第二步：备份 named volume
+
+  第 7 章有意保留了 `book03-web-data`。下面启动一个临时 Nginx Alpine 容器：
+
+  - 以只读方式把原 volume 挂到 `/source`；
+  - 把备份目录挂到 `/backup`；
+  - 在临时容器里用 `tar` 读取数据；
+  - 命令结束后由 `--rm` 删除这个临时容器。
+
+  <CodeBlock label="备份 book03-web-data" code={createVolumeBackup} />
+
+  成功状态：能看到一个带时间的 `.tar.gz` 文件，目录列表包含第 7 章写入的 `index.html`。
+
+  失败判断：
+
+  - `no such volume`：第 7 章没有保留该 volume，或名称输入错误；
+  - `no such file or directory`：备份目录或指针文件不正确；
+  - `permission denied`：检查备份目录属于当前用户，不要用宽泛的 `chmod 777` 绕过；
+  - 归档为空：先检查原 volume 的内容，不要把空归档视为成功。
+
+  <Callout type="info" title="这里没有停止 Compose 主服务">
+    `book03-web-data` 不是当前 Compose service 使用的 bind mount，因此本次教学备份不会影响 `web`。真实项目要先确认数据是否正在变化，再决定停写、停止 service 或使用应用专用备份。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-restore-test">
+  ## 第三步：恢复到新 volume 并实际读取
+
+  现在不覆盖原 volume，而是创建 `book03-web-data-restore-test`。这样即使恢复步骤写错，原数据仍然保留。
+
+  <CodeBlock label="恢复并启动只读验证容器" code={restoreVolumeTest} />
+
+  成功状态：
+
+  - 创建了新 volume；
+  - 临时恢复命令没有报错；
+  - `book03-restore-check` 状态为 Up；
+  - curl 返回第 7 章写入 volume 的页面。
+
+  最后一条 curl 最多重试 5 次，每次间隔 2 秒。这样做是因为 `docker run -d` 返回容器 ID 时，Nginx 可能仍在初始化；实机校订中，第一次请求曾收到连接重置，3 秒后同一容器正常返回页面。重试不会把持续失败伪装成成功：全部重试仍失败时，curl 会返回非零状态，此时必须保留原 volume 和归档并继续排查。`--retry-all-errors` 在这里仅用于可重复的本机 HTTP GET 读取；不要把它照搬到上传、支付、创建资源等重复执行可能产生副作用的请求。
+
+  如果 curl 失败：
+
+  1. 运行 `sudo docker logs book03-restore-check`；
+  2. 用 `sudo docker inspect book03-restore-check` 核对挂载源；
+  3. 再次用 `tar -tzf "$VOLUME_BACKUP"` 查看归档；
+  4. 保留原 volume 和归档，不进入清理步骤。
+
+  验证成功后，删除明确命名的验证容器和验证 volume：
+
+  <CodeBlock label="删除恢复验证对象" code={removeRestoreTest} />
+
+  第三条过滤命令应该没有输出；这证明没有容器仍引用验证 volume。最后一条应只返回 `book03-web-data-restore-test`。
+
+  <Callout type="danger" title="只删除 restore-test">
+    如果过滤命令仍列出容器，停止，不要执行 volume 删除。这里的目标名称必须完整等于 `book03-web-data-restore-test`，不能换成原始的 `book03-web-data`。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-update">
+  ## 第四步：记录旧镜像，再执行更新
+
+  tag（标签）便于人阅读，但发布者可能在未来把同一个 tag 指向新镜像。digest（摘要）是由镜像内容计算得到的标识，更适合记录“当时实际拿到的内容”。
+
+  先记录更新前镜像：
+
+  <CodeBlock label="记录当前镜像 ID 与 digest" code={recordImage} />
+
+  然后执行两步更新：
+
+  <CodeBlock label="拉取并应用 service 镜像" code={updateService} />
+
+  `docker compose pull web` 只拉取 service 声明的镜像，不会启动或重建容器。`docker compose up -d web` 会比较配置和镜像；如果需要，会重建 service 容器，并保留已经声明的挂载。
+
+  本书固定使用 `nginx:1.30.4-alpine`。如果本地已经是该 tag 的最新内容，pull 可能显示 up to date，后面的 up 也可能不重建。这仍然是一次有效的更新演练，不需要为了制造变化临时改成 `latest`。
+
+  立即验证：
+
+  <CodeBlock label="验证更新后的服务" code={verifyUpdate} />
+
+  <MockWindow title="更新检查点">
+    <div slot="toolbar">
+      <MockStatusBadge>先验证，再考虑清理旧镜像</MockStatusBadge>
+    </div>
+    <div className="mock-grid">
+      <div className="mock-card">
+        <strong>状态</strong>
+        <span>web 为 Up / Running</span>
+      </div>
+      <div className="mock-card">
+        <strong>功能</strong>
+        <span>本机 curl 返回页面</span>
+      </div>
+      <div className="mock-card">
+        <strong>日志</strong>
+        <span>没有持续重复错误</span>
+      </div>
+      <div className="mock-card">
+        <strong>镜像</strong>
+        <span>记录更新后的 ID 与 tag</span>
+      </div>
+    </div>
+  </MockWindow>
+
+  失败时不要先删除旧镜像。保留更新前记录，检查 Compose 配置、拉取错误、容器状态和日志；真实项目还应把 Compose 文件恢复到已知版本，并明确引用之前验证过的 tag 或 digest 后再重建。
+</section>
+
+<section className="book-section" id="ch11-logs">
+  ## 第五步：限制容器日志增长
+
+  Docker Engine 默认常见的 `json-file` 日志驱动不会自动限制文件大小。长时间运行且输出很多日志的容器，可能逐渐占满磁盘。
+
+  本书在 Compose service 中使用 `local` 日志驱动，并限制单个文件和保留文件数。它只影响这一个 service，不改其他项目的 daemon 默认设置。
+
+  打开完整 Compose 文件：
+
+  <CodeBlock label="编辑 Compose 文件" code={editCompose} />
+
+  用下面内容完整替换：
+
+  <CodeBlock label="加入日志限制后的 compose.yaml" code={composeWithLogging} />
+
+  保存后检查配置、重新应用并读取容器真实配置：
+
+  <CodeBlock label="应用并验证日志设置" code={verifyLogging} />
+
+  成功状态：inspect 输出 `driver=local max-size=10m max-file=3`，curl 仍返回页面。
+
+  失败判断：
+
+  - `config -q` 报缩进或字段错误：不要继续 up，回到文件逐行检查；
+  - inspect 仍显示 `json-file`：旧容器可能没有被重建，检查 `compose up` 输出和容器 ID；
+  - service 起不来：查看 Compose 日志，并可先恢复本章项目压缩包中的 `compose.yaml`；
+  - 页面不再返回：核对端口和 bind mount 没有在编辑时丢失。
+
+  <Callout type="warning" title="不要手工删 Docker 日志文件">
+    日志文件由 Docker daemon 管理。不要直接进入 Docker 数据目录删除或编辑文件；应通过日志驱动和轮转选项控制增长。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch11-disk">
+  ## 第六步：先看磁盘事实
+
+  <CodeBlock label="查看主机与 Docker 空间占用" code={diskAudit} />
+
+  四条命令分别回答：
+
+  - 根文件系统还有多少空间；
+  - 镜像、容器、volume 和构建缓存分别占多少；
+  - 每个容器的可写层占用；
+  - 当前有哪些 named volume。
+
+  `docker system df` 中的 reclaimable（可回收）是 Docker 根据引用关系估算的，不等于“业务上可以删除”。某个 volume 没有被容器引用，仍然可能是故意保留的离线数据。
+
+  <ComparisonTable>
+
+  | 看起来省事的动作 | 可能影响 | 本书选择 |
+  | --- | --- | --- |
+  | system prune | 多个项目的 stopped container、network、image 与 cache | 不执行 |
+  | volume prune | 所有没有被容器引用的 volume | 不执行 |
+  | compose down -v | 当前项目容器、网络和已声明 volume | 不执行 |
+  | 按完整名称删除 | 一个已核对对象 | 先备份、恢复验证、过滤引用，再执行 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch11-cleanup">
+  ## 第七步：只清理已验证的教学 volume
+
+  `book03-web-data` 来自第 7 章，不被当前 Compose service 使用；它的归档已经创建，并且刚刚恢复到新 volume 验证成功。
+
+  下面三条命令按顺序执行：
+
+  <CodeBlock label="核对并删除已备份教学 volume" code={removeKnownPracticeVolume} />
+
+  判断规则：
+
+  1. 第一条应该没有输出；有输出表示仍有容器引用，立即停止；
+  2. 第二条应该只显示名称、挂载点、创建时间等元数据；再次确认 Name 完整等于 `book03-web-data`；
+  3. 只有前两项符合预期，才执行第三条；
+  4. 第三条只应返回 `book03-web-data`。
+
+  <Callout type="danger" title="删除 volume 会删除其中数据">
+    这是本章唯一的数据删除步骤，目标仅限已经备份并验证恢复的教学 volume。真实业务 volume 不能照抄这个决定；必须由数据负责人确认保留期、备份位置和恢复测试。
+  </Callout>
+
+  本章结束后：
+
+  - Compose Web service 继续运行；
+  - `compose.yaml` 已加入 service 级日志限制；
+  - 项目和 volume 归档保留在备份目录；
+  - 原教学 volume 已精确删除；
+  - 没有执行任何批量 prune；
+  - 没有打开新的公网端口。
+</section>
+
+<section className="book-section" id="ch11-mistakes">
+  ## 常见失败与安全停点
+
+  <ComparisonTable>
+
+  | 现象 | 先判断 | 不要做 |
+  | --- | --- | --- |
+  | tar 归档打不开 | 文件路径、空间、权限、命令退出状态 | 不要继续删除源数据 |
+  | 恢复后页面为空 | 归档内容、恢复目录和挂载目标 | 不要覆盖原 volume |
+  | pull 失败 | DNS、网络、仓库、tag 是否存在 | 不要反复重建运行容器 |
+  | up 后服务失败 | Compose 配置、状态、日志、挂载 | 不要先删除旧镜像 |
+  | 磁盘接近 100% | `system df -v` 与具体对象 | 不要盲目 system prune |
+  | volume rm 提示 in use | 找出引用该 volume 的容器 | 不要强制删除或删容器数据 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch11-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book03-chapter-11"
+    items={[
+      "我理解配置、业务数据和镜像记录需要分别处理",
+      "项目压缩包能够列出 compose.yaml 与 site/index.html",
+      "book03-web-data 已生成独立备份",
+      "备份已恢复到新 volume，并通过 curl 验证",
+      "更新前镜像 ID 与 digest 已记录",
+      "Compose pull 与 up 的职责已经分开理解",
+      "web service 更新后状态、页面和日志都已检查",
+      "日志驱动显示 local，且有大小和文件数限制",
+      "我先查看 Docker 空间明细，没有执行批量 prune",
+      "只删除了已备份、已恢复验证且无人引用的教学 volume",
+      "主 Compose service 仍在 127.0.0.1:8080 正常运行",
+    ]}
+  />
+
+  下一章会把当前 Compose 项目整理成一份可交接、可继续维护的状态，并明确它怎样进入域名、Cloudflare 和其他 AI 基础设施图书。
+</section>
+
+<section className="book-section" id="ch11-sources">
+  ## 本章技术来源
+
+  本章校订日期：2026-08-11；备份、恢复、更新、日志配置和精确删除已在隔离 Ubuntu VPS 连续实测。
+
+  - [Docker Docs：docker compose pull](https://docs.docker.com/reference/cli/docker/compose/pull/)
+  - [Docker Docs：docker compose up](https://docs.docker.com/reference/cli/docker/compose/up/)
+  - [Docker Docs：Backup, restore, or migrate data volumes](https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes)
+  - [Docker Docs：docker system df](https://docs.docker.com/reference/cli/docker/system/df/)
+  - [Docker Docs：Prune unused Docker objects](https://docs.docker.com/engine/manage-resources/pruning/)
+  - [Docker Docs：Configure logging drivers](https://docs.docker.com/engine/logging/configure/)
+  - [Docker Docs：Local file logging driver](https://docs.docker.com/engine/logging/drivers/local/)
+  - [Compose Specification：services.logging](https://docs.docker.com/reference/compose-file/services/#logging)
+  - [curl 官方手册：`--retry-all-errors`](https://curl.se/docs/manpage.html#--retry-all-errors)
+</section>

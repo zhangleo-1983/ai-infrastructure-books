@@ -29,9 +29,12 @@ const { columns = 2 } = Astro.props;
   }
 
   :global(.info-grid__item h3),
-  :global(.info-grid__item h4) {
+  :global(.info-grid__item h4),
+  :global(.info-grid__title) {
     margin: 0;
+    color: var(--color-text);
     font-size: var(--font-size-md);
+    font-weight: 760;
   }
 
   :global(.info-grid__item p) {

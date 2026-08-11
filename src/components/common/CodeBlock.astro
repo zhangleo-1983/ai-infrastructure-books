@@ -4,12 +4,13 @@ import CopyButton from "./CopyButton.astro";
 interface Props {
   code: string;
   label?: string;
+  printBreak?: boolean;
 }
 
-const { code, label = "Terminal" } = Astro.props;
+const { code, label = "Terminal", printBreak = false } = Astro.props;
 ---
 
-<figure class="code-block">
+<figure class:list={["code-block", { "code-block--print-break": printBreak }]}>
   <figcaption>
     <span>{label}</span>
     <CopyButton />
@@ -59,6 +60,14 @@ const { code, label = "Terminal" } = Astro.props;
       background: #f5f5f5;
       color: #111111;
       break-inside: avoid;
+    }
+
+    .code-block--print-break {
+      break-inside: auto;
+    }
+
+    .code-block--print-break pre {
+      break-inside: auto;
     }
 
     figcaption {

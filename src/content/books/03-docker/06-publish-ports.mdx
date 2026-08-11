@@ -1,0 +1,429 @@
+---
+book: "03-docker"
+order: 6
+slug: "06-publish-ports"
+title: "端口映射：容器怎样被访问？"
+shortTitle: "端口映射"
+description: "使用仅绑定服务器本机的 Nginx 练习容器，理解主机地址、主机端口、容器端口和公网入口之间的关系。"
+chapterType: "chapter"
+updatedAt: "2026-08-11"
+chapterNumber: 6
+duration: "预计 25—35 分钟"
+labels:
+  - "端口映射"
+  - "本机验证"
+  - "暴露边界"
+completionId: "book03-chapter-06"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const portNameCheck =
+  'sudo docker ps -a --filter "name=book03-port-local"';
+
+export const portAvailabilityCheck =
+  "sudo ss -lntp | grep ':8080 '";
+
+export const portRunLocal =
+  "sudo docker run -d --name book03-port-local -p 127.0.0.1:8080:80 nginx:1.30.4-alpine";
+
+export const portList =
+  'sudo docker ps --filter "name=book03-port-local"';
+
+export const portInspect = "sudo docker port book03-port-local";
+
+export const portRequest =
+  "curl --fail --show-error http://127.0.0.1:8080";
+
+export const localTunnel =
+  "ssh -N -L 18080:127.0.0.1:8080 admin@203.0.113.10";
+
+export const portCleanup =
+  "sudo docker stop book03-port-local\nsudo docker rm book03-port-local";
+
+<LearningGoals
+  audience="已经会运行和停止容器，但看到 8080:80 仍分不清两个端口的读者"
+  duration="预计 25—35 分钟"
+  outcome="让 Nginx 只在服务器本机的 127.0.0.1:8080 可访问，并能解释怎样通过 SSH 隧道安全地从自己的电脑查看页面"
+/>
+
+<section className="book-section" id="ch6-result">
+  ## 这一章要解决什么
+
+  第 5 章中的 Nginx 容器显示了 `80/tcp`，但你的电脑浏览器仍然打不开它。这不是 Docker 漏做了一步，而是下面四个对象还没有连在一起：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">⚙️</span>
+      <strong>容器内进程</strong>
+      <small>Nginx 监听容器 TCP 80</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">↔</span>
+      <strong>Docker 映射</strong>
+      <small>决定转发到哪个主机地址和端口</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🖥️</span>
+      <strong>服务器入口</strong>
+      <small>本机地址或公网网卡</small>
+    </div>
+    <div className="flow-node">
+      <span className="flow-node__icon" aria-hidden="true">🌐</span>
+      <strong>外部访问者</strong>
+      <small>还会受到云防火墙和网络路径影响</small>
+    </div>
+  </FlowDiagram>
+
+  本章主线只把 Nginx 发布到服务器自己的 `127.0.0.1:8080`。`127.0.0.1` 叫 loopback address（回环地址），表示“这台机器自己”。这样可以验证容器和端口映射，又不会把一个没有登录、没有 HTTPS 的练习页面直接暴露到公网。
+
+  <Callout type="warning" title="发布端口是安全决定，不只是启动参数">
+    省略主机 IP 的 `-p 8080:80` 默认会把端口发布到主机的全部地址，可能被公网访问。本书不会为了让浏览器立即打开，就把未经保护的练习服务默认公开。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch6-map">
+  ## 先把 `127.0.0.1:8080:80` 拆开
+
+  <ComparisonTable>
+
+  | 片段 | 属于哪里 | 当前含义 |
+  | --- | --- | --- |
+  | `127.0.0.1` | Docker 主机 | 只接受从服务器本机发起的连接 |
+  | 第一个 `8080` | Docker 主机 | 主机用于接收请求的 TCP 端口 |
+  | 第二个 `80` | 容器 | Nginx 在容器内监听的 TCP 端口 |
+  | `tcp` | 传输协议 | 当前映射处理 TCP，不自动包含 UDP |
+
+  </ComparisonTable>
+
+  请求方向是：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>curl</strong>
+      <small>访问 `127.0.0.1:8080`</small>
+    </div>
+    <div className="flow-node">
+      <strong>主机 TCP 8080</strong>
+      <small>Docker 创建的发布入口</small>
+    </div>
+    <div className="flow-node">
+      <strong>容器 TCP 80</strong>
+      <small>Nginx 接收请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>HTTP 响应</strong>
+      <small>沿原路径返回</small>
+    </div>
+  </FlowDiagram>
+
+  <Callout type="info" title="EXPOSE、80/tcp 和 publish 不是同一件事">
+    镜像或容器信息中的 `80/tcp` 可以提示应用预期使用容器端口 80，但不会自动创建主机入口。只有 `-p` 或 `--publish` 才会建立主机地址与容器端口之间的映射。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch6-prepare">
+  ## 开始前检查
+
+  第 5 章结束时已经删除 `book03-lifecycle`，并保留了 Nginx 镜像。本章会创建一个新对象 `book03-port-local`。
+
+  先检查这个名称：
+
+  <CodeBlock
+    label="检查端口练习容器名称"
+    code={portNameCheck}
+  />
+
+  成功状态：没有输出。
+
+  如果有输出，核对 `NAMES` 是否正好是 `book03-port-local`、`IMAGE` 是否为本书的 Nginx 镜像。用途不明确时停止，不要用 `rm -f` 抢占名称。
+
+  再检查 TCP 8080：
+
+  <CodeBlock
+    label="检查主机 TCP 8080"
+    code={portAvailabilityCheck}
+  />
+
+  没有输出通常表示当前没有进程监听 TCP 8080，可以继续。
+
+  有输出表示该端口已经被使用。不要停止不认识的服务，也不要假设它属于 Docker。可以改用一个经过相同检查的空闲端口，例如 18080，并把本章所有“主机 8080”同步替换为 18080；容器端口仍然是 80。
+
+  <Callout type="danger" title="第二册端口不能拿来练习">
+    如果端口属于 3X-UI、Xray、VLESS Reality、SSH 或其他已有服务，保留原状。Docker 端口练习没有理由占用或关闭这些入口。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch6-run">
+  ## 第一步：只向服务器本机发布 Nginx
+
+  <InstructionStep number={1} title="创建具名容器并绑定回环地址">
+    明确写出主机 IP、主机端口和容器端口，不依赖 Docker 的全地址默认值。
+  </InstructionStep>
+
+  <CodeBlock
+    label="启动仅本机可访问的 Nginx"
+    code={portRunLocal}
+  />
+
+  这条命令新增的是：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>-d</code></p>
+
+      让 Nginx 在后台持续运行。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>--name</code></p>
+
+      固定名称为 `book03-port-local`，避免猜容器 ID。
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title"><code>-p</code></p>
+
+      把主机 `127.0.0.1:8080` 映射到容器 TCP 80。
+    </section>
+  </InfoGrid>
+
+  成功状态：终端输出一串容器 ID，然后重新出现提示符。
+
+  失败判断：
+
+  - `port is already allocated`：8080 已被其他进程或容器使用；
+  - 名称冲突：返回名称检查，不要直接强制删除；
+  - 镜像拉取失败：检查网络、DNS、磁盘和镜像名称；
+  - daemon 或权限错误：返回第 3 章；
+  - 容器 ID 出现后仍打不开：继续做状态、映射和本机请求三项检查。
+</section>
+
+<section className="book-section" id="ch6-verify">
+  ## 第二步：分别验证容器状态、映射和响应
+
+  先确认容器仍在运行：
+
+  <CodeBlock
+    label="查看端口练习容器"
+    code={portList}
+  />
+
+  <MockWindow title="docker ps · 端口关系仿真">
+    <div slot="toolbar">
+      <MockStatusBadge>容器正在运行</MockStatusBadge>
+    </div>
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr>
+            <th>IMAGE</th>
+            <th>STATUS</th>
+            <th>PORTS</th>
+            <th>NAMES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>nginx:1.30.4-alpine</td>
+            <td><MockStatusBadge>Up</MockStatusBadge></td>
+            <td>127.0.0.1:8080 → 80/tcp</td>
+            <td>book03-port-local</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  `PORTS` 必须明确出现 `127.0.0.1:8080`。如果只看到 `80/tcp`，说明容器内端口存在，但主机端口没有发布；如果看到 `0.0.0.0:8080` 或 `[::]:8080`，实际暴露范围比本章主线更大，应停止并重新核对创建命令。
+
+  再让 Docker 单独报告映射：
+
+  <CodeBlock
+    label="查看容器端口映射"
+    code={portInspect}
+  />
+
+  预期类似：
+
+  <TerminalMock title="docker port 的预期关系">
+    80/tcp -&gt; 127.0.0.1:8080
+  </TerminalMock>
+
+  最后从服务器本机发送 HTTP 请求：
+
+  <CodeBlock
+    label="从服务器本机请求 Nginx"
+    code={portRequest}
+  />
+
+  `--fail` 会让 HTTP 错误返回非零状态，`--show-error` 会在失败时保留可读提示。
+
+  成功状态：输出 Nginx 默认页面的 HTML，其中能看到 `Welcome to nginx!`。
+
+  <Callout type="tip" title="三项都成立才算端口主线成功">
+    容器状态是 Up、端口关系是 `127.0.0.1:8080 → 80/tcp`、curl 能得到页面，三项共同证明容器进程、Docker 映射和 HTTP 响应都正常。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch6-browser">
+  ## 第三步：从自己的电脑查看，但不开放公网
+
+  服务器本机的 `127.0.0.1` 不是你笔记本电脑的 `127.0.0.1`。如果直接在电脑浏览器打开 `http://127.0.0.1:8080`，浏览器会寻找电脑自己，而不是 VPS。
+
+  SSH local port forwarding（SSH 本地端口转发）可以把电脑上的一个本地端口，通过已经加密的 SSH 连接，转发到服务器的本机端口。
+
+  在电脑上另开一个终端窗口。下面是结构示例：
+
+  <CodeBlock
+    label="电脑本地终端：建立 SSH 隧道示例"
+    code={localTunnel}
+  />
+
+  执行前必须替换：
+
+  - `admin`：第一册交接卡中的实际管理员用户名；
+  - `203.0.113.10`：第一册交接卡中的实际公网 IPv4；这里使用的是文档示例地址；
+  - 如果你使用 SSH 密钥或非 22 端口，继续使用第一册已经验证过的对应参数。
+
+  `-L 18080:127.0.0.1:8080` 表示：
+
+  - 电脑本地监听 18080；
+  - 请求经过 SSH；
+  - 到达 VPS 后访问 VPS 自己的 `127.0.0.1:8080`。
+
+  `-N` 表示只建立转发，不打开远程命令行。命令正常工作时可能一直没有输出，也不会重新出现提示符。
+
+  保持这个终端窗口运行，然后在电脑浏览器打开：
+
+  `http://127.0.0.1:18080`
+
+  成功状态：浏览器显示 Nginx 欢迎页；服务器上的端口仍然只绑定 `127.0.0.1`。
+
+  失败判断：
+
+  - `bind ... Address already in use`：电脑本地 18080 已被占用，换一个电脑本地端口；
+  - SSH 登录失败：返回第一册登录章节；
+  - 隧道已连接但浏览器失败：回到服务器运行 `curl http://127.0.0.1:8080`；
+  - 浏览器访问了 VPS 公网 IP：地址写错，应访问电脑本地的 `127.0.0.1:18080`。
+
+  按 <kbd>Ctrl</kbd> + <kbd>C</kbd> 结束 SSH 隧道，只会关闭这条转发，不会停止服务器上的 Nginx 容器。
+</section>
+
+<section className="book-section" id="ch6-public">
+  ## 如果以后确实需要公网访问
+
+  下面只建立判断模型，本章不要求公开练习页面。
+
+  <ComparisonTable>
+
+  | 配置或状态 | 谁通常可以访问 | 是否是本章主线 |
+  | --- | --- | --- |
+  | 容器只显示 `80/tcp` | Docker 主机和同网络容器，取决于网络 | 否 |
+  | `127.0.0.1:8080:80` | 服务器本机；也可经 SSH 隧道 | 是 |
+  | `8080:80` | 主机所有地址，可能包括公网 IPv4 和 IPv6 | 否 |
+  | 云防火墙放行 8080 | 只解决云平台入口，不会启动容器 | 否 |
+  | 应用登录与 HTTPS | 保护应用层身份和传输 | 后续图书处理 |
+
+  </ComparisonTable>
+
+  真正准备公网发布时，至少要同时回答：
+
+  1. 这个应用是否有可靠登录或其他鉴权；
+  2. 是否需要 HTTPS，而不是明文 HTTP；
+  3. Docker 实际绑定了哪个 IPv4 或 IPv6 地址；
+  4. 云防火墙允许哪些来源访问；
+  5. 主机防火墙与 Docker 转发规则怎样配合；
+  6. 端口是否与第二册或其他业务冲突；
+  7. 服务出现漏洞时怎样停止和回退。
+
+  <Callout type="danger" title="不能只看 UFW 状态判断 Docker 端口是否对外">
+    Docker 官方文档明确提醒：Docker 的端口发布流量可能在到达 UFW 使用的 INPUT、OUTPUT 规则之前已经被转发。因此，“UFW 没有 allow 8080”不能单独证明 Docker 发布端口不可从外部访问。必须结合 Docker 的绑定地址、云防火墙和实际外部测试判断。
+  </Callout>
+
+  <Callout type="warning" title="不要关闭 Docker 的防火墙规则来解决理解困难">
+    把 Docker daemon 的 `iptables` 或 `ip6tables` 设为 false，可能破坏容器网络，还可能产生新的暴露。这个选项不属于零基础排错步骤。
+  </Callout>
+</section>
+
+<section className="book-section" id="ch6-cleanup">
+  ## 第四步：关闭并删除端口练习容器
+
+  第 7 章会使用新的具名容器。先确认当前对象：
+
+  <CodeBlock
+    label="再次核对端口练习容器"
+    code={portNameCheck}
+  />
+
+  只有名称正好是 `book03-port-local`、镜像是 `nginx:1.30.4-alpine` 时，执行：
+
+  <CodeBlock
+    label="停止并删除端口练习容器"
+    code={portCleanup}
+  />
+
+  成功状态：两条命令分别输出 `book03-port-local`。
+
+  再运行名称检查时应当没有输出；运行 TCP 8080 检查时也应当没有本章的 Nginx 监听。
+
+  删除容器不会删除 Nginx 镜像。本章没有创建 volume，也没有修改云防火墙、UFW、SSH 或第二册服务。
+</section>
+
+<section className="book-section" id="ch6-failures">
+  ## 常见失败与判断
+
+  <ComparisonTable>
+
+  | 现象 | 先检查 | 不要立刻做什么 |
+  | --- | --- | --- |
+  | 容器启动提示端口占用 | `ss`、已有容器和端口清单 | 不要停止陌生服务 |
+  | `docker ps` 只有 `80/tcp` | 创建命令是否缺少 `-p` | 不要改云防火墙 |
+  | PORTS 显示 `0.0.0.0` | 是否漏写 `127.0.0.1` | 不要假设 UFW 已阻止公网 |
+  | 服务器 curl 失败 | 容器状态、映射和日志 | 不要先测试公网 |
+  | 服务器 curl 成功，电脑直接访问 VPS 失败 | 当前只绑定回环地址，这是预期 | 不要扩大绑定范围碰运气 |
+  | SSH 隧道失败 | 本地端口、SSH 参数、服务器 curl | 不要公开 8080 代替排错 |
+  | 外部访问结果与云防火墙直觉不同 | Docker 规则、IPv4/IPv6、实际绑定 | 不要关闭 Docker 防火墙能力 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="ch6-finish">
+  ## 本章完成标准
+
+  本章结束时：
+
+  - 你能指出 `127.0.0.1:8080:80` 中三个数字或地址属于哪一层；
+  - 你知道 `80/tcp` 不等于主机已经发布端口；
+  - 你已经从服务器本机成功请求 Nginx；
+  - 你知道怎样使用 SSH 隧道从自己的电脑查看本机绑定服务；
+  - 你没有把无鉴权练习页面默认公开；
+  - `book03-port-local` 已经删除，TCP 8080 已释放；
+  - Nginx 镜像仍然保留。
+
+  <ChapterChecklist chapterId="book03-chapter-06">
+    我能解释主机地址、主机端口与容器端口，完成了仅绑定 127.0.0.1 的本机验证，并知道公网开放还需要单独的安全判断。
+  </ChapterChecklist>
+</section>
+
+<section className="book-section" id="ch6-sources">
+  ## 本章事实依据
+
+  本章于 2026-08-11 依据 Docker 官方资料和隔离 Ubuntu VPS 本机 / SSH 隧道实测校订：
+
+  - [Port publishing and mapping](https://docs.docker.com/engine/network/port-publishing/)
+  - [`docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+  - [`docker container port`](https://docs.docker.com/reference/cli/docker/container/port/)
+  - [Packet filtering and firewalls](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
+
+  其中 Docker 与 UFW、IPv6、direct routing 和旧版 Docker 的本地绑定行为都可能随 Engine 版本和主机网络变化。RC 校订时需要在目标 Ubuntu VPS 上重新检查实际监听地址、Docker Engine 版本和云平台入站策略。
+</section>
