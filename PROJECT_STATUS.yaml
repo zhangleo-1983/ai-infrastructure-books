@@ -1,0 +1,102 @@
+schema_version: 1
+project:
+  name: ai-infrastructure-books
+  type: software
+  description: 《AI 基础设施从零开始》是一套面向普通 AI 用户、知识工作者、内容创作者和小企业主的中文技术入门图书。
+status:
+  state: active
+  health: healthy
+  phase: 第三册发布候选发布
+current:
+  summary: 第一、二册已形成发布候选基线；第三册已合并到 main 并创建 rc.1 标签，测试 VPS 已销毁，等待远端部署验证。
+  working_on:
+    - 推送第三册 rc.1 的 main 与版本标签
+    - 验证 GitHub Pages 的第三册封面、搜索、章节和打印入口
+next_actions:
+  - 推送 main 与 book03-v1.0.0-rc.1 标签并等待静态部署完成
+  - 对线上第三册执行封面、章节、搜索、打印和深层 URL 冒烟检查
+  - 完成第三册发布收尾后，进入第四册“域名与 Cloudflare”内容策划，不直接撰写完整正文
+blockers: []
+milestones:
+  - id: milestone-1
+    name: 书籍注册表已填写并经过复核
+    status: completed
+  - id: milestone-2
+    name: 章节规划与完成率规则已确认
+    status: completed
+  - id: milestone-3
+    name: 内容完整性策略已确认
+    status: completed
+  - id: milestone-4
+    name: “开始之前”和第 1 章正式 MDX 草稿已建立
+    status: completed
+  - id: milestone-5
+    name: 第 2—5 章正式 MDX 草稿已建立，并与已确认大纲的标题、顺序和 slug 对齐
+    status: completed
+  - id: milestone-6
+    name: 第 2—5 章涉及的套餐字段、服务商差异和地区选择事实已建立校订记录
+    status: completed
+  - id: milestone-7
+    name: 第 6—8 章正式 MDX 草稿已建立，并停在实际 Deploy 操作之前
+    status: completed
+  - id: milestone-8
+    name: 第 6—8 章涉及的账户安全、支付方式、SSH 密钥、Public IPv4 和 Firewall 字段已建立校订记录
+    status: completed
+  - id: milestone-9
+    name: 第 9 章正式 MDX 草稿已建立，覆盖持续计费、附加资源、超额流量和单次 Deploy 边界
+    status: completed
+  - id: milestone-10
+    name: 第 9 章涉及的停止实例、自动备份、快照和带宽超额事实已建立校订记录
+    status: completed
+  - id: milestone-11
+    name: 第 10—12 章正式 MDX 草稿已建立，覆盖开通确认、购买故障排查、首次 SSH 登录和第二册交接
+    status: completed
+  - id: milestone-12
+    name: 第 10—12 章涉及的实例状态、公网 IPv4、登录凭证、OpenSSH 和重装风险事实已建立校订记录
+    status: completed
+  - id: milestone-13
+    name: 附录与资料来源正式 MDX 草稿已建立，包含打印检查表、交接卡、术语表和官方来源分类
+    status: completed
+  - id: milestone-14
+    name: AWS Lightsail 与阿里云 ECS 仅作为最小补充选择，没有扩展为三套并行购买教程
+    status: completed
+  - id: milestone-15
+    name: 第一册 15 个内容单元均使用显式 order、slug、chapterType 和 updatedAt
+    status: completed
+  - id: milestone-16
+    name: 所有厂商页面采用 HTML/CSS 教学仿真，通用仿真窗口具有明确可见标签
+    status: completed
+  - id: milestone-17
+    name: 第三册 15 个内容单元、封面、章节导航和整册打印页已完成
+    status: completed
+  - id: milestone-18
+    name: 第三册 Docker 主线已在隔离的 Ubuntu 24.04 amd64 VPS 连续实机校订
+    status: completed
+  - id: milestone-19
+    name: 第三册生产构建、内容检查、内部链接、跨浏览器 E2E 和发布准备检查已通过
+    status: completed
+  - id: milestone-20
+    name: 第三册 A4 PDF、搜索样本、无障碍、性能、安全和子路径部署模拟已完成
+    status: completed
+  - id: milestone-21
+    name: 第三册 book03-v1.0.0-rc.1 版本提交与标签
+    status: completed
+  - id: milestone-22
+    name: 第三册实机校订 VPS 已销毁且无附加 Block Storage 遗留
+    status: completed
+  - id: milestone-23
+    name: 第三册 GitHub Pages 发布与线上冒烟检查
+    status: in_progress
+activity:
+  last_meaningful_update: 2026-08-11T16:48:35+08:00
+  last_status_review: 2026-08-11T16:48:35+08:00
+management:
+  archived: false
+  status_maintenance: automatic
+confidence:
+  overall: high
+  rationale:
+    - 第三册注册表、15 个 MDX 内容单元和发布候选报告提供直接证据
+    - 构建、搜索、E2E、PDF、Lighthouse、安全与子路径部署结果已记录
+    - Git 历史与带注释标签直接证明第三册已合并并形成 rc.1 版本基线
+    - Vultr 控制台明确显示实例终止、实例列表为空且没有附加 Block Storage
