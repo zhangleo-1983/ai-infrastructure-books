@@ -4,7 +4,7 @@
 
 校订日期：2026-08-23
 
-状态：本地发布候选综合验收通过；等待 Git 标签、GitHub Pages 部署与线上冒烟确认
+状态：`book04-v1.0.0-rc.1` 已发布；GitHub CI、Pages 部署与线上冒烟通过
 
 ## 本次候选版本包含
 
@@ -116,12 +116,24 @@ Lighthouse JSON 是本地忽略产物，位于 `output/lighthouse/`。
 - Lighthouse 是单机实验室结果，不代表所有地区和网络；
 - PDF 分页可能随浏览器和系统字体变化，但正文不得丢失或重叠；
 - 目标读者试读尚未开始，零基础理解障碍仍需真实反馈验证。
+- GitHub Actions 提示 `actions/checkout@v4`、`actions/setup-node@v4` 和 Pages v4/v5 action
+  的 Node.js 20 运行时即将弃用；本次 runner 已强制使用 Node.js 24 且工作流成功，后续应升级 action 主版本。
 
 这些边界不阻塞 `rc.1`，但不得把发布候选表述为正式版。
 
 ## 发布建议
 
-项目 Owner 已授权完成第四册发布。当前本地综合验收通过；实际提交、标签、GitHub Pages
-部署和线上冒烟结果以 Git 记录、工作流和公开站点为准。
+项目 Owner 已授权完成第四册发布。发布提交已合并到 `main`，带注释标签为
+`book04-v1.0.0-rc.1`；GitHub CI 的项目检查与三浏览器 job、Pages build / deploy 均成功。
+
+公开站点：
+
+```text
+https://zhangleo-1983.github.io/ai-infrastructure-books/books/04-cloudflare/
+```
+
+线上只读冒烟确认首页、书目、第四册封面、第 8 章、第 11 章、资料来源和打印页均为 200；
+第四册目录 15 项，`Universal SSL` 搜索命中第 9 章，打印页包含 15 个内容单元并保持
+`noindex,follow`，390px 无页面级横向溢出，canonical 含正确 base path，未知路径返回 404。
 
 完成第四册发布报告后，按仓库里程碑规则等待 Owner 确认，再进入第五册策划与样章试写。

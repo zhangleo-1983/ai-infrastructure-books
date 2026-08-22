@@ -114,7 +114,8 @@ route、DNS、connector、Tunnel 与临时 VPS，计费附加资源均为空；�
 综合验收；候选版本标识为 `book04-v1.0.0-rc.1`。内容规格见
 [`docs/planning/book04-content-spec.md`](docs/planning/book04-content-spec.md)，写作与事实台账见
 [`docs/qa/04-cloudflare/README.md`](docs/qa/04-cloudflare/README.md)，综合验收结果见
-[`docs/qa/04-cloudflare/release-candidate.md`](docs/qa/04-cloudflare/release-candidate.md)。
+[`docs/qa/04-cloudflare/release-candidate.md`](docs/qa/04-cloudflare/release-candidate.md)。该版本已由
+`main` 通过 GitHub Pages 发布并完成线上搜索、打印、canonical、移动端与 404 冒烟检查。
 
 ------------------------------------------------------------------------
 
