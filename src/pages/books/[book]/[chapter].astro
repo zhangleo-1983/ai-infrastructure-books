@@ -90,8 +90,14 @@ function navigationTarget(
   };
 }
 
-const previousTarget = navigationTarget(previousEntry, "上一页");
-const nextTarget = navigationTarget(nextEntry, "下一章");
+const previousTarget = navigationTarget(
+  previousEntry,
+  book.status === "drafting" ? "上一篇样章" : "上一页",
+);
+const nextTarget = navigationTarget(
+  nextEntry,
+  book.status === "drafting" ? "下一篇样章" : "下一章",
+);
 const chapterNumberProps = entry.data.chapterNumber
   ? { chapterNumber: entry.data.chapterNumber }
   : {};

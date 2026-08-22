@@ -1,0 +1,325 @@
+---
+book: "04-cloudflare"
+order: 4
+slug: "04-change-nameservers"
+title: "更换权威名称服务器，等待站点激活"
+shortTitle: "更换 nameserver"
+description: "先备份记录并判断 DNSSEC，再按移除旧 DS、等待缓存、替换 nameserver、确认 Active、重新启用 DNSSEC 的顺序迁移权威 DNS。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 4
+duration: "操作约 20—30 分钟，等待时间可能达到 24—48 小时或更久"
+labels:
+  - "Nameserver"
+  - "DNSSEC"
+  - "高风险变更"
+completionId: "book04-chapter-04"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+export const macDsCheck = `dig DS example.com @1.1.1.1
+dig DS example.com @8.8.8.8`;
+
+export const windowsDsCheck = `Resolve-DnsName -Name example.com -Type DS -Server 1.1.1.1 -DnsOnly
+Resolve-DnsName -Name example.com -Type DS -Server 8.8.8.8 -DnsOnly`;
+
+export const macNsCheck = `dig NS example.com @1.1.1.1
+dig NS example.com @8.8.8.8`;
+
+export const windowsNsCheck = `Resolve-DnsName -Name example.com -Type NS -Server 1.1.1.1 -DnsOnly
+Resolve-DnsName -Name example.com -Type NS -Server 8.8.8.8 -DnsOnly`;
+
+<LearningGoals
+  audience="已在 Cloudflare 创建并复核 zone，准备第一次迁移权威 DNS 的读者"
+  duration="操作约 20—30 分钟；DNSSEC 与 nameserver 缓存等待可能达到 24—48 小时或更久"
+  outcome="在不制造 DNSSEC 验证断链的前提下，把权威 DNS 切换到 Cloudflare，确认 zone 为 Active，并恢复 DNSSEC 保护"
+/>
+
+<section className="book-section" id="book04-ch4-danger">
+  ## 这是全书最需要按顺序执行的一章
+
+  更换 nameserver 会改变整个域名由谁回答 DNS。域名如果已经用于网站、邮箱或第三方验证，这些业务都在变更范围内。
+
+  DNSSEC（Domain Name System Security Extensions，域名系统安全扩展）会用数字签名帮助解析器验证 DNS 答案。注册商中的 **DS 记录**把上级域与当前权威 DNS 的签名链连接起来。
+
+  如果旧 DS 还存在，却先把 nameserver 换到没有对应旧密钥的新 DNS，验证型解析器会认为答案不可信，并返回 `SERVFAIL`。这不是普通“传播慢”，继续等待不一定能修复。
+
+  <Callout type="danger" title="不能把操作顺序压缩成“换两台 nameserver”">
+    已启用 DNSSEC 的域名必须先移除旧 DS，等待公共解析器不再看到旧 DS，再切换 nameserver。Cloudflare zone Active 后，才在 Cloudflare 重新启用 DNSSEC，并把新 DS 提交给注册商。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch4-paths">
+  ## 先判断你属于哪条路径
+
+  在注册商和旧 DNS 服务中查找 `DNSSEC`、`DS record`、`Delegation signer` 等入口。
+
+  <ComparisonTable>
+
+  | 当前状态 | 使用路径 | 能否立刻修改 nameserver |
+  | --- | --- | --- |
+  | DNSSEC 明确关闭，注册商没有 DS | 路径 A：保存记录后切换 | 可以进入 nameserver 切换 |
+  | DNSSEC 开启，注册商有 DS | 路径 B：先移除旧 DS 并等待 | 不可以 |
+  | 页面状态不清楚 | 暂停并向注册商确认 | 不可以 |
+  | 域名有生产业务且无维护窗口 | 先完成变更计划与回退负责人 | 不可以 |
+
+  </ComparisonTable>
+
+  不要只看旧 DNS 控制台中的“DNSSEC 已关闭”。真正影响验证链的是注册商一侧是否仍向上级域发布 DS；后面要通过公共 DNS 查询再次确认。
+</section>
+
+<section className="book-section" id="book04-ch4-preflight">
+  ## 切换前建立可回退基线
+
+  在点击任何保存按钮前，记录：
+
+  - 旧的完整 nameserver 列表；
+  - 旧 DNS 中全部记录和字段；
+  - Cloudflare 中复核后的全部记录；
+  - 当前 DNSSEC 开关与 DS 字段；
+  - 网站、邮箱和其他业务的变更前测试结果；
+  - 变更开始时间、执行人和业务负责人；
+  - 注册商与旧 DNS 官方支持入口。
+
+  <Callout type="warning" title="保留旧 DNS zone，不要切换后立即删除">
+    公共解析器会在缓存到期前继续询问旧 nameserver。旧 zone 仍可用，能降低过渡期内不同用户得到不一致答案的风险，也为尚未启用新 DNSSEC 时的回退保留入口。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch4-remove-ds">
+  ## 路径 B 第一步：移除旧 DS
+
+  如果 DNSSEC 已启用：
+
+  <InstructionStep number={1} title="在注册商找到 DNSSEC 或 DS 管理">
+    这里是域名注册层的 DNSSEC 委派，不是 Cloudflare DNS Records 中新增普通记录的页面。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="按注册商流程关闭 DNSSEC 或删除旧 DS">
+    有的页面只有一个关闭开关，有的页面列出 key tag、algorithm、digest type 和 digest。只删除当前域名的旧 DS，不修改其他域名。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="保存并记录时间">
+    页面显示已关闭，只说明注册商接受了变更；公共解析器仍可能缓存旧 DS。
+  </InstructionStep>
+
+  <Callout type="danger" title="此时不要立刻关闭旧权威 DNS 的签名">
+    安全迁移需要让旧权威 DNS 在旧 DS 缓存失效前继续提供匹配的签名答案。不同 DNS 服务商的开关含义不同；不确定时按旧 DNS 与注册商的官方迁移文档操作。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch4-ds-check">
+  ## 等到公共解析器不再返回旧 DS
+
+  官方资料常见的 DS TTL 等待范围是 24—48 小时，但具体时间由顶级域、注册商、原 TTL 和解析器缓存决定。不要用固定倒计时替代查询结果。
+
+  把命令中的 `example.com` 换成自己的根域名：
+
+  <PlatformTabs id="book04-ch4-ds" firstPlatform="mac" macLabel="macOS 终端" windowsLabel="Windows PowerShell">
+    <div slot="mac">
+      <CodeBlock label="从两个公共解析器查询 DS" code={macDsCheck} />
+      成功状态：两次输出的 ANSWER 区域都不再包含旧 DS。
+    </div>
+    <div slot="windows">
+      <CodeBlock label="从两个公共解析器查询 DS" code={windowsDsCheck} />
+      成功状态：两次查询都不再返回 DS。PowerShell 可能以 `NoRecords` 一类错误表示“名称存在但没有这种记录”。
+    </div>
+  </PlatformTabs>
+
+  下面几种情况不能当作成功：
+
+  - 一台解析器无 DS，另一台仍返回旧 DS；
+  - 查询超时或电脑没有网络；
+  - 域名拼错导致 `NXDOMAIN`；
+  - 只看注册商页面，没有做公共查询。
+
+  等多个公共解析器都不再返回旧 DS，再进入下一步。
+</section>
+
+<section className="book-section" id="book04-ch4-copy-ns">
+  ## 复制当前 zone 分配的 nameserver
+
+  回到 Cloudflare 的 `example.com` zone，复制页面明确分配的两台 nameserver。不要使用书本、教程、其他域名或另一个 Cloudflare 账户里的值。
+
+  <MockWindow title="nameserver 替换确认单仿真">
+    <div className="mock-form-grid">
+      <MockField label="旧 nameserver 1" wide>
+        <span>保存在回退记录中，不立即删除旧 zone</span>
+      </MockField>
+      <MockField label="旧 nameserver 2" wide>
+        <span>保存在回退记录中，不立即删除旧 zone</span>
+      </MockField>
+      <MockField label="Cloudflare 分配值 1" wide>
+        <span>从当前 zone 逐字复制</span>
+      </MockField>
+      <MockField label="Cloudflare 分配值 2" wide>
+        <span>从当前 zone 逐字复制</span>
+      </MockField>
+      <MockField label="旧 DS 公共查询">
+        <MockStatusBadge tone="success">已不再返回</MockStatusBadge>
+      </MockField>
+      <MockField label="Cloudflare DNS 记录">
+        <MockStatusBadge tone="success">已人工复核</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="book04-ch4-change-ns">
+  ## 在注册商替换 nameserver
+
+  <InstructionStep number={1} title="打开域名的 nameserver 设置">
+    确认页面顶部是自己的根域名，并选择自定义 nameserver 或使用其他 DNS 提供商。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="删除旧值，填入 Cloudflare 分配的两项">
+    一行一个完整名称。不要加 `https://`、端口、路径或 IP 地址，也不要把两项合并在一行。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="逐字符对照后保存">
+    有的注册商会要求邮箱、2FA 或安全确认。只使用官方页面完成确认。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="记录保存结果和时间">
+    成功状态是注册商页面重新打开后仍显示两台 Cloudflare nameserver，并且没有额外旧值。
+  </InstructionStep>
+
+  <Callout type="warning" title="不要在 Cloudflare DNS Records 新建这两条 NS">
+    本步骤发生在注册商的 nameserver 委派设置。给根域名添加普通 NS 记录不能代替注册商层的切换，还可能制造冲突。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch4-ns-check">
+  ## 查询公共解析器看到的 nameserver
+
+  把 `example.com` 换成自己的根域名：
+
+  <PlatformTabs id="book04-ch4-ns" firstPlatform="mac" macLabel="macOS 终端" windowsLabel="Windows PowerShell">
+    <div slot="mac">
+      <CodeBlock label="从两个公共解析器查询 NS" code={macNsCheck} />
+    </div>
+    <div slot="windows">
+      <CodeBlock label="从两个公共解析器查询 NS" code={windowsNsCheck} />
+    </div>
+  </PlatformTabs>
+
+  成功状态：答案逐步变成 Cloudflare 为当前 zone 分配的两台 nameserver。传播期间不同解析器可能暂时返回不同结果。
+
+  失败判断：
+
+  - 24 小时后注册商仍显示旧值；
+  - 公共查询持续只返回旧 nameserver；
+  - 返回的 Cloudflare nameserver 与当前 zone 分配值不同；
+  - 查询出现 `SERVFAIL`，且注册商仍有旧 DS；
+  - 域名在注册商处处于锁定、暂停或验证失败状态。
+
+  Cloudflare 当前完整接入文档提示 nameserver 更新最长可能需要约 24 小时。实际缓存与注册商处理时间可能不同，不要用频繁重复保存替代等待和查询。
+</section>
+
+<section className="book-section" id="book04-ch4-active">
+  ## 等 Cloudflare zone 变成 Active
+
+  Cloudflare 会定期检查上级域中的 nameserver。当它确认委派正确后，zone 状态从 Pending 变为 Active，并可能发送通知邮件。
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">注册商</p>
+      <p>只保留当前 zone 分配的两台 Cloudflare nameserver。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">公共 NS 查询</p>
+      <p>多个解析器返回相同的 Cloudflare nameserver。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Cloudflare zone</p>
+      <p><strong>Active</strong>，不再是 Pending。</p>
+    </section>
+  </InfoGrid>
+
+  三项共同成立，才进入重新启用 DNSSEC。只看到注册商保存成功还不够。
+</section>
+
+<section className="book-section" id="book04-ch4-enable-dnssec">
+  ## 在 Cloudflare 重新启用 DNSSEC
+
+  zone Active 后：
+
+  <InstructionStep number={1} title="在 Cloudflare 打开 DNSSEC 设置">
+    确认顶部是正确的根域名，选择启用 DNSSEC。Cloudflare 会为当前 zone 签名并生成需要提交的 DS 信息。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="按注册商字段逐项提交新 DS">
+    常见字段包括 key tag、algorithm、digest type 和 digest。名称可能略有不同，必须复制 Cloudflare 当前生成的值，不使用旧 DS，也不使用书中示例。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="等待并验证新 DS">
+    再次运行本章 DS 查询。成功状态从“没有 DS”变为多个解析器返回相同的新 DS，且正常网站和邮箱仍可用。
+  </InstructionStep>
+
+  某些注册商可能自动处理 DS，页面流程会更短。无论是否自动，都要确认 Cloudflare DNSSEC 状态正常，并用公共查询验证最终结果。
+
+  <Callout type="danger" title="不要提交旧 DS，也不要手工猜字段">
+    新 Cloudflare zone 使用新的签名材料。旧服务的 DS 与新 zone 不匹配；算法、摘要类型和摘要任何一项错误，都可能让验证型解析器拒绝整个域名。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch4-failures">
+  ## 如果 Pending 或 SERVFAIL 不消失
+
+  <ComparisonTable>
+
+  | 现象 | 先检查 | 不要做什么 |
+  | --- | --- | --- |
+  | zone 长时间 Pending | 注册商 NS 是否完全匹配、域名状态、旧 DS | 不要重复添加同一个 zone |
+  | 公共 NS 返回另一组 Cloudflare 值 | 是否复制了其他域名或账户的 nameserver | 不要继续等待错误值“自己纠正” |
+  | `SERVFAIL` 且旧 DS 仍存在 | 注册商 DNSSEC / DS 状态 | 不要把它当作普通传播慢 |
+  | Active 后邮件失败 | Cloudflare 中 MX、TXT 是否完整 | 不要先删除或重建邮箱账户 |
+  | 只有部分网络看到旧答案 | TTL 与解析器缓存 | 不要频繁来回切换 nameserver |
+  | 新 DS 提交后解析失败 | DS 字段是否与 Cloudflare 当前值一致 | 不要同时删除 Cloudflare zone |
+
+  </ComparisonTable>
+
+  回退也必须尊重 DNSSEC 顺序：如果已经向注册商发布了 Cloudflare 的新 DS，不能直接把 nameserver 换回旧服务。先按当前 DNS 提供商与注册商的官方 DNSSEC 回退流程移除不匹配的 DS，等待缓存失效，再更改委派。
+</section>
+
+<section className="book-section" id="book04-ch4-finish">
+  ## 本章完成状态
+
+  最终应该同时满足：
+
+  - Cloudflare zone 为 Active；
+  - 公共查询返回当前 zone 的两台 nameserver；
+  - Cloudflare DNS 记录与迁移前清单一致；
+  - DNSSEC 在 Cloudflare 显示已启用；
+  - 公共查询返回 Cloudflare 当前生成的新 DS；
+  - 原有网站、邮箱和验证仍能工作；
+  - 旧 DNS zone 暂时保留，回退记录没有丢失。
+
+  如果第 2 章确认域名原本没有 DNSSEC，完成 Active 和业务验证后，可以直接在 Cloudflare 启用 DNSSEC，并按注册商流程添加新 DS，不需要经历“移除旧 DS”的等待。
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-04"
+  items={[
+    "旧 nameserver、全部 DNS 记录、业务基线和回退负责人已经记录",
+    "我明确知道迁移前 DNSSEC 是否启用、注册商是否存在旧 DS",
+    "如有旧 DS，我已等待多个公共解析器不再返回它",
+    "注册商只填写了当前 Cloudflare zone 分配的两台 nameserver",
+    "多个公共解析器返回正确 nameserver，Cloudflare zone 为 Active",
+    "我在 Active 后重新启用了 DNSSEC，并提交、验证了新 DS",
+    "网站、邮箱和验证业务完成回归，旧 DNS zone 暂未删除",
+  ]}
+/>

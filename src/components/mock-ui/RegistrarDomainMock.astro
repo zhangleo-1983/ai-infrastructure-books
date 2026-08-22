@@ -1,0 +1,83 @@
+---
+import MockField from "./MockField.astro";
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockToolbar from "./MockToolbar.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="域名注册结算页仿真">
+  <MockToolbar slot="toolbar">
+    <span class="mock-action">返回搜索</span>
+    <span class="mock-action mock-action--primary">核对后注册</span>
+  </MockToolbar>
+
+  <div class="registrar-domain-mock">
+    <div class="registrar-domain-mock__heading">
+      <div>
+        <p class="mock-heading"><code>example.com</code></p>
+        <p class="mock-small">教学占位域名，不能从本图判断实际可注册状态。</p>
+      </div>
+      <MockStatusBadge tone="neutral">价格以结算页为准</MockStatusBadge>
+    </div>
+
+    <div class="mock-form-grid">
+      <MockField label="注册年限">
+        <strong>1 年</strong>
+      </MockField>
+      <MockField label="首期费用">
+        <span>在结算页记录</span>
+      </MockField>
+      <MockField label="当前续费价">
+        <span>单独核对，不按首年优惠推算</span>
+      </MockField>
+      <MockField label="税费与币种">
+        <span>以账户地区和支付页为准</span>
+      </MockField>
+      <MockField label="注册联系邮箱" wide>
+        <span>填写可长期收信的邮箱；不要在公开笔记中记录完整账户信息</span>
+      </MockField>
+      <MockField label="自动续费" wide>
+        <MockStatusBadge tone="warning">注册完成后再次核对</MockStatusBadge>
+      </MockField>
+    </div>
+
+    <p class="registrar-domain-mock__note">
+      本图只说明核对顺序，不代表任何注册商的当前页面、价格、库存或支付结果。
+    </p>
+  </div>
+</MockWindow>
+
+<style>
+  .registrar-domain-mock {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .registrar-domain-mock__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .registrar-domain-mock__note {
+    margin: 0;
+    border-top: var(--border-thin);
+    padding-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 35.625rem) {
+    .registrar-domain-mock__heading {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+
+  @media print {
+    .registrar-domain-mock {
+      break-inside: avoid;
+    }
+  }
+</style>

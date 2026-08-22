@@ -56,6 +56,7 @@ const updatedAt = entries.reduce(
   "1970-01-01",
 );
 const firstEntry = entries[0];
+const isDraftBook = book.status === "drafting";
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
@@ -88,13 +89,21 @@ const draftLayoutProps =
     updatedAt={updatedAt}
     startHref={chapterHref(book, firstEntry!.data.slug)}
     printHref={printHref(book)}
+    startLabel={isDraftBook ? "阅读样章" : "开始阅读"}
+    printLabel={isDraftBook ? "样章打印" : "整册打印"}
   />
 
   <section class="book-index" aria-labelledby="book-index-title">
     <div>
-      <p class="eyebrow">目录</p>
-      <h2 id="book-index-title">完整目录</h2>
-      <p>从“开始之前”到资料来源，全部内容均可直接阅读。</p>
+      <p class="eyebrow">{isDraftBook ? "Draft" : "目录"}</p>
+      <h2 id="book-index-title">
+        {isDraftBook ? "当前样章" : "完整目录"}
+      </h2>
+      <p>
+        {isDraftBook
+          ? "这里只列出已经创建的样章；未完成章节不会生成空白页面。"
+          : "从“开始之前”到资料来源，全部内容均可直接阅读。"}
+      </p>
     </div>
     <TableOfContents book={book} items={tocItems} />
   </section>

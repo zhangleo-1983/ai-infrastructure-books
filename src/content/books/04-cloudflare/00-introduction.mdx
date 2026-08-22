@@ -1,0 +1,349 @@
+---
+book: "04-cloudflare"
+order: 0
+slug: "start"
+title: "开始之前：先确认域名与本机服务都在你控制中"
+shortTitle: "开始之前"
+description: "在更改 DNS 或创建 Tunnel 前，核对域名所有权、现有业务、DNSSEC、Cloudflare 账户和第三册本机服务，并明确必须停止的情况。"
+chapterType: "introduction"
+updatedAt: "2026-08-11"
+duration: "预计 15—20 分钟"
+labels:
+  - "阅读起点"
+  - "域名清点"
+  - "安全边界"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const composeBaseline = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const listeningBaseline =
+  "sudo ss -lntp | grep ':8080 '";
+
+export const timeBaseline =
+  "timedatectl status";
+
+<LearningGoals
+  audience="已经完成第三册、第一次准备给本机 Compose 服务添加域名的零基础读者"
+  duration="预计 15—20 分钟"
+  outcome="得到一份不含秘密的域名与服务前置清点卡，并能明确判断现在可以继续还是必须暂停"
+/>
+
+<section className="book-section" id="book04-start-safety-gate">
+  ## 这一篇只检查，不更改
+
+  本篇不会购买域名，不会修改 nameserver（名称服务器），不会新增 DNS 记录，也不会安装或创建 Cloudflare Tunnel。
+
+  这样安排是因为后面的操作会连接五个原本独立的对象：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>域名注册商</strong>
+      <small>持有域名、续费、联系邮箱</small>
+    </div>
+    <div className="flow-node">
+      <strong>权威 DNS</strong>
+      <small>回答这个域名有哪些记录</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare</strong>
+      <small>代理公开请求并管理 Tunnel</small>
+    </div>
+    <div className="flow-node">
+      <strong>Ubuntu VPS</strong>
+      <small>运行 cloudflared 和 Docker</small>
+    </div>
+    <div className="flow-node">
+      <strong>Compose 服务</strong>
+      <small>当前只在 127.0.0.1:8080 提供页面</small>
+    </div>
+  </FlowDiagram>
+
+  只要其中一个对象不在你控制中，就不能靠“再点几次”安全解决。开始前清点的目的，是把这些对象各自的负责人、成功状态和回退入口写清楚。
+
+  <Callout type="info" title="“开始之前”不计入 12 章完成率">
+    这一篇是一道安全门。暂停并不代表失败，而是说明域名或服务器还有前置问题需要处理。第四册只把第 1—12 章计入完成率。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-start-terms">
+  ## 先分清四个容易混淆的词
+
+  <ComparisonTable>
+
+  | 名称 | 它负责什么 | 它不负责什么 |
+  | --- | --- | --- |
+  | 域名 | 给服务一个可以长期使用的名称，例如 `example.com` | 它本身不是服务器，也不会自动显示网页 |
+  | 注册商 | 注册、续费、锁定域名，并保存注册联系信息 | 不一定负责当前 DNS，也不运行你的容器 |
+  | 权威 DNS | 回答 `app.example.com` 应该去哪里 | 不保证目标服务正在运行 |
+  | Cloudflare Tunnel | 把 Cloudflare 收到的请求转给本机服务 | 不替代应用登录、数据备份或容器维护 |
+
+  </ComparisonTable>
+
+  本书会使用 `example.com`、`app.example.com` 这类文档示例。你实际操作时要替换成自己的域名，但不要把真实域名、账户或 token 粘贴到公开笔记和仓库中。
+</section>
+
+<section className="book-section" id="book04-start-handoff">
+  ## 第一步：拿出第三册交接卡
+
+  第三册最后一章应当已经交付一个只在服务器本机可访问的 Web 服务。如果你还没有交接卡，先返回<a href={sitePath("/books/03-docker/12-handoff/")}>第三册“整理 Compose 项目，进入下一册”</a>。
+
+  本书主线需要的交接信息是：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">项目目录</p>
+      <p><code>$HOME/docker-labs/compose-web</code></p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Compose service</p>
+      <p><code>web</code></p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本机入口</p>
+      <p><code>http://127.0.0.1:8080</code></p>
+    </section>
+  </InfoGrid>
+
+  `127.0.0.1` 叫作回环地址，表示“这台服务器自己”。它不是 VPS 公网 IPv4，也不能被外部浏览器直接访问。保留这个边界，正是本书选择 Cloudflare Tunnel 主线的原因之一。
+</section>
+
+<section className="book-section" id="book04-start-origin-check">
+  ## 第二步：确认第三册服务现在仍然正常
+
+  在已经登录 VPS 的终端中执行：
+
+  <CodeBlock
+    label="检查 Compose 配置、状态和本机页面"
+    code={composeBaseline}
+  />
+
+  四行命令分别在做什么：
+
+  <ComparisonTable>
+
+  | 命令 | 目的 | 成功状态 | 失败判断 |
+  | --- | --- | --- | --- |
+  | `cd ...` | 进入正确项目目录 | 提示符没有报错 | `No such file or directory` |
+  | `compose config -q` | 检查 Compose 文件能否解析 | 没有输出并返回提示符 | 显示 YAML、变量或配置错误 |
+  | `compose ps` | 检查 `web` service | 状态为 Up 或 Running | Exited、Restarting 或没有 service |
+  | `curl ...` | 从服务器本机访问页面 | 返回第三册教学页内容 | connection refused、超时或 HTTP 错误 |
+
+  </ComparisonTable>
+
+  <TerminalMock title="本机服务基线成功示意">
+    NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SERVICE&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PORTS<br />
+    book03-web&nbsp;&nbsp;web&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="term-green">Up</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:8080-&gt;80/tcp<br />
+    <span className="term-green">第三册 Compose 教学页内容已返回</span>
+  </TerminalMock>
+
+  如果本机 `curl` 已经失败，现在修改域名或创建 Tunnel 只会在原故障外再叠加一层。先回到第三册第 10 章修复 Compose 服务。
+</section>
+
+<section className="book-section" id="book04-start-listening">
+  ## 第三步：确认 8080 只监听在本机
+
+  执行：
+
+  <CodeBlock
+    label="查看 8080 的监听地址"
+    code={listeningBaseline}
+  />
+
+  成功状态应当包含：
+
+  ```text
+  127.0.0.1:8080
+  ```
+
+  它表示只有服务器本机能够连接。下面这些结果需要暂停：
+
+  - `0.0.0.0:8080`：服务正在所有 IPv4 网卡上监听；
+  - `[::]:8080`：服务可能正在所有 IPv6 网卡上监听；
+  - 没有任何输出：8080 当前没有监听；
+  - 输出属于陌生进程：端口可能不是第三册 Compose 服务占用。
+
+  <Callout type="danger" title="不要为了 Tunnel 开放公网 8080">
+    Cloudflare Tunnel 的 `cloudflared` 与服务运行在同一台服务器时，可以直接访问 `127.0.0.1:8080`。本书不要求把云防火墙或主机防火墙中的 8080 开放给 `0.0.0.0/0`。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-start-domain-control">
+  ## 第四步：确认你能长期控制域名
+
+  如果还没有域名，现在只填写“准备购买”，不要在本篇直接下单。如果已经有域名，登录注册商后记录以下信息：
+
+  <MockWindow title="域名控制清点卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="域名">
+        <code>example.com</code>
+      </MockField>
+      <MockField label="注册商">
+        <span>由读者填写，不写账户名称</span>
+      </MockField>
+      <MockField label="到期日期">
+        <span>YYYY-MM-DD</span>
+      </MockField>
+      <MockField label="自动续费">
+        <MockStatusBadge tone="neutral">已核对当前状态</MockStatusBadge>
+      </MockField>
+      <MockField label="注册邮箱可用" wide>
+        <MockStatusBadge tone="success">可以接收验证和恢复邮件</MockStatusBadge>
+      </MockField>
+      <MockField label="凭证位置" wide>
+        <span>只写“密码管理器中的条目名称”，不写密码或恢复码</span>
+      </MockField>
+    </div>
+  </MockWindow>
+
+  为什么要记录到期日：域名通常按年注册，不是永久买断。页面今天能打开，不代表域名过期以后仍能解析。
+
+  成功状态：
+
+  - 你能登录注册商；
+  - 注册邮箱仍能收信；
+  - 知道域名何时到期；
+  - 知道自动续费当前是否开启；
+  - 知道密码和 2FA 恢复材料保存在哪里。
+
+  失败判断：无法登录、邮箱已停用、域名已过期或暂停、联系人不是你能确认的人。遇到这些情况先恢复域名控制权。
+</section>
+
+<section className="book-section" id="book04-start-existing-services">
+  ## 第五步：确认域名没有你不知道的现有业务
+
+  更换 nameserver 会影响整个域名，不只影响准备创建的 `app` 子域名。先确认当前域名是否已经用于：
+
+  - 网站或博客；
+  - 企业邮箱或个人邮箱；
+  - 登录验证、密码重置或第三方服务绑定；
+  - API、Webhook、网盘或其他子域名；
+  - TXT 所有权验证、SPF、DKIM 或 DMARC；
+  - 其他人或团队维护的业务。
+
+  <Callout type="warning" title="不认识的 DNS 记录不能当作垃圾删除">
+    MX 常用于邮件，TXT 可能用于验证或邮件安全，CNAME 可能连接第三方平台。Cloudflare 自动扫描不能保证发现所有记录。无法解释现有记录时，先找负责人，不要继续更换 nameserver。
+  </Callout>
+
+  建议在清点卡中只记录记录类型、名称和用途，不在公开材料中记录真实源站 IP、邮箱服务器或验证值。
+</section>
+
+<section className="book-section" id="book04-start-dnssec">
+  ## 第六步：查明 DNSSEC 当前状态
+
+  DNSSEC 是一套用数字签名保护 DNS 回答完整性的机制。你现在不需要理解密码学细节，但必须知道它是否已经启用。
+
+  在注册商控制台寻找 `DNSSEC`、`DS record` 或“DNS 安全”一类入口，把状态记录为：
+
+  - 未启用；
+  - 已启用，且知道当前 DNS 服务商；
+  - 无法判断。
+
+  如果已启用或无法判断，就在第 4 章更换 nameserver 前再次停下核对。旧 DNS 服务商留下的 DS 记录可能让 Cloudflare zone 长时间停在 Pending，甚至让域名无法正常验证。
+
+  <Callout type="danger" title="不要先改 nameserver，再回来猜 DNSSEC">
+    本书会把 DNSSEC 放入主线迁移步骤：先核对旧状态，再更换权威 DNS，Cloudflare 激活后再按官方步骤恢复。不要把删除 DS 记录理解成永久关闭安全功能。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-start-account">
+  ## 第七步：保护 Cloudflare 账户
+
+  Cloudflare 账户以后能够修改 DNS、Tunnel 和公开路由。至少完成：
+
+  - 使用唯一密码；
+  - 启用两因素认证（2FA）；
+  - 把恢复码保存在独立的安全位置；
+  - 确认账户邮箱可用；
+  - 不与陌生人共享账户；
+  - 不把 Cookie、API token 或 Tunnel token 放进仓库。
+
+  `Tunnel token` 是 connector 用来加入指定 Tunnel 的敏感凭证。它与域名、Tunnel 名称和服务器 IP 不同，不能出现在教学截图、聊天记录或交接卡中。
+</section>
+
+<section className="book-section" id="book04-start-time">
+  ## 第八步：确认服务器时间正常
+
+  TLS、登录和日志判断都依赖时间。执行：
+
+  <CodeBlock
+    label="查看服务器时间同步状态"
+    code={timeBaseline}
+  />
+
+  重点确认：
+
+  - 时区可以是 UTC 或你明确选择的时区；
+  - `System clock synchronized` 为 `yes`；
+  - 当前日期和时间没有明显偏差。
+
+  如果时间明显错误，先修复系统时间同步。不要通过忽略证书错误继续。
+</section>
+
+<section className="book-section" id="book04-start-stop-conditions">
+  ## 出现这些情况时必须暂停
+
+  <ComparisonTable>
+
+  | 发现 | 为什么不能继续 | 下一步 |
+  | --- | --- | --- |
+  | 无法登录注册商 | 无法安全修改或恢复 nameserver | 先恢复账户和邮箱 |
+  | 域名已有未知业务 | 改 DNS 可能中断网站或邮件 | 找到负责人并导出现有记录 |
+  | DNSSEC 状态不明 | nameserver 迁移可能验证失败 | 查明 DS 记录和当前 DNS 服务商 |
+  | Cloudflare 未启用 2FA | DNS 与 Tunnel 管理账户保护不足 | 先完成 2FA 和恢复码保存 |
+  | `compose config -q` 失败 | 源站声明本身有错误 | 返回第三册修复配置 |
+  | 本机 `curl` 失败 | Tunnel 没有健康源站可转发 | 返回第三册故障排查 |
+  | 8080 监听在所有网卡 | 当前公开面与交接卡不一致 | 先恢复 `127.0.0.1:8080` |
+  | 准备用重要生产域名练习 | 操作错误可能影响真实用户 | 换无生产业务的域名或子域名 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-start-card">
+  ## 本篇结束时应得到的前置卡
+
+  只记录状态和位置，不记录秘密值：
+
+  ```text
+  第四册前置卡
+
+  域名：example.com（教学占位；真实卡由读者私下保存）
+  注册商：<名称>
+  注册邮箱：可用 / 待恢复
+  到期日：<YYYY-MM-DD>
+  自动续费：已核对
+  当前 nameserver：已记录 / 尚未购买域名
+  现有业务：无 / 已完成负责人确认
+  DNSSEC：未启用 / 已启用且已记录 / 必须暂停
+  Cloudflare 2FA：已启用
+
+  Compose 项目：$HOME/docker-labs/compose-web
+  service：web
+  本机源站：http://127.0.0.1:8080
+  compose config：通过
+  compose ps：web 为 Up / Running
+  本机 curl：通过
+  8080 监听：仅 127.0.0.1
+
+  结论：可以进入第 1 章 / 暂停并处理前置问题
+  ```
+
+  <Callout type="tip" title="所有检查通过以后再进入第 1 章">
+    下一章会解释浏览器请求怎样从域名走到本机 Compose 服务。现在还没有公开任何页面，也没有改变服务器防火墙，这是正确的完成状态。
+  </Callout>
+</section>

@@ -212,4 +212,37 @@ describe("系列级内容规范", () => {
     expect(entries.at(-2)?.data.chapterType).toBe("appendix");
     expect(entries.at(-1)?.data.chapterType).toBe("sources");
   });
+
+  it("第四册 Release Candidate 包含开始之前、第 1—12 章、附录和资料来源", () => {
+    const entries = bookContent("04-cloudflare");
+
+    expect(entries).toHaveLength(15);
+    expect(entries.map(({ data }) => data.order)).toEqual(
+      Array.from({ length: 15 }, (_, index) => index),
+    );
+    expect(entries.map(({ data }) => data.slug)).toEqual([
+      "start",
+      "01-request-path",
+      "02-own-domain",
+      "03-add-to-cloudflare",
+      "04-change-nameservers",
+      "05-read-dns-records",
+      "06-plan-public-hostname",
+      "07-create-tunnel",
+      "08-publish-application",
+      "09-verify-https",
+      "10-security-boundary",
+      "11-troubleshooting",
+      "12-maintenance-handoff",
+      "appendix",
+      "sources",
+    ]);
+    expect(entries.every(({ data }) => !data.draft)).toBe(true);
+    expect(
+      entries.filter(({ data }) => data.chapterType === "chapter"),
+    ).toHaveLength(12);
+    expect(entries.at(0)?.data.chapterType).toBe("introduction");
+    expect(entries.at(-2)?.data.chapterType).toBe("appendix");
+    expect(entries.at(-1)?.data.chapterType).toBe("sources");
+  });
 });

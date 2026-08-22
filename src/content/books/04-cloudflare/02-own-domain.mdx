@@ -1,0 +1,269 @@
+---
+book: "04-cloudflare"
+order: 2
+slug: "02-own-domain"
+title: "选择并持有一个可长期使用的域名"
+shortTitle: "准备域名"
+description: "从已有域名或新注册两条路径出发，核对注册商控制权、续费、联系邮箱、支付与现有业务，不把首年促销价当成长期成本。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 2
+duration: "预计 20—40 分钟，不含支付审核和注册等待"
+labels:
+  - "域名"
+  - "注册商"
+  - "续费"
+completionId: "book04-chapter-02"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import RegistrarDomainMock from "../../../components/mock-ui/RegistrarDomainMock.astro";
+
+<LearningGoals
+  audience="没有域名，或已有域名但从未核对注册、续费和 DNS 控制权的读者"
+  duration="预计 20—40 分钟，不含支付审核和注册等待"
+  outcome="得到一个自己能够登录注册商、接收验证邮件、修改 nameserver 并长期续费的普通 ASCII 域名"
+/>
+
+<section className="book-section" id="book04-ch2-result">
+  ## 本章交付的不是“买到了一个名字”
+
+  本章结束时，你需要同时拥有四种控制能力：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">账户控制</p>
+      <p>能够登录注册商，并且已经启用可用的两因素认证。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">邮箱控制</p>
+      <p>注册联系邮箱能收到验证、到期和账户恢复邮件。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">DNS 控制</p>
+      <p>注册商允许查看和更换 nameserver，并能管理 DNSSEC。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">续费控制</p>
+      <p>知道到期日、当前续费价、自动续费状态和备用提醒。</p>
+    </section>
+  </InfoGrid>
+
+  只满足“域名今天能打开”还不够。一个无法登录、无法收信或不知道由谁续费的域名，不适合承载长期服务。
+</section>
+
+<section className="book-section" id="book04-ch2-two-paths">
+  ## 先选择你的路径
+
+  <ComparisonTable>
+
+  | 你的情况 | 本章路径 | 需要特别注意 |
+  | --- | --- | --- |
+  | 从未拥有域名 | 新注册一个普通 ASCII 域名 | 价格、支付、联系信息和续费 |
+  | 已有且自己使用的域名 | 复核后继续使用 | 现有网站、邮箱、验证记录和 DNSSEC |
+  | 域名属于公司、客户或家人 | 暂停 | 需要所有者明确授权和回退负责人 |
+  | 域名在第三方建站平台赠送或托管 | 先确认控制范围 | 可能无法自由更换 nameserver |
+
+  </ComparisonTable>
+
+  **ASCII 域名**指只使用英文字母、数字和连字符的普通域名。第一版主线不使用国际化域名，也不处理中文域名的字符转换和兼容问题。
+
+  <Callout type="warning" title="公司或客户域名不能用作个人练习">
+    更换 nameserver 可能同时影响网站、邮箱和登录验证。即使你知道账户密码，也不等于已经获得修改整个域名的业务授权。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch2-name">
+  ## 新注册路径：先选一个适合长期使用的名字
+
+  本书不指定唯一注册商，也不固定某一个顶级域名。`.com` 很常见，可以作为候选，但库存、价格、实名、支付和服务能力会变化。
+
+  选择时优先考虑：
+
+  - 容易读、容易输入，不需要反复解释拼写；
+  - 不包含身份证号、生日、手机号或家庭住址；
+  - 不冒充他人品牌，不使用可能侵犯商标的名称；
+  - 能给不同服务留出子域名，例如 `app`、`docs`；
+  - 你愿意按当前续费价格连续维护，而不只是觉得首年便宜。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    域名库存和价格会实时变化。本书不写“目前最低价”或固定优惠码。实际费用必须以注册商搜索结果、续费说明和最终结算页为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch2-registrar">
+  ## 怎样判断注册商是否适合本书
+
+  注册商是负责域名注册、续费和注册联系信息的服务商。它可以同时提供 DNS，但注册商与权威 DNS 不是同一个概念。
+
+  在注册前核对：
+
+  <ComparisonTable>
+
+  | 项目 | 本书最低要求 | 失败判断 |
+  | --- | --- | --- |
+  | nameserver | 能查看并替换为 Cloudflare 分配的两台 nameserver | 页面明确禁止更换或必须绑定建站套餐 |
+  | DNSSEC | 能查看、关闭和重新提交 DS 记录 | 找不到入口且支持方也无法处理 |
+  | 账户安全 | 支持 2FA，并有恢复方案 | 只能依靠单一弱密码 |
+  | 联系信息 | 能填写真实、准确并可长期维护的信息 | 只能使用他人或不可收信的邮箱 |
+  | 费用 | 清楚显示首期、续费、税费和币种 | 只强调促销价，续费信息无法找到 |
+  | 支付 | 你本人可合法使用的方式 | 需要共享账户、虚假地区或绕过风控 |
+  | 支持 | 能处理账户、DNSSEC 和域名锁定问题 | 没有可确认的支持渠道 |
+
+  </ComparisonTable>
+
+  中国大陆用户选择境内或境外注册商时，支付方式、实名认证、联系信息格式、发票和可注册后缀可能不同。这些都是页面与地区相关事实，不能把某一次购买经历当作所有用户都能复现的结果。
+</section>
+
+<section className="book-section" id="book04-ch2-cost">
+  ## 不要只看首年价格
+
+  域名通常按年注册，不是一次付费永久拥有。至少记录下面五项：
+
+  <ComparisonTable>
+
+  | 费用或状态 | 为什么要记录 |
+  | --- | --- |
+  | 本次结算总额 | 可能包含注册费、税费和币种换算 |
+  | 当前续费价 | 第二年以后可能不同于首年促销价 |
+  | 自动续费状态 | 开启也不等于银行卡永远有效或续费绝不会失败 |
+  | 到期日期 | 应另外建立日历或密码管理器提醒 |
+  | 过期与赎回规则 | 错过正常续费期可能导致停用、额外费用或失去域名 |
+
+  </ComparisonTable>
+
+  注册商可能提供隐私保护、邮箱、证书、建站和高级 DNS 等附加服务。本书只需要域名注册与可控 nameserver；不要因为结算页默认勾选，就购买不理解的附加项。
+</section>
+
+<section className="book-section" id="book04-ch2-register">
+  ## 按顺序完成注册
+
+  <InstructionStep number={1} title="创建并保护注册商账户">
+    使用长期可用的邮箱和唯一密码，开启 2FA，把恢复码存入密码管理器或其他受控位置。不要把密码、验证码或恢复码写进本项目仓库。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="搜索候选域名">
+    确认拼写、顶级域名和是否可注册。搜索结果变化很快，在付款成功前不要把“可用”当成已经拥有。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="核对注册年限与全部费用">
+    第一版可以先注册一年，但必须同时阅读当前续费价、税费、币种和附加服务。删除你不需要且明确为可选的加购项。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="填写真实、准确的联系信息">
+    注册政策和法律要求因地区、后缀和服务商而异。按页面要求提供真实信息；不要使用虚假国家、共享身份或绕过实名认证的方法。
+  </InstructionStep>
+
+  <InstructionStep number={5} title="使用本人有权使用的支付方式">
+    支付可能触发银行验证、外币交易或注册商风控。遇到拒付时按银行与注册商提示处理，不要连续尝试陌生卡片或购买来路不明的代付服务。
+  </InstructionStep>
+
+  <RegistrarDomainMock />
+
+  这张图是字段关系仿真，不是某家注册商当前版本的截图，也不代表 `example.com` 可购买。
+</section>
+
+<section className="book-section" id="book04-ch2-confirm">
+  ## 付款后还没有结束
+
+  注册完成后依次确认：
+
+  1. 域名出现在你自己的账户中；
+  2. 状态不是付款待处理、暂停、验证失败或注册失败；
+  3. 联系邮箱收到并完成需要的验证；
+  4. 到期日和自动续费状态符合预期；
+  5. 能找到 nameserver 与 DNSSEC 管理入口；
+  6. 密码管理器中只记录账户入口和秘密本身，不把秘密复制到公开笔记。
+
+  <Callout type="danger" title="不要忽略注册联系邮箱的验证邮件">
+    注册商或相关政策可能要求确认联系邮箱。未按时完成时，域名可能被暂停。邮件进入垃圾箱、邮箱写错或无法收信，都属于必须先解决的失败状态。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch2-existing">
+  ## 已有域名路径：先做业务清点
+
+  已有域名不需要再次购买，但需要回答：
+
+  - 当前 nameserver 是谁提供的；
+  - 域名是否有网站、邮箱、API 或第三方验证；
+  - 当前 DNS 记录能否完整导出或逐项记录；
+  - DNSSEC 是否启用，注册商中是否存在 DS 记录；
+  - 谁负责现有业务，何时可以安排变更窗口；
+  - 如果迁移失败，旧 nameserver 和旧 DNS 记录还能保留多久。
+
+  如果这是团队业务域名，把现有记录、负责人、变更时间和回退方法写进团队可访问的变更记录。不要只保存在个人聊天窗口中。
+</section>
+
+<section className="book-section" id="book04-ch2-nameserver-test">
+  ## 确认可以修改 nameserver，但现在不要改
+
+  登录注册商，找到类似以下名称的入口：
+
+  - Nameservers；
+  - Name servers；
+  - DNS servers；
+  - 自定义 DNS 服务器。
+
+  成功状态是你能看见当前 nameserver，并确认页面允许替换。此时只观察，不输入 Cloudflare 值；Cloudflare 还没有在第 3 章为你的域名分配正式 nameserver。
+
+  <Callout type="warning" title="不要把 nameserver 填进普通 DNS 记录表">
+    更换整个域名的权威 DNS 通常在注册商的 nameserver 设置中完成。Cloudflare DNS 页面里的 NS 记录主要用于子域名委派等场景，不是本书第 4 章要修改的入口。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch2-failures">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 判断 | 下一步 |
+  | --- | --- | --- |
+  | 付款被拒 | 域名没有成功注册 | 查看银行和注册商的明确错误，不要假设重复付款会解决 |
+  | 扣款但域名显示 Pending | 交易或注册仍在处理 | 保存订单编号，通过官方支持确认，不要再次购买同名域名 |
+  | 邮箱验证失败 | 联系邮箱或邮件链路有问题 | 更正邮箱、重新发送，并确认状态恢复正常 |
+  | 找不到 nameserver 入口 | 可能是托管型产品或权限不足 | 查官方帮助或支持，确认能否使用自定义 nameserver |
+  | 域名已有 MX/TXT 记录 | 可能承载邮件或验证 | 记录并找到负责人，不要删除 |
+  | 自动续费已开启 | 仍不代表一定续费成功 | 同时保留到期提醒并维护支付方式 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch2-card">
+  ## 建立不含秘密的域名交接卡
+
+  建议在私人运维记录中保存：
+
+  ```text
+  域名：example.com
+  注册商：由读者填写
+  到期日：YYYY-MM-DD
+  自动续费：已核对 / 未开启 / 已开启
+  注册邮箱：只记录邮箱条目名称，不在公开仓库写完整账户
+  2FA：已启用；恢复材料位于受控位置
+  nameserver：当前值已记录，尚未更换
+  DNSSEC：当前状态已记录
+  现有业务负责人：无 / 已确认
+  ```
+
+  这张卡可以记录“秘密保存在哪里”，但不记录密码、恢复码、银行卡信息或邮箱验证码。
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-02"
+  items={[
+    "域名属于我，或我已获得所有者对 DNS 迁移的明确授权",
+    "我能登录注册商并使用可恢复的两因素认证",
+    "注册联系邮箱能够接收并完成验证",
+    "我核对了首期费用、当前续费价、币种、税费和附加项",
+    "我知道到期日、自动续费状态，并建立了独立提醒",
+    "我能找到 nameserver 与 DNSSEC 管理入口，但还没有修改",
+    "已有网站、邮箱、验证记录和负责人已经完成清点",
+  ]}
+/>

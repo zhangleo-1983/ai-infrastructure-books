@@ -1,0 +1,148 @@
+---
+import MockField from "./MockField.astro";
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockToolbar from "./MockToolbar.astro";
+import MockWindow from "./MockWindow.astro";
+
+interface Props {
+  hostname: string;
+  serviceUrl: string;
+}
+
+const { hostname, serviceUrl } = Astro.props;
+const [subdomain = "", ...domainParts] = hostname.split(".");
+const domain = domainParts.join(".");
+---
+
+<MockWindow title="Cloudflare Tunnel · Published application 路由仿真">
+  <MockToolbar slot="toolbar">
+    <span class="mock-action">取消</span>
+    <span class="mock-action mock-action--primary">添加路由</span>
+  </MockToolbar>
+
+  <div class="tunnel-route-mock">
+    <div class="tunnel-route-mock__heading">
+      <div>
+        <p class="mock-heading">发布一个 Web 应用</p>
+        <p class="mock-small">
+          把用户访问的公开主机名，映射到 cloudflared 所在服务器可访问的本地服务。
+        </p>
+      </div>
+      <MockStatusBadge tone="neutral">教学配置，尚未保存</MockStatusBadge>
+    </div>
+
+    <section aria-labelledby="route-hostname-title">
+      <h3 id="route-hostname-title">Public hostname</h3>
+      <div class="mock-form-grid">
+        <MockField label="Subdomain">
+          <code>{subdomain}</code>
+        </MockField>
+        <MockField label="Domain">
+          <code>{domain}</code>
+        </MockField>
+        <MockField label="Path（可选）" wide>
+          <span class="mock-small">留空：整个主机名都使用这条路由</span>
+        </MockField>
+      </div>
+    </section>
+
+    <section aria-labelledby="route-service-title">
+      <h3 id="route-service-title">Service</h3>
+      <div class="mock-form-grid">
+        <MockField label="Type">
+          <strong>HTTP</strong>
+        </MockField>
+        <MockField label="URL">
+          <code>{serviceUrl.replace(/^https?:\/\//, "")}</code>
+        </MockField>
+      </div>
+      <p class="tunnel-route-mock__resolved">
+        实际本地目标：<code>{serviceUrl}</code>
+      </p>
+    </section>
+
+    <div class="tunnel-route-mock__result" role="note">
+      <strong>{hostname}</strong>
+      <span aria-hidden="true">→</span>
+      <strong>{serviceUrl}</strong>
+      <small>保存后还要分别检查 DNS 记录、Tunnel connector 和本机服务。</small>
+    </div>
+  </div>
+</MockWindow>
+
+<style>
+  .tunnel-route-mock {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .tunnel-route-mock__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .tunnel-route-mock section {
+    display: grid;
+    gap: var(--space-3);
+    border-top: var(--border-thin);
+    padding-top: var(--space-4);
+  }
+
+  .tunnel-route-mock h3 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .tunnel-route-mock__resolved {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .tunnel-route-mock__result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: center;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    background: var(--color-primary-soft);
+    padding: var(--space-4);
+    text-align: center;
+  }
+
+  .tunnel-route-mock__result strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .tunnel-route-mock__result small {
+    grid-column: 1 / -1;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 35.625rem) {
+    .tunnel-route-mock__heading {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .tunnel-route-mock__result {
+      grid-template-columns: 1fr;
+    }
+
+    .tunnel-route-mock__result small {
+      grid-column: auto;
+    }
+  }
+
+  @media print {
+    .tunnel-route-mock__result {
+      border-color: #888888;
+      background: white;
+      break-inside: avoid;
+    }
+  }
+</style>

@@ -1,0 +1,265 @@
+---
+book: "04-cloudflare"
+order: 6
+slug: "06-plan-public-hostname"
+title: "规划公开主机名与暴露边界"
+shortTitle: "规划公开入口"
+description: "先决定 app.example.com 公开什么、不公开什么，核对本机源站、端口冲突和 DNS 名称，再把公开 Web 入口与 SSH、数据库、面板和第二册服务分开。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 6
+duration: "预计 20—25 分钟"
+labels:
+  - "公开主机名"
+  - "暴露边界"
+  - "端口规划"
+completionId: "book04-chapter-06"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const sourceBaseline = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const listenerBaseline =
+  "sudo ss -lntp | grep ':8080 '";
+
+<LearningGoals
+  audience="Cloudflare zone 已经 Active、准备创建 Tunnel，但还没有决定具体公开哪项服务的读者"
+  duration="预计 20—25 分钟"
+  outcome="得到一份 app.example.com 到 http://127.0.0.1:8080 的公开入口设计卡，并能指出 SSH、数据库、管理面板和第二册端口为什么不在这条路由中"
+/>
+
+<section className="book-section" id="book04-ch6-result">
+  ## 先设计，再安装 connector
+
+  本章不会创建 Tunnel。我们先把唯一允许公开的路径写清楚：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>允许的公开入口</strong>
+      <small>https://app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>下一章的 Tunnel</strong>
+      <small>只建立 connector，还不添加 route</small>
+    </div>
+    <div className="flow-node">
+      <strong>第 8 章的 route</strong>
+      <small>app.example.com → 127.0.0.1:8080</small>
+    </div>
+    <div className="flow-node">
+      <strong>第三册教学页</strong>
+      <small>无账户、隐私数据和管理功能</small>
+    </div>
+  </FlowDiagram>
+
+  公开一个 Web 应用，是允许外部用户访问一个明确的主机名和一个明确的本机服务；它不等于公开整台 VPS，也不等于把所有本机端口都交给 Cloudflare。
+</section>
+
+<section className="book-section" id="book04-ch6-hostname">
+  ## 第一步：确定唯一的公开主机名
+
+  本书统一使用：
+
+  ```text
+  app.example.com
+  ```
+
+  实际操作时，把 `example.com` 换成自己的根域名。`app` 是本书给教学 Web 服务分配的子域名。
+
+  一个合格的主机名应当：
+
+  - 只表达这项服务，不与现有网站、邮箱或验证记录冲突；
+  - 容易输入，不包含账户名、真实姓名或服务器公网 IP；
+  - 在第 5 章 DNS Records 中没有同名 A、AAAA 或 CNAME；
+  - 在后续第 7—11 章始终使用同一个拼写；
+  - 不使用 `ssh`、`db`、`admin` 等会误导读者公开敏感服务的名称。
+
+  <Callout type="warning" title="如果 app 已经被占用，不要删除现有记录">
+    先查明现有记录的用途。如果必须改用 `lab.example.com`，就在私人操作卡中写下这个决定，并把后续所有 `app.example.com` 替换成同一个 `lab.example.com`；不要每一章临时换名字。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch6-content">
+  ## 第二步：确认要公开的页面没有敏感内容
+
+  第三册教学页适合公开验证，因为它应当只包含静态演示内容。打开 Compose 项目，检查页面中没有：
+
+  - 真实姓名、手机号、邮箱或家庭地址；
+  - 密码、SSH 私钥、API token、Tunnel token 或恢复码；
+  - 第二册订阅 URL、UUID、Reality 私钥或节点配置；
+  - 管理面板、数据库控制台或文件管理器；
+  - 客户、员工、AI 对话、内部文档或商业数据；
+  - 能够执行命令、上传文件或修改服务器的功能。
+
+  <Callout type="danger" title="公开 URL 默认可能被任何互联网用户访问">
+    本书在第 8 章不会配置 Cloudflare Access，也不会给静态教学页增加登录。只要路由生效，知道或发现这个主机名的人就可能访问。页面存在隐私或管理功能时，现在必须暂停。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch6-origin">
+  ## 第三步：重新证明本机源站正常
+
+  在 VPS 的 SSH 终端中执行：
+
+  <CodeBlock label="检查 Compose 配置、状态与本机页面" code={sourceBaseline} />
+
+  每一行分别证明：
+
+  <ComparisonTable>
+
+  | 命令 | 成功状态 | 失败判断 |
+  | --- | --- | --- |
+  | `cd ...` | 进入第三册 Compose 项目 | 目录不存在或进入了其他项目 |
+  | `compose config -q` | 没有输出，配置可解析 | YAML、变量或配置错误 |
+  | `compose ps` | `web` 为 Up 或 Running | Exited、Restarting 或没有 service |
+  | `curl ...` | 返回教学页内容 | connection refused、超时或 HTTP 错误 |
+
+  </ComparisonTable>
+
+  <TerminalMock title="源站设计基线成功示意">
+    NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SERVICE&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;PORTS<br />
+    book03-web&nbsp;&nbsp;web&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="term-green">Up</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:8080-&gt;80/tcp<br />
+    <span className="term-green">第三册 Compose 教学页内容已返回</span>
+  </TerminalMock>
+
+  本机失败时，回第三册排错章修复。Tunnel 只能转发到一个已经可访问的服务，不能让停止的容器自动恢复。
+</section>
+
+<section className="book-section" id="book04-ch6-listener">
+  ## 第四步：确认 8080 仍只监听本机
+
+  执行：
+
+  <CodeBlock label="查看 8080 监听地址" code={listenerBaseline} />
+
+  成功状态应包含：
+
+  ```text
+  127.0.0.1:8080
+  ```
+
+  <ComparisonTable>
+
+  | 输出 | 判断 | 本章处理 |
+  | --- | --- | --- |
+  | `127.0.0.1:8080` | 只允许 VPS 本机连接 | 可以继续 |
+  | `0.0.0.0:8080` | 所有 IPv4 网卡都在监听 | 暂停，回第三册恢复本机绑定 |
+  | `[::]:8080` | 可能在所有 IPv6 网卡监听 | 暂停，核对 Compose ports |
+  | 没有输出 | 当前没有进程监听 8080 | 先修复 Compose 服务 |
+  | 端口属于陌生进程 | 可能发生端口冲突 | 找到进程负责人，不强行结束 |
+
+  </ComparisonTable>
+
+  Cloudflare Tunnel 的 connector 与源站运行在同一台 VPS 时，可以访问 `127.0.0.1:8080`。不需要把 Compose 端口改成 `0.0.0.0`。
+</section>
+
+<section className="book-section" id="book04-ch6-firewall">
+  ## 第五步：确认不新增公网入站规则
+
+  第一册云防火墙应当只允许你实际需要的管理入口，例如来自受信来源的 SSH。第二册可能还有它自己的代理协议端口。
+
+  为本书的 Tunnel 主线：
+
+  - 不新增公网 TCP 8080；
+  - 不新增公网 TCP 80 或 443；
+  - 不把所有端口开放给 `0.0.0.0/0`；
+  - 不删除第二册已有且经过确认的规则；
+  - 不把 3X-UI 或 SSH 管理入口放入 Web 路由。
+
+  `cloudflared` 会主动向 Cloudflare 建立出站连接。第 7 章会检查出站 7844，而不是创建新的入站端口。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    Cloudflare 当前官方 Tunnel 防火墙文档要求 connector 能通过 TCP 或 UDP 7844 向 Cloudflare 出站。它不要求把服务器的 7844 作为公网入站端口开放。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch6-deny-list">
+  ## 明确写下不允许公开的对象
+
+  <ComparisonTable>
+
+  | 对象 | 本书是否公开 | 原因 |
+  | --- | --- | --- |
+  | 第三册静态教学页 | 是 | 无账户、隐私数据和管理操作，用于验证路径 |
+  | SSH 22 | 否 | 是服务器管理入口，不属于公开 Web 页面 |
+  | 3X-UI 面板 | 否 | 管理代理节点，包含高风险配置和凭证 |
+  | 第二册 VLESS / Reality 入站 | 否 | 不是普通 HTTP Web 服务，也不由本书替代 |
+  | 数据库端口 | 否 | 数据服务不应直接成为公开教学入口 |
+  | Docker socket | 否 | 可控制 Docker，暴露后可能等同服务器管理权限 |
+  | 未来 Open WebUI | 当前不公开 | 需要在第五册单独判断登录、隐私与访问策略 |
+
+  </ComparisonTable>
+
+  Cloudflare Tunnel 技术上可以承载多种协议，不代表本书授权公开这些协议。第一版只创建一个 HTTP published application route。
+</section>
+
+<section className="book-section" id="book04-ch6-card">
+  ## 保存公开入口设计卡
+
+  <MockWindow title="公开入口设计卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="公开主机名" wide>
+        <code>app.example.com</code>
+      </MockField>
+      <MockField label="源站 Service URL" wide>
+        <code>http://127.0.0.1:8080</code>
+      </MockField>
+      <MockField label="内容类型">
+        <span>第三册静态教学页</span>
+      </MockField>
+      <MockField label="应用鉴权">
+        <MockStatusBadge tone="warning">无；因此只允许无敏感内容</MockStatusBadge>
+      </MockField>
+      <MockField label="公网 8080">
+        <MockStatusBadge tone="success">不开放</MockStatusBadge>
+      </MockField>
+      <MockField label="公开 SSH / 面板 / 数据库">
+        <MockStatusBadge tone="success">全部禁止</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+
+  这张卡不包含真实域名、IP、账户或秘密。实际操作记录可以保存在私人运维文档中；公开仓库仍使用 `example.com`。
+</section>
+
+<section className="book-section" id="book04-ch6-stop">
+  ## 遇到这些情况先停止
+
+  - `app` 已有记录，但你不知道它属于谁；
+  - 本机 `curl` 失败或 8080 不再监听；
+  - 页面包含真实用户、管理功能或隐私数据；
+  - 云防火墙已经把 8080 开放给所有人；
+  - 第二册服务正在使用你准备修改的端口；
+  - 你打算把 SSH、3X-UI、数据库或 Docker socket 当作 Web 服务；
+  - 域名属于团队业务，却没有变更负责人。
+
+  暂停后只修复对应对象。不要通过换端口、换域名或新建多个 Tunnel 绕过未知问题。
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-06"
+  items={[
+    "我已确定唯一公开主机名 app.example.com，且没有同名 DNS 或业务冲突",
+    "准备公开的第三册教学页不含账户、隐私、凭证或管理功能",
+    "Compose 配置可解析、web 为 Up，本机 curl 返回预期内容",
+    "8080 只监听 127.0.0.1，没有暴露在公网网卡",
+    "我没有新增公网 80、443、8080 或全部端口入站规则",
+    "SSH、3X-UI、第二册入站、数据库和 Docker socket 均不进入本册路由",
+    "公开入口设计卡只记录结构，不记录真实域名、IP 或秘密",
+  ]}
+/>

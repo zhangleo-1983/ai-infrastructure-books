@@ -16,9 +16,9 @@ import {
 import { sitePath } from "../../src/lib/site-path";
 
 describe("系列书籍注册表", () => {
-  it("保留十册规划并公开前三册发布候选", () => {
+  it("保留十册规划并公开前四册发布候选", () => {
     expect(books).toHaveLength(10);
-    expect(getReadableBooks()).toHaveLength(3);
+    expect(getReadableBooks()).toHaveLength(4);
 
     const firstBook = getBookById("01-first-vps");
     expect(firstBook).toBeDefined();
@@ -40,6 +40,14 @@ describe("系列书籍注册表", () => {
     expect(thirdBook?.version).toBe("1.0.0-rc.1");
     expect(thirdBook?.search.enabled).toBe(true);
     expect(thirdBook?.print.enabled).toBe(true);
+
+    const fourthBook = getBookById("04-cloudflare");
+    expect(fourthBook).toBeDefined();
+    expect(fourthBook?.status).toBe("release-candidate");
+    expect(fourthBook?.version).toBe("1.0.0-rc.1");
+    expect(fourthBook?.search.enabled).toBe(true);
+    expect(fourthBook?.print.enabled).toBe(true);
+    expect(getReadableBooks()).toHaveLength(4);
   });
 
   it("每本书具有完整的系列级配置", () => {

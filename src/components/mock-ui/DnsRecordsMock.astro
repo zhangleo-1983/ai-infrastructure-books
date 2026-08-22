@@ -1,0 +1,116 @@
+---
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockToolbar from "./MockToolbar.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="Cloudflare · DNS Records 字段关系仿真">
+  <MockToolbar slot="toolbar">
+    <span class="mock-action">搜索记录</span>
+    <span class="mock-action mock-action--primary">添加记录</span>
+  </MockToolbar>
+
+  <div class="dns-records-mock">
+    <p class="mock-small">
+      这些值只用于解释字段。<code>192.0.2.10</code> 属于文档示例地址，不是可部署的真实服务器。
+    </p>
+
+    <div class="dns-records-mock__scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Name</th>
+            <th scope="col">Content / Target</th>
+            <th scope="col">Proxy</th>
+            <th scope="col">TTL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A</strong></td>
+            <td><code>@</code></td>
+            <td><code>192.0.2.10</code></td>
+            <td><MockStatusBadge tone="warning">示例，不要照填</MockStatusBadge></td>
+            <td>Auto</td>
+          </tr>
+          <tr>
+            <td><strong>CNAME</strong></td>
+            <td><code>www</code></td>
+            <td><code>example.com</code></td>
+            <td><MockStatusBadge tone="neutral">可代理的 Web 名称</MockStatusBadge></td>
+            <td>Auto</td>
+          </tr>
+          <tr>
+            <td><strong>MX</strong></td>
+            <td><code>@</code></td>
+            <td><code>mail.example.test</code></td>
+            <td><MockStatusBadge tone="neutral">DNS only</MockStatusBadge></td>
+            <td>Auto</td>
+          </tr>
+          <tr>
+            <td><strong>TXT</strong></td>
+            <td><code>_verify</code></td>
+            <td><code>教学占位文本</code></td>
+            <td><MockStatusBadge tone="neutral">DNS only</MockStatusBadge></td>
+            <td>Auto</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</MockWindow>
+
+<style>
+  .dns-records-mock {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .dns-records-mock > p {
+    margin: 0;
+  }
+
+  .dns-records-mock__scroller {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .dns-records-mock table {
+    width: 100%;
+    min-width: 45rem;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  .dns-records-mock th,
+  .dns-records-mock td {
+    border-bottom: var(--border-thin);
+    padding: var(--space-3);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .dns-records-mock th {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  @media print {
+    .dns-records-mock__scroller {
+      overflow: visible;
+    }
+
+    .dns-records-mock table {
+      min-width: 0;
+      table-layout: fixed;
+      font-size: 8.5pt;
+    }
+
+    .dns-records-mock th,
+    .dns-records-mock td {
+      overflow-wrap: anywhere;
+      padding: 0.35rem;
+    }
+  }
+</style>

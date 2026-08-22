@@ -1,0 +1,86 @@
+---
+import MockField from "./MockField.astro";
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockToolbar from "./MockToolbar.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="Cloudflare Tunnel · Connector 状态仿真">
+  <MockToolbar slot="toolbar">
+    <span class="mock-action">查看日志</span>
+    <span class="mock-action mock-action--primary">添加 replica</span>
+  </MockToolbar>
+
+  <div class="tunnel-connector-mock">
+    <div class="tunnel-connector-mock__heading">
+      <div>
+        <p class="mock-heading">book04-web</p>
+        <p class="mock-small">具名、远程管理的教学 Tunnel；不显示真实 UUID、账户或 token。</p>
+      </div>
+      <MockStatusBadge tone="success">Healthy · 已连接</MockStatusBadge>
+    </div>
+
+    <div class="mock-form-grid">
+      <MockField label="Connector">
+        <strong>Ubuntu VPS · 1 个</strong>
+      </MockField>
+      <MockField label="运行方式">
+        <span>cloudflared systemd service</span>
+      </MockField>
+      <MockField label="连接方向">
+        <span>VPS 主动向 Cloudflare 出站</span>
+      </MockField>
+      <MockField label="公开路由">
+        <MockStatusBadge tone="neutral">下一章添加</MockStatusBadge>
+      </MockField>
+    </div>
+
+    <div class="tunnel-connector-mock__boundary" role="note">
+      <strong>Healthy 只证明 connector 已连接。</strong>
+      <span>它不能证明 DNS、公开路由或 <code>127.0.0.1:8080</code> 已经正常。</span>
+    </div>
+  </div>
+</MockWindow>
+
+<style>
+  .tunnel-connector-mock {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .tunnel-connector-mock__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .tunnel-connector-mock__boundary {
+    display: grid;
+    gap: var(--space-1);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    background: var(--color-primary-soft);
+    padding: var(--space-4);
+  }
+
+  .tunnel-connector-mock__boundary span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 35.625rem) {
+    .tunnel-connector-mock__heading {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+
+  @media print {
+    .tunnel-connector-mock__boundary {
+      border-color: #888888;
+      background: white;
+      break-inside: avoid;
+    }
+  }
+</style>

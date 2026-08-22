@@ -1,0 +1,398 @@
+---
+book: "04-cloudflare"
+order: 7
+slug: "07-create-tunnel"
+title: "创建生产 Cloudflare Tunnel"
+shortTitle: "创建 Tunnel"
+description: "创建具名、远程管理的 Cloudflare Tunnel，在 Ubuntu 24.04 amd64 安装官方 cloudflared，并用不把 token 写进 Shell 历史的方式注册 systemd connector。"
+chapterType: "chapter"
+updatedAt: "2026-08-23"
+chapterNumber: 7
+duration: "预计 25—35 分钟"
+labels:
+  - "Cloudflare Tunnel"
+  - "cloudflared"
+  - "systemd"
+completionId: "book04-chapter-07"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import TunnelConnectorMock from "../../../components/mock-ui/TunnelConnectorMock.astro";
+
+export const serverBaseline = `. /etc/os-release
+printf '%s %s\n' "$NAME" "$VERSION_ID"
+uname -m
+dpkg --print-architecture
+timedatectl show --property=NTPSynchronized --value`;
+
+export const installCloudflared = `sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared noble main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update
+sudo apt-get install cloudflared
+cloudflared --version`;
+
+export const installConnector = `read -rsp "粘贴 Tunnel token（不会回显）: " TUNNEL_TOKEN
+echo
+sudo cloudflared service install "$TUNNEL_TOKEN"
+unset TUNNEL_TOKEN`;
+
+export const connectorState = `sudo systemctl is-active cloudflared
+sudo systemctl is-enabled cloudflared
+sudo systemctl show cloudflared --property=ActiveState --property=SubState --property=UnitFileState`;
+
+export const connectorLogs =
+  'sudo journalctl -u cloudflared --since "-10 minutes" --no-pager';
+
+export const restartConnector = `sudo systemctl restart cloudflared
+sudo systemctl is-active cloudflared`;
+
+<LearningGoals
+  audience="已经完成公开入口设计、拥有 Active Cloudflare zone 和可登录 Ubuntu 24.04 VPS 的读者"
+  duration="预计 25—35 分钟"
+  outcome="创建一个名为 book04-web 的具名生产 Tunnel，让 Ubuntu 上的 cloudflared 作为开机启用的 systemd connector 健康连接 Cloudflare，但暂不创建公开路由"
+/>
+
+<section className="book-section" id="book04-ch7-result">
+  ## 这一章只建立 Tunnel 与 connector
+
+  本章结束时，请求路径只完成中间连接：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Cloudflare 账户</strong>
+      <small>保存具名 Tunnel 配置</small>
+    </div>
+    <div className="flow-node">
+      <strong>book04-web</strong>
+      <small>远程管理的生产 Tunnel</small>
+    </div>
+    <div className="flow-node">
+      <strong>cloudflared</strong>
+      <small>Ubuntu 上的 connector</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 网络</strong>
+      <small>connector 主动建立出站连接</small>
+    </div>
+  </FlowDiagram>
+
+  这一章不会创建 `app.example.com`，也不会把 Tunnel 指向 `127.0.0.1:8080`。公开主机名到本机服务的映射留给第 8 章，这样每一步只有一个清晰的成功状态。
+</section>
+
+<section className="book-section" id="book04-ch7-terms">
+  ## 先分清 Tunnel、connector 与 token
+
+  <ComparisonTable>
+
+  | 名称 | 它是什么 | 成功状态 |
+  | --- | --- | --- |
+  | Tunnel | Cloudflare 账户中的具名连接对象 | 控制台存在 `book04-web` |
+  | connector | 运行 `cloudflared`、实际连接 Tunnel 的进程 | Ubuntu 上 systemd 服务 active |
+  | replica | 同一个 Tunnel 的另一个 connector 实例 | 第一版不增加，保持一个 VPS connector |
+  | Tunnel token | 允许 connector 加入这个远程管理 Tunnel 的秘密 | 只在安装时受控使用，不进入公开记录 |
+  | published application route | 公开主机名与本机服务的映射 | 第 8 章才创建 |
+
+  </ComparisonTable>
+
+  Cloudflare 当前官方说明：任何拿到远程管理 Tunnel token 的人，都可以运行一个加入该 Tunnel 的 connector。因此 token 与密码、SSH 私钥一样属于敏感凭证。
+
+  <Callout type="danger" title="Tunnel token 不属于教程截图或求助日志">
+    不要把 Cloudflare 显示的安装命令原样粘贴到公开聊天、仓库、截图或工单。命令里的长 token 不是普通 Tunnel 名称。疑似泄露时必须旋转 token，并按官方流程断开旧连接。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch7-quick-vs-production">
+  ## 为什么不使用 Quick Tunnel
+
+  Quick Tunnel 可以临时生成测试地址，但不适合作为本书交付物。
+
+  <ComparisonTable>
+
+  | 对比项 | 具名生产 Tunnel | Quick Tunnel |
+  | --- | --- | --- |
+  | 名称 | 由你命名并保存在账户中 | 临时生成 |
+  | 自有域名 route | 支持本书的 `app.example.com` | 不作为本书正式路径 |
+  | connector 管理 | 可在控制台查看状态和 replica | 主要用于快速测试 |
+  | 重启与维护 | 可注册为 systemd 服务 | 不作为稳定交接方案 |
+  | 本书判断 | 主线 | 不使用 |
+
+  </ComparisonTable>
+
+  即使 Quick Tunnel 能暂时显示页面，也不能替代第 7—9 章的具名对象、系统服务、公开主机名和 HTTPS 验证。
+</section>
+
+<section className="book-section" id="book04-ch7-baseline">
+  ## 第一步：核对服务器系统与时间
+
+  在 VPS 的 SSH 终端中执行：
+
+  <CodeBlock label="核对 Ubuntu、CPU 架构和时间同步" code={serverBaseline} />
+
+  本书当前主线预期：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">系统</p>
+      <p>Ubuntu 24.04 LTS。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">架构</p>
+      <p><code>x86_64</code> 与 <code>amd64</code>。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">时间同步</p>
+      <p><code>yes</code>。</p>
+    </section>
+  </InfoGrid>
+
+  失败判断：系统不是 Ubuntu 24.04、架构不是 amd64、时间未同步，或 `dpkg` 不存在。不要照抄不匹配的软件源；先回第一册交接卡确认服务器。
+</section>
+
+<section className="book-section" id="book04-ch7-create">
+  ## 第二步：在 Cloudflare 创建具名 Tunnel
+
+  <InstructionStep number={1} title="打开 Tunnels 页面">
+    Cloudflare 当前文档路径为 `Networking → Tunnels`。控制台导航以后可能变化，找不到时从官方 Tunnel Setup 文档进入，不点击搜索广告或第三方代管页面。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="选择 Create Tunnel">
+    选择 Cloudflare 提供的 `cloudflared` connector 路径，不选择与本书无关的设备或第三方 connector。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="名称填写 book04-web">
+    名称只表达用途，不包含真实域名、IP、邮箱或 token。同一账户内名称应当清楚可辨。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="创建后先观察 Inactive">
+    尚未运行 connector 时，Tunnel 显示 Inactive 是预期状态。它表示对象已经创建，但从未有 `cloudflared` 成功连接。
+  </InstructionStep>
+
+  不要重复点击创建。列表出现一个 `book04-web` 就已经完成这一对象。
+</section>
+
+<section className="book-section" id="book04-ch7-install-package">
+  ## 第三步：从官方 APT 仓库安装 cloudflared
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    以下命令来自 Cloudflare 当前 Ubuntu 24.04（Noble）官方软件包说明。软件源、公钥地址和发行版名称属于时效性信息，每次发布候选都要复核。
+  </Callout>
+
+  <CodeBlock label="添加 Cloudflare 稳定软件源并安装 cloudflared" code={installCloudflared} />
+
+  命令依次完成：
+
+  1. 建立系统公钥目录；
+  2. 从 `pkg.cloudflare.com` 下载当前签名公钥；
+  3. 添加 Ubuntu 24.04 `noble` 稳定仓库；
+  4. 更新 APT 软件索引；
+  5. 安装 `cloudflared`；
+  6. 输出已安装版本。
+
+  成功状态：最后一行显示 `cloudflared version ...`，APT 没有签名、架构或依赖错误。
+
+  失败判断：
+
+  - `curl` 无法连接 `pkg.cloudflare.com`；
+  - APT 提示签名公钥无效；
+  - 系统发行版不是 noble；
+  - 软件包架构不匹配；
+  - 磁盘空间不足或 APT 被另一个进程锁定。
+
+  遇到失败不要改用不明网盘二进制、破解版或第三方一键脚本。保存完整 APT 错误，再回官方软件包页核对。
+</section>
+
+<section className="book-section" id="book04-ch7-token">
+  ## 第四步：取得当前 Tunnel 的安装 token
+
+  回到 `book04-web` 的 Setup Environment 或 Add a replica 页面。2026-08-23
+  实机校订时，Ubuntu 对应的控制台选项显示为：
+
+  - Operating system：Debian；
+  - Architecture：64-bit。
+
+  Ubuntu 使用 Debian 系的 `.deb` 软件包，所以这里的 `Debian` 不是要求把服务器重装成
+  Debian。页面生成的下载项应当仍对应 Linux amd64；如果实际服务器不是
+  `dpkg --print-architecture` 返回的 `amd64`，不要继续复制安装命令。
+  - Service：按页面提供的安装方式。
+
+  页面会生成包含长 token 的安装命令。只复制其中标记为 Tunnel token 的长字符串，暂存在系统剪贴板；不要把它粘贴进普通笔记。
+
+  <Callout type="warning" title="剪贴板也是临时秘密位置">
+    安装完成后复制一段无敏感内容的普通文字覆盖剪贴板。使用具有剪贴板同步功能的设备时，确认 token 没有自动同步到不受控设备。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch7-service-install">
+  ## 第五步：不把 token 写进 Shell 历史地安装服务
+
+  下面命令先显示一个不回显输入内容的提示。运行第一行后，再从剪贴板粘贴 **token 本身**，按 Enter：
+
+  <CodeBlock label="受控输入 token 并注册 systemd 服务" code={installConnector} />
+
+  四行命令分别在做什么：
+
+  <ComparisonTable>
+
+  | 命令 | 目的 | 成功状态 | 失败判断 |
+  | --- | --- | --- | --- |
+  | `read -rsp ...` | 把 token 临时放入当前 Shell 变量，不回显、不写入命令历史 | 按 Enter 后进入下一行 | 粘贴了整条安装命令，而不是 token |
+  | `echo` | 给隐藏输入后的终端换行 | 提示符排列正常 | 不影响安装结果 |
+  | `service install ...` | 用 token 注册并启动 `cloudflared` systemd 服务 | 显示服务安装成功 | token 无效、已有服务或权限错误 |
+  | `unset ...` | 从当前 Shell 变量中移除 token | 没有输出 | Shell 中断时重新登录以清除会话变量 |
+
+  </ComparisonTable>
+
+  这种写法避免把 token 字面值保存在 Shell 历史中，但 token 在安装过程和服务配置中仍是 connector 凭证。不要把服务配置、完整进程参数或未经检查的诊断输出公开分享。
+
+  <Callout type="danger" title="一台服务器不要重复安装多个同名 cloudflared 服务">
+    如果提示已经存在 `cloudflared` service，先判断它是否属于另一个生产 Tunnel。不要通过删除未知服务强行继续，也不要把第二册或其他业务的 connector 覆盖掉。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch7-state">
+  ## 第六步：用不展开秘密参数的命令检查服务
+
+  执行：
+
+  <CodeBlock label="检查 cloudflared 活动、开机启用与子状态" code={connectorState} />
+
+  成功状态应包含：
+
+  ```text
+  active
+  enabled
+  ActiveState=active
+  SubState=running
+  UnitFileState=enabled
+  ```
+
+  `active` 表示服务当前运行；`enabled` 表示系统启动时计划自动启动。两者含义不同，必须都检查。
+
+  <TerminalMock title="cloudflared systemd 状态成功示意">
+    <span className="term-green">active</span><br />
+    <span className="term-green">enabled</span><br />
+    ActiveState=<span className="term-green">active</span><br />
+    SubState=<span className="term-green">running</span><br />
+    UnitFileState=<span className="term-green">enabled</span>
+  </TerminalMock>
+
+  失败判断：`inactive`、`failed`、`disabled`、`Unit cloudflared.service could not be found`，或服务持续在启动与失败之间变化。
+</section>
+
+<section className="book-section" id="book04-ch7-dashboard">
+  ## 第七步：确认控制台状态变为 Healthy
+
+  回到 Cloudflare 的 `book04-web` 页面。当前官方状态含义如下；中文界面可能把
+  `Healthy` 显示为“健康”：
+
+  <ComparisonTable>
+
+  | 状态 | 当前含义 | 本章判断 |
+  | --- | --- | --- |
+  | Healthy | connector 已建立完整连接并能服务 Tunnel 流量 | 成功 |
+  | Inactive | Tunnel 创建后从未连接 connector | 安装尚未成功 |
+  | Down | 过去连接过，但当前没有连接 | 检查服务、服务器和出站网络 |
+  | Degraded | 仍能服务，但至少一条连接失败 | 检查日志和防火墙，不作为理想完成状态 |
+
+  </ComparisonTable>
+
+  <TunnelConnectorMock />
+
+  <Callout type="warning" title="Healthy 不证明源站或 route 正常">
+    Tunnel 状态只反映 `cloudflared` 与 Cloudflare 网络之间的连接。第 8 章尚未创建 route；即使以后 Healthy，本机 8080 停止时仍会出现应用故障。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch7-firewall">
+  ## 如果无法连接，检查出站而不是开放入站
+
+  Cloudflare Tunnel 当前使用 TCP 或 UDP 7844 向 Cloudflare 建立出站连接。默认会在可用协议之间处理连接；两个协议都被阻断时，Tunnel 无法工作。
+
+  首先查看最近日志：
+
+  <CodeBlock label="读取 cloudflared 最近 10 分钟日志" code={connectorLogs} />
+
+  重点寻找：
+
+  - DNS 无法解析 Cloudflare Tunnel endpoint；
+  - UDP 7844 / QUIC 连接失败；
+  - TCP 7844 / HTTP2 连接失败；
+  - token 无效或 Tunnel 不存在；
+  - 系统时间或 TLS 错误；
+  - 服务反复重启。
+
+  <Callout type="danger" title="不要为了解决出站失败开放全部入站端口">
+    云防火墙入站规则与 connector 出站连接是两个方向。把 7844、8080 或所有端口开放给 `0.0.0.0/0` 不能修复被上游策略阻断的出站请求，反而扩大攻击面。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch7-restart">
+  ## 第八步：验证服务能够正常重新连接
+
+  在没有用户依赖当前教学 Tunnel 的情况下，执行一次受控重启：
+
+  <CodeBlock label="重启 connector 并检查恢复" code={restartConnector} />
+
+  成功状态：
+
+  - 命令返回 `active`；
+  - Cloudflare 控制台短暂变化后恢复 Healthy；
+  - 没有重新输入 token；
+  - `is-enabled` 仍返回 enabled。
+
+  这证明 systemd 可以重新启动 connector，但不等同于完成整台 VPS 重启测试。完整运维与重启交接放在第 12 章。
+</section>
+
+<section className="book-section" id="book04-ch7-failures">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 第一判断 | 下一步 |
+  | --- | --- | --- |
+  | `cloudflared: command not found` | 软件包没有成功安装 | 回看 APT 输出和版本命令 |
+  | `service already installed` | 本机已有 cloudflared systemd 服务 | 查明原服务所有者，不覆盖 |
+  | token 无效 | 复制不完整、来自别的 Tunnel 或已旋转 | 回 `book04-web` Add a replica 取得当前 token |
+  | systemd active，控制台 Inactive | connector 无法到达 Cloudflare 或 token/Tunnel 不匹配 | 查看日志、DNS 和出站 7844 |
+  | 状态 Degraded | 部分连接失败 | 保留日志，检查网络和防火墙 |
+  | 状态 Down | connector 曾连接但现在全部断开 | 检查 VPS 是否运行、服务状态和最近网络变化 |
+  | 服务 active，但第 8 章页面打不开 | Healthy 不代表 route 与源站正常 | 按第 8、11 章检查 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch7-stop">
+  ## 本章停止在 Healthy connector
+
+  此时不要添加随机 DNS 记录，不要把 `app` 指向 VPS 公网 IP，也不要在 Tunnel 中尝试 SSH、TCP 或数据库 route。
+
+  下一章会在已经确认的 `book04-web` 中只增加一条 published application：
+
+  ```text
+  app.example.com → http://127.0.0.1:8080
+  ```
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-07"
+  items={[
+    "服务器确认为 Ubuntu 24.04 amd64，系统时间已经同步",
+    "Cloudflare 中只有一个名为 book04-web 的具名生产 Tunnel",
+    "cloudflared 来自 Cloudflare 官方稳定 APT 仓库并能输出版本",
+    "Tunnel token 没有进入命令历史、公开笔记、截图或仓库",
+    "cloudflared systemd 服务为 active、running 且 enabled",
+    "Cloudflare 控制台显示 connector Healthy，而不是 Inactive、Down 或 Degraded",
+    "我知道 Healthy 只证明 connector 连接，不证明 route 或 127.0.0.1:8080 健康",
+    "没有为了 Tunnel 新增公网入站 7844、8080、80 或 443",
+  ]}
+/>

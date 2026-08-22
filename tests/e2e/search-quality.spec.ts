@@ -6,6 +6,7 @@ import {
 import { book01SearchSamples } from "../fixtures/book01-search-samples";
 import { book02SearchSamples } from "../fixtures/book02-search-samples";
 import { book03SearchSamples } from "../fixtures/book03-search-samples";
+import { book04SearchSamples } from "../fixtures/book04-search-samples";
 
 async function observeSearchSamples(
   page: Page,
@@ -103,6 +104,21 @@ test("第三册 25 个中文搜索样本命中预期章节", async ({
   const observations = await observeSearchSamples(page, book03SearchSamples);
 
   await testInfo.attach("book03-search-observations", {
+    body: JSON.stringify(observations, null, 2),
+    contentType: "application/json",
+  });
+});
+
+test("第四册 20 个中文搜索样本命中预期章节", async ({
+  page,
+  browserName,
+}, testInfo) => {
+  test.skip(browserName !== "chromium");
+  await page.goto("books/04-cloudflare/08-publish-application/");
+  await page.getByRole("button", { name: "搜索全书" }).click();
+  const observations = await observeSearchSamples(page, book04SearchSamples);
+
+  await testInfo.attach("book04-search-observations", {
     body: JSON.stringify(observations, null, 2),
     contentType: "application/json",
   });

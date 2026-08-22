@@ -21,11 +21,12 @@
 
 ## 当前状态
 
-当前已有三册 Release Candidate：
+当前已有四册 Release Candidate：
 
 1. **《15分钟搞定你的VPS》**
 2. **《拥有自己的海外网络：从 VPS 到 Clash，只需要 30 分钟》**
 3. **《一篇文章掌握 Docker：从容器到 Compose》**
+4. **《让服务拥有域名：从 DNS 到 Cloudflare HTTPS》**
 
 公开 RC 站点：
 
@@ -51,16 +52,16 @@ source/book02-v1.html
 
 在完成正式项目迁移之前，不应删除或覆盖该文件。
 
-工程迁移的五个里程碑已经完成，系列工程目前提供前三册发布候选：
+工程迁移的五个里程碑已经完成，系列工程目前提供前四册发布候选：
 
 - Astro 静态站点骨架
 - TypeScript 严格模式和 MDX 内容集合
 - 设计 Token 与基础 Layout
-- 系列首页、书目页、三册正式封面与完整目录
-- 三册“开始之前”、第 1—12 章、附录和资料来源的独立页面
+- 系列首页、书目页、四册正式封面与完整目录
+- 四册“开始之前”、第 1—12 章、附录和资料来源的独立页面
 - 以 MDX frontmatter 为单一来源的章节元数据与显式排序
 - 浅层章节组件、仿真终端、仿真软件界面和代码复制
-- 三册完整打印路由与不依赖 JavaScript 的打印正文
+- 四册完整打印路由与不依赖 JavaScript 的打印正文
 - 全部内容单元的逐章正文、命令与数量完整性检查
 - Pagefind 中文静态全文搜索
 - system / light / dark 三态主题选择与首屏初始化
@@ -79,7 +80,7 @@ source/book02-v1.html
 1.  购买第一台 VPS
 2.  拥有自己的海外网络
 3.  Docker 入门
-4.  域名与 Cloudflare
+4.  让服务拥有域名：从 DNS 到 Cloudflare HTTPS
 5.  Open WebUI
 6.  Dify
 7.  n8n
@@ -103,6 +104,17 @@ source/book02-v1.html
 模拟和完整 RC 检查，验收结果见
 [`docs/qa/03-docker/release-candidate.md`](docs/qa/03-docker/release-candidate.md)。候选版本标识为
 `book03-v1.0.0-rc.1`；实际提交与部署状态以 Git 标签和静态站点为准。
+
+第四册 15 个内容单元已进入 `1.0.0-rc.1`，并启用 production、Pagefind、完成状态和
+整册打印。使用第三方注册商隔离域名、Cloudflare Free zone 与临时 Ubuntu VPS 的
+G1—G8 实机校订已经通过，覆盖 nameserver、DNSSEC、Tunnel、Universal SSL、多网络
+HTTPS、受控故障、Caddy 公共证书、Proxied 和 `Full (strict)`。G8 已永久删除教学
+route、DNS、connector、Tunnel 与临时 VPS，计费附加资源均为空；根 zone 与 DNSSEC
+保留。第四册 RC 已完成搜索、跨浏览器、无 JavaScript、无障碍、性能、打印和 A4 PDF
+综合验收；候选版本标识为 `book04-v1.0.0-rc.1`。内容规格见
+[`docs/planning/book04-content-spec.md`](docs/planning/book04-content-spec.md)，写作与事实台账见
+[`docs/qa/04-cloudflare/README.md`](docs/qa/04-cloudflare/README.md)，综合验收结果见
+[`docs/qa/04-cloudflare/release-candidate.md`](docs/qa/04-cloudflare/release-candidate.md)。
 
 ------------------------------------------------------------------------
 

@@ -1,0 +1,497 @@
+---
+book: "04-cloudflare"
+order: 11
+slug: "11-troubleshooting"
+title: "页面打不开：按层排查 DNS、Tunnel 与容器"
+shortTitle: "分层故障排查"
+description: "沿域名所有权、权威 DNS、Cloudflare 边缘、Tunnel connector、本机源站和 Compose 容器逐层收集证据，区分 NXDOMAIN、Pending、1033 与 502。"
+chapterType: "chapter"
+updatedAt: "2026-08-22"
+chapterNumber: 11
+duration: "预计 35—50 分钟"
+labels:
+  - "分层排错"
+  - "1033 与 502"
+  - "证据优先"
+completionId: "book04-chapter-11"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import TroubleshootingItem from "../../../components/book/TroubleshootingItem.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const clientDnsCheck = `nslookup -type=NS example.com
+nslookup app.example.com`;
+
+export const clientHttpsCheck =
+  "curl --head --show-error --connect-timeout 10 https://app.example.com";
+
+export const connectorStatus = `sudo systemctl is-active cloudflared
+sudo systemctl show cloudflared --property=ActiveState --property=SubState --property=UnitFileState`;
+
+export const connectorLogs =
+  'sudo journalctl -u cloudflared --since "-10 minutes" --no-pager';
+
+export const originCheck = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const listenerCheck =
+  "sudo ss -lntp | grep ':8080 '";
+
+export const containerEvidence = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose ps -a
+sudo docker compose logs --tail=50 --timestamps web`;
+
+export const finalRecheck = `curl --fail --show-error http://127.0.0.1:8080
+sudo systemctl is-active cloudflared`;
+
+<LearningGoals
+  audience="看到页面打不开时容易反复改 DNS、重启容器或删除 Tunnel 的读者"
+  duration="预计 35—50 分钟"
+  outcome="用固定顺序收集 DNS、边缘、connector、源站和容器证据，把故障定位到第一处偏离预期的层级，再执行一项可回退修复"
+/>
+
+<section className="book-section" id="book04-ch11-purpose">
+  ## “页面打不开”不是一个根因
+
+  浏览器只显示整条请求链最终失败。真正的问题可能发生在：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>1. 域名与注册商</strong>
+      <small>到期、暂停、nameserver</small>
+    </div>
+    <div className="flow-node">
+      <strong>2. 权威 DNS</strong>
+      <small>zone、记录、DNSSEC、缓存</small>
+    </div>
+    <div className="flow-node">
+      <strong>3. Cloudflare 边缘</strong>
+      <small>主机名、证书、代理请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>4. Tunnel</strong>
+      <small>健康 connector 与路由</small>
+    </div>
+    <div className="flow-node">
+      <strong>5. 本机源站</strong>
+      <small>127.0.0.1:8080</small>
+    </div>
+    <div className="flow-node">
+      <strong>6. Compose 容器</strong>
+      <small>状态、日志、配置和页面</small>
+    </div>
+  </FlowDiagram>
+
+  排错只追求两个结果：
+
+  1. 找到哪一层第一次偏离预期；
+  2. 用一条状态、命令输出或日志证明这个判断。
+
+  <Callout type="danger" title="先保存证据，不要先 restart">
+    重启可能让瞬时问题消失，也可能清除关键现场。删除 DNS、重建 Tunnel、开放全部防火墙或重建容器会同时改变多层，让真正原因更难确认。
+  </Callout>
+
+  第 9 章验证卡是最有价值的“最后已知正常”基线；第 10 章安全复核卡则说明哪些端口、route 和凭证边界原本就不应改变。排错时先拿出两张卡，而不是凭记忆还原配置。
+</section>
+
+<section className="book-section" id="book04-ch11-record">
+  ## 第一步：记录用户看到的原始现象
+
+  不要只记录“坏了”。先写下：
+
+  - 发生时间和你所在的时区；
+  - 完整主机名，但公开台账使用 `app.example.com` 占位；
+  - 浏览器显示的错误标题和状态码；
+  - 是否所有设备都失败；
+  - 最近一次已知正常时间；
+  - 故障前是否改过 nameserver、DNS、route、Tunnel、Compose 或防火墙；
+  - 本机 `127.0.0.1:8080` 是否仍能访问。
+
+  <MockWindow title="故障证据卡仿真">
+    <div className="mock-stack">
+      <div className="mock-panel">
+        <strong>用户现象</strong>
+        <p className="mock-small">浏览器显示 502；发生于 14:20 +08:00；两个网络都能复现。</p>
+      </div>
+      <div className="mock-panel">
+        <strong>最近变更</strong>
+        <p className="mock-small">没有修改 DNS；服务器曾重启；尚未执行修复。</p>
+      </div>
+      <div className="mock-panel">
+        <strong>秘密值检查</strong>{" "}
+        <MockStatusBadge tone="success">不含 token、账户 ID、真实 IP 或 Cookie</MockStatusBadge>
+      </div>
+    </div>
+  </MockWindow>
+
+  如果需要截图，只截错误类型和时间；遮盖账户邮箱、域名、Ray ID 之外可能关联账户的信息、浏览器书签和其他标签页。
+</section>
+
+<section className="book-section" id="book04-ch11-order">
+  ## 固定排查顺序
+
+  <ComparisonTable>
+
+  | 顺序 | 层级 | 第一条证据 | 通过以后再看 |
+  | ---: | --- | --- | --- |
+  | 1 | 域名所有权 | 注册商状态、到期日、nameserver | 权威 DNS |
+  | 2 | 权威 DNS | zone Active、主机名有回答、DNSSEC 状态 | Cloudflare 边缘 |
+  | 3 | Cloudflare 边缘 | HTTPS 错误类型、证书和请求状态 | Tunnel route |
+  | 4 | Tunnel connector | 控制台状态、systemd 和最近日志 | 本机源站 |
+  | 5 | 本机源站 | `curl 127.0.0.1:8080` 和监听地址 | Compose 容器 |
+  | 6 | Compose 容器 | `ps -a`、日志、配置 | 具体应用内容 |
+  | 7 | 恢复验证 | 从本机到外部按原顺序重测 | 结束并记录 |
+
+  </ComparisonTable>
+
+  上一层失败，就先停在那一层。例如域名已经过期时，重启 `cloudflared` 不能恢复 DNS；本机 `curl` 失败时，清浏览器缓存也不能让容器恢复。
+</section>
+
+<section className="book-section" id="book04-ch11-client-probe">
+  ## 第二步：从自己的电脑取得 DNS 与 HTTPS 证据
+
+  下面命令在 Windows 或 macOS 本地终端执行，不是在 VPS 的 SSH 会话里执行。把示例主机名替换为自己的值，但不要提交真实结果。
+
+  <CodeBlock
+    label="检查权威 nameserver 与公开主机名"
+    code={clientDnsCheck}
+  />
+
+  第一条查询根域名的 NS（名称服务器）记录；第二条查询公开应用主机名。
+
+  成功状态：
+
+  - NS 查询显示 Cloudflare 分配给该 zone 的名称服务器；
+  - `app.example.com` 有 DNS 回答；
+  - 没有 `Non-existent domain` 或 `NXDOMAIN`。
+
+  DNS 有结果以后，再执行：
+
+  <CodeBlock
+    label="检查公开 HTTPS 响应头"
+    code={clientHttpsCheck}
+  />
+
+  这一步可能返回 200、3xx、4xx、5xx 或连接错误。现在只记录结果，不使用 `-k` 忽略证书，也不连续刷新碰运气。
+</section>
+
+<section className="book-section" id="book04-ch11-domain-dns">
+  ## 第三步：检查域名所有权与权威 DNS
+
+  先登录注册商，确认：
+
+  - 域名没有过期、暂停或等待联系邮箱验证；
+  - nameserver 与 Cloudflare zone 分配值完全一致；
+  - 没有多余或拼写错误的 nameserver；
+  - 近期没有未经解释的转移或锁定变化。
+
+  再登录 Cloudflare，确认：
+
+  - zone 为 Active，而不是 Pending；
+  - DNS Records 中存在 `app` 对应的 Tunnel 记录；
+  - 没有同名 A、AAAA 或 CNAME 冲突；
+  - 记录没有被误改为与主线不一致的目标；
+  - DNSSEC 状态与第 4 章迁移记录一致。
+
+  <Callout type="warning" title="Pending 与 DNS 缓存不是一回事">
+    zone 长时间停在 Pending 表示 Cloudflare 还没有确认权威委派。Cloudflare 官方把注册商遗留的 DNSSEC DS 记录列为 nameserver 正确但仍 Pending 的常见原因。不要仅靠清浏览器缓存处理。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch11-edge-route">
+  ## 第四步：检查 Cloudflare 边缘与 route
+
+  打开第 7 章创建的生产 Tunnel，检查 Routes：
+
+  <ComparisonTable>
+
+  | 项目 | 预期值 | 偏离时的含义 |
+  | --- | --- | --- |
+  | Route type | Published application | 可能创建了错误类型的路由 |
+  | Public hostname | `app.example.com` | 请求可能送到另一应用 |
+  | Path | 留空 | 路径规则可能只匹配部分请求 |
+  | Service type | HTTP | 协议可能与本机 Nginx 不一致 |
+  | Service URL | `127.0.0.1:8080` | connector 可能连接错误端口或地址 |
+
+  </ComparisonTable>
+
+  浏览器证书警告要单独处理：
+
+  - 核对地址栏主机名拼写；
+  - 核对 Cloudflare zone 是否 Active；
+  - 核对该主机名是否由 Cloudflare 代理并处于证书覆盖范围；
+  - 记录证书错误，不点击忽略；
+  - 不使用 `curl -k` 把证书失败伪装成成功。
+
+  Cloudflare Tunnel 显示 Healthy 只证明 connector 与 Cloudflare 网络之间存在连接，不证明 route 指向的本机源站可用。因此 Healthy 与 502 同时出现并不矛盾。
+</section>
+
+<section className="book-section" id="book04-ch11-connector">
+  ## 第五步：检查 Tunnel connector
+
+  在 VPS 上执行：
+
+  <CodeBlock
+    label="检查 cloudflared 服务"
+    code={connectorStatus}
+  />
+
+  成功状态：第一行返回 `active`，随后显示 `ActiveState=active`、`SubState=running` 和 `UnitFileState=enabled`。
+
+  失败判断：
+
+  - `inactive`：服务没有运行；
+  - `failed`：服务启动失败；
+  - `activating` 持续很久：可能反复连接失败；
+  - `Unit cloudflared.service could not be found`：第 7 章没有正确安装为服务，或服务名称发生变化；
+  - 控制台显示 Inactive/Down：Cloudflare 当前找不到健康 connector。
+
+  查看最近 10 分钟日志：
+
+  <CodeBlock
+    label="读取 cloudflared 最近日志"
+    code={connectorLogs}
+  />
+
+  日志中重点找：
+
+  - 时间是否覆盖故障发生时段；
+  - 是否无法解析 Cloudflare 边缘地址；
+  - 是否被本机或上游网络阻断 TCP/UDP 7844 出站连接；
+  - 是否不断重连；
+  - 是否出现连接本机源站被拒绝；
+  - 是否显示协议或端口不匹配。
+
+  <Callout type="danger" title="日志可能包含环境信息">
+    对外求助前只摘录必要错误行并脱敏。不要粘贴 Tunnel token、账户标识、真实域名、完整配置或无关日志。不要为了排错把 token 写进命令行截图。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch11-origin">
+  ## 第六步：绕过外部入口，直接检查本机源站
+
+  无论浏览器显示什么，都要在 VPS 上执行：
+
+  <CodeBlock
+    label="检查 Compose 与本机 HTTP"
+    code={originCheck}
+  />
+
+  结果可以把问题分成两类：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本机 curl 成功</p>
+      <p>Compose 服务健康，继续查 connector、route、DNS 和边缘层。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">本机 curl 失败</p>
+      <p>先修复源站或容器。改 DNS、证书和 nameserver 都不会让本机端口恢复。</p>
+    </section>
+  </InfoGrid>
+
+  再检查监听地址：
+
+  <CodeBlock
+    label="确认 8080 监听"
+    code={listenerCheck}
+  />
+
+  预期包含 `127.0.0.1:8080`。如果没有输出，服务没有监听；如果变成其他端口，Tunnel route 也需要与实际服务一致，但不要在没有查明变更来源时直接改 route。
+</section>
+
+<section className="book-section" id="book04-ch11-container">
+  ## 第七步：本机源站失败时检查容器
+
+  <CodeBlock
+    label="查看容器状态和最近日志"
+    code={containerEvidence}
+  />
+
+  <ComparisonTable>
+
+  | 证据 | 可能说明什么 | 下一步 |
+  | --- | --- | --- |
+  | `web` 为 Exited | 容器主进程已经退出 | 记录退出状态和日志，不先删容器 |
+  | `web` 为 Restarting | 主进程反复崩溃 | 查最早的重复错误和配置变更 |
+  | 没有 `web` | 当前目录或 Compose 项目不对 | 核对 `pwd` 和 `compose.yaml` |
+  | 日志显示配置错误 | 应用无法读取配置 | 修复对应文件后重建指定 service |
+  | 容器 Up，但 curl 被拒绝 | 端口发布或应用监听异常 | 核对 Compose ports 与容器进程 |
+  | 页面内容错误 | 挂载目录、镜像或 route 指向错误 | 核对 mount 和第三册交接卡 |
+
+  </ComparisonTable>
+
+  容器层的完整修复方法属于第三册第 10—11 章。本章只负责证明故障已经进入容器或应用层，不重复发明 Docker 清理命令。
+</section>
+
+<section className="book-section" id="book04-ch11-error-map">
+  ## 四种典型现象怎样区分
+
+  <TroubleshootingItem title="NXDOMAIN 或 Non-existent domain" open={true}>
+    **它说明什么：** 当前 DNS 查询认为这个主机名不存在。
+
+    **先查什么：** 域名是否过期、zone 是否 Active、`app` 记录是否存在、主机名是否拼错、nameserver 是否正确。
+
+    **成功状态：** `nslookup app.example.com` 得到回答。
+
+    **不要做什么：** 不要重启 Docker 或 `cloudflared`；它们不会创建缺失的 DNS 名称。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Cloudflare zone 一直显示 Pending">
+    **它说明什么：** Cloudflare 还没有确认该域名的权威委派。
+
+    **先查什么：** 注册商 nameserver、拼写、更新时间和旧 DNSSEC DS 记录。
+
+    **成功状态：** zone 变为 Active，公共 NS 查询显示 Cloudflare 分配值。
+
+    **不要做什么：** 不要重复添加 zone，也不要在不知道含义时删除全部 DNS 记录。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Cloudflare Error 1033">
+    **它说明什么：** 截至 2026-08-12，Cloudflare 官方将 1033 定义为网络找不到健康的 `cloudflared` connector，Tunnel 没有正常连接到 Cloudflare。
+
+    **先查什么：** Tunnel 控制台状态、`systemctl is-active cloudflared`、cloudflared 日志、服务器是否关机，以及 TCP/UDP 7844 出站网络。
+
+    **成功状态：** connector 恢复 Healthy/Connected，再从外部重试。
+
+    **不要做什么：** 不要改本机 `127.0.0.1:8080` 的 Compose 数据，也不要删除 zone。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Cloudflare Error 1016">
+    **它说明什么：** `1016` 的通用含义是 Cloudflare 无法解析当前配置的源站目标。在本书的 Tunnel 场景中，如果 DNS 记录仍指向 Tunnel，而 Tunnel 已停止或已经不存在，Cloudflare 当前 Routing 文档明确说明访问者可能看到 `1016`。
+
+    **先查什么：** Cloudflare DNS 中 `app` 记录的目标、对应 Tunnel 是否仍存在、published application route 是否仍在，以及 connector 是否只是暂时 Down。不要仅凭 DNS 查询有结果就认定 Tunnel 正常。
+
+    **成功状态：** DNS 目标、Tunnel、route 和 connector 恢复为同一条有效路径，外部 HTTPS 再次返回预期教学页；如果入口本来就计划永久下线，则应移除不再使用的 DNS 记录并确认外部不再解析到旧目标。
+
+    **不要做什么：** 不要把所有 `1016` 都归因于容器，也不要为了绕过错误新增指向 VPS 公网 IP 的同名 A 记录。`1016` 还有其他源站 DNS 原因，必须核对当前记录与目标。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="Cloudflare Tunnel 返回 502 Bad Gateway">
+    **它说明什么：** 截至 2026-08-12，Tunnel 502 通常表示 Tunnel 已连接，但 `cloudflared` 无法访问 route 中配置的本地源站。
+
+    **先查什么：** 本机 `curl`、8080 监听、Service URL 的 HTTP/HTTPS、地址和端口，以及 connector 日志中的 connection refused。
+
+    **成功状态：** `curl http://127.0.0.1:8080` 成功，route 与该地址一致，再从外部重测。
+
+    **不要做什么：** 不要为了消除 502 把公网 8080 开放给所有来源，也不要把 HTTP 源站随意改成 HTTPS。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="页面能打开，但内容不是预期服务">
+    **它说明什么：** 请求链已经返回内容，但 hostname、route、缓存或本机目标可能指向另一服务。
+
+    **先查什么：** 地址栏、Routes 列表、Service URL、本机 curl 内容和最近配置变更。
+
+    **成功状态：** 外部与本机页面的可识别内容一致，主机名只对应一个明确 route。
+
+    **不要做什么：** 不要因为状态码是 200 就忽略内容错误，也不要立即清空所有 Cloudflare 缓存。
+  </TroubleshootingItem>
+
+  <TroubleshootingItem title="只有某一台设备或某一个网络失败">
+    **它说明什么：** 全局服务可能正常，差异来自本地 DNS 缓存、代理、组织网络或浏览器环境。
+
+    **先查什么：** 另一网络、另一设备、系统 DNS 结果、浏览器证书错误和本地代理状态。
+
+    **成功状态：** 能指出差异只发生在特定客户端，并保留全局服务正常证据。
+
+    **不要做什么：** 不要因为一台设备失败就修改全局 nameserver 或删除 Tunnel。
+  </TroubleshootingItem>
+</section>
+
+<section className="book-section" id="book04-ch11-change-one">
+  ## 第八步：一次只修一层
+
+  修复前写下：
+
+  ```text
+  当前证据：<哪条命令或状态失败>
+  判断层级：<DNS / 边缘 / connector / 源站 / 容器>
+  计划动作：<只改变一个对象>
+  回退方法：<怎样恢复原值>
+  验证命令：<修复后重新执行什么>
+  ```
+
+  合理示例：
+
+  - DNS 记录拼写错误：只修正该记录，再等候并重新查询；
+  - cloudflared 服务停止：先保存日志，再恢复该服务并检查 connector；
+  - Service URL 端口错误：记录原值，只改为已被本机 curl 证明的端口；
+  - Compose 容器退出：返回第三册，根据日志修复指定 service。
+
+  不合理示例：同时改 nameserver、重建 Tunnel、开放防火墙并重启 Docker。即使页面恢复，也无法知道哪一个动作有效，更无法安全回退。
+</section>
+
+<section className="book-section" id="book04-ch11-recheck">
+  ## 第九步：从内向外重新验证
+
+  修复以后先在 VPS 上执行：
+
+  <CodeBlock
+    label="重新验证本机源站与 connector"
+    code={finalRecheck}
+  />
+
+  两项都成功后，再回自己的电脑：
+
+  <CodeBlock
+    label="重新验证公开 DNS 与 HTTPS"
+    code={`${clientDnsCheck}\n${clientHttpsCheck}`}
+  />
+
+  最终成功状态：
+
+  - 域名有效，NS 与 Cloudflare 一致；
+  - zone Active，`app` 记录存在且无冲突；
+  - connector Healthy/Connected；
+  - route 指向 `http://127.0.0.1:8080`；
+  - 本机 curl 成功；
+  - 外部 HTTPS 返回预期内容；
+  - 没有证书警告；
+  - 没有为了修复而公开 8080 或泄露 token。
+</section>
+
+<section className="book-section" id="book04-ch11-escalate">
+  ## 何时应该停止并求助
+
+  出现以下情况时，不再继续试错：
+
+  - 域名被暂停、争议、转移或账户无法恢复；
+  - 域名承载真实邮件或生产业务，无法确定影响范围；
+  - DNSSEC 与 DS 记录状态互相矛盾；
+  - Cloudflare 账户出现未知管理员、未知 token 或安全告警；
+  - connector token 可能泄露；
+  - 服务器出现未知进程、未知登录或系统完整性问题；
+  - 需要删除 zone、Tunnel、DNS 记录或容器数据才能继续；
+  - 官方状态页或支持渠道确认平台故障。
+
+  求助时提供脱敏后的：发生时间、错误类型、最近变更、zone/Tunnel 状态类别、本机 curl 成败和必要日志片段。不要提供密码、2FA、恢复码、API token、Tunnel token、私钥、Cookie 或付款资料。
+</section>
+
+<section className="book-section" id="book04-ch11-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book04-chapter-11"
+    items={[
+      "记录了发生时间、原始错误、影响范围和最近变更",
+      "能够按域名、DNS、边缘、connector、源站、容器的顺序排查",
+      "能够解释 NXDOMAIN、Pending、1033 和 Tunnel 502 的层级差异",
+      "先保存 cloudflared 与 Compose 证据，再决定是否重启",
+      "一次只修改一个对象，并为该动作准备回退和验证方法",
+      "修复后从本机源站向外部 HTTPS 重新验证完整路径",
+      "没有关闭证书验证、开放公网 8080、删除整个 zone 或泄露凭证",
+    ]}
+  />
+</section>

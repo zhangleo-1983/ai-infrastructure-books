@@ -14,6 +14,8 @@ interface Props {
   printHref?: string;
   showDetails?: boolean;
   showActions?: boolean;
+  startLabel?: string;
+  printLabel?: string;
 }
 
 const {
@@ -23,6 +25,8 @@ const {
   printHref = getPrintHref(book),
   showDetails = true,
   showActions = true,
+  startLabel = "开始阅读",
+  printLabel = "整册打印",
 } = Astro.props;
 const formattedUpdatedAt = new Intl.DateTimeFormat("zh-CN", {
   year: "numeric",
@@ -95,10 +99,10 @@ const numberLabel = String(book.number).padStart(2, "0");
         data-print-hidden
       >
         <a class="book-cover__start" href={sitePath(startHref)}>
-          开始阅读 <span aria-hidden="true">→</span>
+          {startLabel} <span aria-hidden="true">→</span>
         </a>
         <a class="book-cover__print" href={sitePath(printHref)}>
-          整册打印
+          {printLabel}
         </a>
       </nav>
     )}
@@ -248,12 +252,12 @@ const numberLabel = String(book.number).padStart(2, "0");
 
   .book-cover__start {
     background: var(--color-primary);
-    color: white;
+    color: var(--color-bg);
   }
 
   .book-cover__start:hover {
     background: var(--color-primary-strong);
-    color: white;
+    color: var(--color-bg);
   }
 
   .book-cover__print {
