@@ -1,0 +1,320 @@
+---
+book: "04-cloudflare"
+order: 10
+slug: "10-security-boundary"
+title: "收紧入口：账户、域名、Tunnel 与源站"
+shortTitle: "收紧安全边界"
+description: "复核注册商和 Cloudflare 账户恢复、Tunnel token、入站端口、公开内容、应用鉴权、缓存与日志边界，不把 HTTPS 或 Proxied 误当成完整安全方案。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 10
+duration: "预计 25—35 分钟"
+labels:
+  - "最小公开面"
+  - "Token 管理"
+  - "应用鉴权"
+completionId: "book04-chapter-10"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+export const exposureCheck = `sudo ss -lntp | grep ':8080 '
+sudo systemctl is-active cloudflared
+curl --fail --show-error http://127.0.0.1:8080`;
+
+<LearningGoals
+  audience="已经能通过 HTTPS 打开教学页，容易把“有证书、橙色云和 Tunnel”理解成已经完成全部安全工作的读者"
+  duration="预计 25—35 分钟"
+  outcome="把注册商、Cloudflare、Tunnel token、源站端口、公开内容、应用登录与缓存分别放回正确责任层，并留下一份最小公开面复核卡"
+/>
+
+<section className="book-section" id="book04-ch10-result">
+  ## HTTPS 成功以后，安全工作才刚有边界
+
+  当前系统至少包含六类安全责任：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>注册商账户</strong>
+      <small>域名所有权、续费、nameserver</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 账户</strong>
+      <small>DNS、证书、Tunnel 与 route</small>
+    </div>
+    <div className="flow-node">
+      <strong>Tunnel token</strong>
+      <small>允许 connector 加入 Tunnel</small>
+    </div>
+    <div className="flow-node">
+      <strong>VPS 与 cloudflared</strong>
+      <small>系统更新、出站连接、服务状态</small>
+    </div>
+    <div className="flow-node">
+      <strong>Compose 应用</strong>
+      <small>内容、登录、数据和漏洞</small>
+    </div>
+    <div className="flow-node">
+      <strong>访问者</strong>
+      <small>公开 URL 可能被任何人发现</small>
+    </div>
+  </FlowDiagram>
+
+  Cloudflare 不能替你续费域名，HTTPS 不能替应用登录，Tunnel 不能替容器更新，Proxied 也不等于源站或访问者匿名。
+</section>
+
+<section className="book-section" id="book04-ch10-account">
+  ## 第一步：复核两套账户的恢复能力
+
+  注册商与 Cloudflare 都是高影响账户，但控制的对象不同。
+
+  <ComparisonTable>
+
+  | 项目 | 注册商 | Cloudflare |
+  | --- | --- | --- |
+  | 主要控制 | 域名所有权、续费、nameserver、DS | DNS 记录、代理、证书、Tunnel、route |
+  | 2FA | 必须启用并可恢复 | 必须启用并可恢复 |
+  | 联系邮箱 | 能接收到期和域名验证邮件 | 能接安全、登录和配置通知 |
+  | 恢复材料 | 存在受控位置，不写入仓库 | 存在受控位置，不写入仓库 |
+  | 日常共享 | 不共享主账户密码 | 不共享主账户密码；多人场景使用成员权限 |
+
+  </ComparisonTable>
+
+  实际核对时只记录：
+
+  - 2FA 已启用；
+  - 恢复码位于哪个密码管理器条目或离线受控位置；
+  - 联系邮箱当前可用；
+  - 到期提醒和安全通知能收到；
+  - 没有陌生管理员、成员或授权应用。
+
+  不在检查卡中记录密码、恢复码和一次性验证码。
+</section>
+
+<section className="book-section" id="book04-ch10-token">
+  ## 第二步：把 Tunnel token 当作连接凭证
+
+  远程管理 Tunnel 只需要 token 就能运行 connector。知道 token 的人可能在其他机器上建立连接，因此：
+
+  - 不把带 token 的官方安装命令保存到普通笔记；
+  - 不把 token 写入 Git、Compose 文件、`.env` 示例或工单；
+  - 不分享未经检查的 service 配置、完整进程参数或终端截图；
+  - 不在公共直播或录屏中打开 Add a replica 页面；
+  - 不为了“备份”把 token 复制到多个聊天工具；
+  - 只在需要安装或恢复 connector 时从 Cloudflare 受控取得。
+
+  <Callout type="danger" title="怀疑泄露时不能只删除聊天消息">
+    Cloudflare 当前官方流程是立即旋转 token，并强制断开仍使用旧 token 的现有连接，然后用新 token 重新安装各 connector。旧连接不会只因旋转动作自动立刻全部断开；真实泄露事件应按官方 compromised-token 步骤完整处置。
+  </Callout>
+
+  本章不演练 token 旋转，因为它会暂时影响当前 connector。第 12 章会把正常维护与回退写成交接步骤；真实泄露时以 Cloudflare 当前 Tunnel token 官方文档为准，不等待本书更新。
+</section>
+
+<section className="book-section" id="book04-ch10-origin">
+  ## 第三步：再次证明源站没有扩大公开面
+
+  在 VPS 上执行：
+
+  <CodeBlock label="检查 8080、connector 与本机页面" code={exposureCheck} />
+
+  成功状态：
+
+  - 第一行只显示 `127.0.0.1:8080`；
+  - 第二行返回 `active`；
+  - 第三行返回教学页内容；
+  - 云防火墙没有新增面向所有来源的 8080；
+  - 没有为了本书新增公网 80 或 443。
+
+  失败判断：
+
+  - 监听变成 `0.0.0.0:8080` 或 `[::]:8080`；
+  - 公网 IP 加 `:8080` 能从外部直接打开；
+  - 云防火墙出现来源 `0.0.0.0/0` 的 8080；
+  - route 指向公网 IP，而不是 `127.0.0.1`；
+  - 为了 Tunnel 关闭了整个主机防火墙。
+
+  <Callout type="warning" title="Tunnel 不保证历史源站地址永远不会被发现">
+    Proxied 与 Tunnel 减少当前 Web 路径直接暴露源站的需要，但旧 DNS、其他主机名、第二册服务、邮件记录、日志或外部扫描仍可能关联 VPS 公网 IP。不要承诺“隐藏后不可追踪”。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch10-public-content">
+  ## 第四步：把“公开”和“已鉴权”分开
+
+  当前 `app.example.com` 没有应用登录，也没有 Cloudflare Access 策略。它是公开教学页。
+
+  <ComparisonTable>
+
+  | 能力 | 当前是否具备 | 它解决什么 |
+  | --- | --- | --- |
+  | HTTPS | 是 | 加密浏览器到 Cloudflare 的传输并验证主机名 |
+  | Cloudflare 代理 | 是 | 让公开 HTTP/HTTPS 请求经过 Cloudflare |
+  | Tunnel | 是 | 让 connector 从内部接回明确的本机服务 |
+  | 应用账户登录 | 否 | 判断具体用户是否有权查看或修改应用数据 |
+  | Cloudflare Access | 否 | 在应用前增加身份与策略检查 |
+  | 数据备份 | 不由上述能力提供 | 恢复应用数据和配置 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="不要直接把教学页替换成私人应用">
+    未来 Open WebUI、Dify、n8n 或数据库管理页面可能包含聊天、API key、工作流和个人数据。在第五册明确应用登录或 Access 边界前，不要复用当前公开 route 指向这些服务。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch10-access">
+  ## Cloudflare Access 在哪里起作用
+
+  Cloudflare Access 可以放在公开主机名前，根据身份提供商和策略判断访问者。当前官方自托管应用模式会检查请求的 Access token，没有匹配 Allow 策略的用户默认不能进入受保护应用。
+
+  第一版只解释边界，不配置 Access，原因是：
+
+  - 教学页本来就是无敏感数据的公开验证对象；
+  - Access 需要单独选择身份提供商、策略、会话时间和恢复方式；
+  - 配错全局默认拒绝或 Bypass 可能影响域名下其他应用；
+  - 后续每项真实应用需要分别判断公开、应用登录和 Access 的责任。
+
+  如果你的目标从“公开教学页”变成“仅自己或团队访问”，现在停止公开真实内容，先为该应用制定独立鉴权方案。
+</section>
+
+<section className="book-section" id="book04-ch10-cache">
+  ## 第五步：不要给登录页面随手套用 Cache Everything
+
+  Cloudflare 当前默认不会缓存 HTML 或 JSON，但会按文件扩展名、响应头和规则缓存某些静态资源。自定义 Cache Rule 可以改变这个行为。
+
+  对当前教学页：
+
+  - 不需要创建 Cache Everything；
+  - 不需要设置长期缓存来证明 Tunnel 成功；
+  - 排错时先比较本机与外部内容，不先清空全部 zone 缓存；
+  - 如果之前创建过自定义 Cache Rules，要记录规则和匹配范围。
+
+  对未来带登录的应用：
+
+  - 登录页、账户页、API 和包含用户数据的响应通常不应被强制公开缓存；
+  - Cookie、`Cache-Control` 和应用自身规则需要单独核对；
+  - 看到旧页面不一定是 Tunnel 故障，也可能是浏览器、递归 DNS 或 CDN 缓存；
+  - 不把“提高速度”作为缓存所有动态内容的理由。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    Cloudflare 当前默认缓存文档说明 HTML 与 JSON 默认不缓存；自定义 Cache Rules 和源站响应头会改变结果。第五册接入真实应用时必须重新校订。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch10-logs">
+  ## 第六步：记录足够排错，但不扩散隐私
+
+  日志和截图中可能出现：
+
+  - 真实域名与请求路径；
+  - 客户端 IP、时间、User-Agent 或请求标识；
+  - Tunnel、connector、zone 或账户标识；
+  - 应用错误、文件路径和环境信息；
+  - Cookie、Authorization header 或其他凭证。
+
+  对外求助前：
+
+  1. 只截取能说明问题的最小时间范围；
+  2. 保留错误类型和必要上下文；
+  3. 遮盖 token、Cookie、邮箱、真实域名/IP 和不相关账户信息；
+  4. 不把整份 service 配置或环境变量文件上传；
+  5. 通过官方支持渠道传递需要关联账户的材料；
+  6. 求助结束后删除不再需要的临时共享副本。
+
+  Cloudflare 与服务商会按各自政策处理账户、DNS 和网络数据。本书不引入额外分析脚本，也不承诺使用代理后没有日志或不可追踪。
+</section>
+
+<section className="book-section" id="book04-ch10-second-book">
+  ## 第七步：确认没有影响第二册
+
+  第二册的 3X-UI、Xray、VLESS、Reality 和客户端配置不是本书的 Web 源站。
+
+  <ComparisonTable>
+
+  | 检查项 | 本章成功状态 |
+  | --- | --- |
+  | 3X-UI 面板 | 没有新增 published application route |
+  | VLESS / Reality 入站 | 协议、端口、UUID、密钥均未修改 |
+  | 订阅 URL | 没有进入 Cloudflare route、日志或截图 |
+  | 云防火墙 | 没有删除第二册经过确认的规则 |
+  | SSH | 仍按原受信来源规则管理，没有公开为 Web 应用 |
+  | Compose 8080 | 仍为 `127.0.0.1:8080`，不占用第二册端口 |
+
+  </ComparisonTable>
+
+  普通 Cloudflare HTTP 代理和 Tunnel 教学路径不能替代第二册网络方案，也不能据此改写第二册节点配置。
+</section>
+
+<section className="book-section" id="book04-ch10-card">
+  ## 保存最小公开面复核卡
+
+  <MockWindow title="第四册安全边界复核卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="注册商与 Cloudflare 2FA">
+        <MockStatusBadge tone="success">已启用且可恢复</MockStatusBadge>
+      </MockField>
+      <MockField label="Tunnel token">
+        <MockStatusBadge tone="success">未进入公开记录</MockStatusBadge>
+      </MockField>
+      <MockField label="公开主机名" wide>
+        <code>app.example.com · 仅第三册静态教学页</code>
+      </MockField>
+      <MockField label="应用登录">
+        <MockStatusBadge tone="warning">无；不得放敏感内容</MockStatusBadge>
+      </MockField>
+      <MockField label="源站监听">
+        <MockStatusBadge tone="success">127.0.0.1:8080</MockStatusBadge>
+      </MockField>
+      <MockField label="公网 8080">
+        <MockStatusBadge tone="success">未开放</MockStatusBadge>
+      </MockField>
+      <MockField label="自定义 HTML 缓存">
+        <MockStatusBadge tone="success">未启用 Cache Everything</MockStatusBadge>
+      </MockField>
+      <MockField label="第二册服务">
+        <MockStatusBadge tone="success">未修改、未公开</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="book04-ch10-failures">
+  ## 发现问题时怎样处理
+
+  <ComparisonTable>
+
+  | 发现 | 立即动作 | 不要做什么 |
+  | --- | --- | --- |
+  | token 出现在仓库或聊天 | 停止扩散，按官方流程旋转并断开旧连接 | 只删除消息后继续使用旧 token |
+  | 8080 已公网开放 | 保存当前规则，恢复本机绑定并删除不需要的入站范围 | 先关闭全部防火墙 |
+  | 页面含隐私或管理功能 | 暂停 route 或恢复无敏感教学页 | 以 HTTPS 为理由继续公开 |
+  | 发现陌生账户成员 | 保存证据，撤销未知访问并检查安全活动 | 与对方共享更多凭证“确认身份” |
+  | 动态登录页被强制缓存 | 停止相关缓存规则并按应用验证会话 | 只让用户无限刷新 |
+  | 第二册端口或配置被改 | 回第二册交接卡定位并恢复 | 重建整台 VPS |
+
+  </ComparisonTable>
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-10"
+  items={[
+    "注册商和 Cloudflare 账户均启用 2FA，恢复方式与联系邮箱可用",
+    "Tunnel token 没有进入仓库、聊天、截图、日志分享或普通笔记",
+    "8080 仍只监听 127.0.0.1，云防火墙没有新增公网入站",
+    "我知道 Proxied 与 Tunnel 不保证源站地址永远不可关联",
+    "当前 route 只公开无敏感数据的教学页，没有应用登录或 Access",
+    "我能解释 HTTPS、Cloudflare Access、应用鉴权和数据备份不是同一能力",
+    "没有启用会缓存动态 HTML 的宽泛 Cache Everything 规则",
+    "日志与求助材料按最小范围脱敏，不承诺匿名或不可追踪",
+    "第二册 3X-UI、Xray、端口、订阅与防火墙规则均未修改",
+  ]}
+/>

@@ -1,0 +1,318 @@
+---
+book: "04-cloudflare"
+order: 13
+slug: "appendix"
+title: "附录：DNS 命令、错误地图与 Caddy 对照路径"
+shortTitle: "附录"
+description: "集中整理 DNS 查询、Cloudflare 与 Tunnel 错误分层、请求路径和术语，并用 Caddy 展示传统公网反向代理的最小对照方案。"
+chapterType: "appendix"
+updatedAt: "2026-08-12"
+labels:
+  - "DNS 速查"
+  - "错误地图"
+  - "Caddy 对照"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Glossary from "../../../components/book/Glossary.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+
+export const macDnsBasics = `dig NS example.com
+dig A app.example.com
+dig AAAA app.example.com
+dig CNAME app.example.com
+dig MX example.com
+dig TXT example.com
+dig DS example.com`;
+
+export const windowsDnsBasics = `Resolve-DnsName -Name example.com -Type NS -DnsOnly
+Resolve-DnsName -Name app.example.com -Type A -DnsOnly
+Resolve-DnsName -Name app.example.com -Type AAAA -DnsOnly
+Resolve-DnsName -Name app.example.com -Type CNAME -DnsOnly
+Resolve-DnsName -Name example.com -Type MX -DnsOnly
+Resolve-DnsName -Name example.com -Type TXT -DnsOnly
+Resolve-DnsName -Name example.com -Type DS -DnsOnly`;
+
+export const macDnsLayers = `dig NS example.com @1.1.1.1
+dig NS example.com @8.8.8.8
+dig A app.example.com @1.1.1.1
+dig A app.example.com @8.8.8.8
+dig +trace NS example.com`;
+
+export const windowsDnsLayers = `Resolve-DnsName -Name example.com -Type NS -Server 1.1.1.1 -DnsOnly
+Resolve-DnsName -Name example.com -Type NS -Server 8.8.8.8 -DnsOnly
+Resolve-DnsName -Name app.example.com -Type A -Server 1.1.1.1 -DnsOnly
+Resolve-DnsName -Name app.example.com -Type A -Server 8.8.8.8 -DnsOnly`;
+
+export const httpChecks = `curl --fail --show-error --location --connect-timeout 10 https://app.example.com
+curl --head --show-error --location --connect-timeout 10 https://app.example.com`;
+
+export const caddyInstall = `sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo chmod o+r /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+sudo chmod o+r /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install caddy`;
+
+export const caddyfileExample = `app.example.com {
+    reverse_proxy 127.0.0.1:8080
+}`;
+
+export const caddyValidate = `sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+sudo systemctl is-active caddy
+sudo journalctl -u caddy --since "10 minutes ago" --no-pager | tail -n 50`;
+
+<section className="book-section" id="book04-appendix-use">
+  ## 怎样使用这份附录
+
+  这份附录用于快速回答“应该查哪一层”，不能替代正文中的前置条件、影响范围、成功状态和失败判断。
+
+  使用前先确认：
+
+  1. 命令应该在自己的电脑还是 VPS 执行；
+  2. `example.com` 是否已经换成自己控制的域名；
+  3. 当前是在查看状态，还是准备修改 DNS、route、防火墙或 systemd；
+  4. 变更是否只影响一个教学主机名；
+  5. 是否保存了变更前状态和回退路径。
+
+  <Callout type="warning" title="Caddy 是对照路径，不是主线的下一步">
+    本册主线已经用 Cloudflare Tunnel 把 `app.example.com` 连接到 `127.0.0.1:8080`。Caddy 对照需要公网 80/443、直接 DNS 和源站证书等不同边界。不要让同一个主机名同时跟随两套教程，也不要为了试验 Caddy 删除已经正常的 Tunnel。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-appendix-dns-commands">
+  ## DNS 记录查询速查
+
+  <PlatformTabs id="book04-appendix-dns" firstPlatform="mac" macLabel="macOS 终端" windowsLabel="Windows PowerShell">
+    <div slot="mac">
+      <CodeBlock label="查询常见 DNS 记录" code={macDnsBasics} />
+    </div>
+    <div slot="windows">
+      <CodeBlock label="查询常见 DNS 记录" code={windowsDnsBasics} />
+    </div>
+  </PlatformTabs>
+
+  <ComparisonTable>
+
+  | 查询类型 | 想回答的问题 | 不代表什么 |
+  | --- | --- | --- |
+  | NS | 当前由哪些权威 nameserver 回答 | 不证明某条 Web 记录正确 |
+  | A | 名称是否有 IPv4 答案 | Proxied 时返回的可能是 Cloudflare 地址，不是源站 |
+  | AAAA | 名称是否有 IPv6 答案 | 没有 AAAA 不等于 IPv4 服务故障 |
+  | CNAME | 名称是否指向另一个规范名称 | Proxied 记录可能经过 CNAME flattening，不一定显示原目标 |
+  | MX | 邮件投递到哪里 | 不应用来承载 Web 地址 |
+  | TXT | 验证、邮件策略或其他文本值 | 同名可能有多条，不能随意合并或删除 |
+  | DS | 上级域是否发布 DNSSEC 委派签名 | 不是 Cloudflare zone 内普通 DNS 记录 |
+
+  </ComparisonTable>
+
+  输出为空、超时、`NXDOMAIN`、`SERVFAIL` 是不同结果。必须同时记录查询名称、类型、解析器和状态码。
+</section>
+
+<section className="book-section" id="book04-appendix-dns-resolvers">
+  ## 为什么要查询多个公共解析器
+
+  <PlatformTabs id="book04-appendix-resolvers" firstPlatform="mac" macLabel="macOS 终端" windowsLabel="Windows PowerShell">
+    <div slot="mac">
+      <CodeBlock label="对比公共解析器与委派路径" code={macDnsLayers} />
+      `dig +trace` 会从根和上级域逐层观察委派，输出较长，适合判断 NS 或 DS 路径，不用于日常每次刷新。
+    </div>
+    <div slot="windows">
+      <CodeBlock label="对比两个公共解析器" code={windowsDnsLayers} />
+      PowerShell 的 `Resolve-DnsName` 能指定解析器，但没有与 `dig +trace` 完全相同的单条主线命令；需要追踪委派时可使用在线注册局工具或安装可信的 DNS 工具。
+    </div>
+  </PlatformTabs>
+
+  多个解析器结果一致，只能提高判断信心，不代表全球所有缓存已同时更新。浏览器、操作系统、家庭路由器、运营商和公共解析器都可能保留各自缓存。
+</section>
+
+<section className="book-section" id="book04-appendix-error-map">
+  ## 错误地图：先定位，再处理
+
+  <ComparisonTable>
+
+  | 现象 | 更可能的层 | 先检查 | 不要先做 |
+  | --- | --- | --- | --- |
+  | `NXDOMAIN` | 名称或 DNS 记录 | 拼写、zone、published route 关联 DNS | 重启 Docker |
+  | `SERVFAIL` | DNSSEC 或权威 DNS | DS、签名、nameserver、公共解析器 | 反复添加 A 记录 |
+  | zone 长期 `Pending` | nameserver / DNSSEC | 注册商委派、旧 DS、Cloudflare 分配值 | 删除整个 zone 重来 |
+  | Cloudflare 1033 | Tunnel connector | Tunnel 状态、systemd、7844 出站、日志 | 开放公网 8080 |
+  | Cloudflare 502 | connector 到源站 | service URL、本机 curl、Compose、协议与端口 | 修改 nameserver |
+  | 证书等待或主机名不匹配 | 边缘 HTTPS / DNS | zone Active、Proxied、Universal SSL 覆盖 | 使用 `curl -k` 掩盖错误 |
+  | 传统反代出现 526 | Cloudflare 到源站 TLS | 源站 443、证书有效期、主机名和信任链 | 改成 Flexible |
+  | 页面内容旧 | 浏览器/CDN/源站 | 本机内容、响应头、自定义 Cache Rules | 清空整个 zone 全部缓存 |
+  | DNS 正常但连接超时 | HTTPS、Tunnel 或网络 | curl 阶段、connector、源站、客户端网络 | 同时改 DNS、route 和防火墙 |
+  | 外部可开但本机源站失败 | 缓存或路径不一致 | 响应内容、缓存规则、真实 service URL | 把旧页面当成源站仍正常 |
+
+  </ComparisonTable>
+
+  <CodeBlock label="检查公开 HTTP 响应" code={httpChecks} />
+
+  `curl --head` 只查看响应头，不能证明正文和应用功能正确。最终仍要打开页面并核对预期内容。
+</section>
+
+<section className="book-section" id="book04-appendix-paths">
+  ## 两条请求路径对照
+
+  ### 本册主线：Cloudflare Tunnel
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>浏览器 HTTPS</strong>
+      <small>app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 边缘</strong>
+      <small>DNS、代理、边缘证书</small>
+    </div>
+    <div className="flow-node">
+      <strong>Tunnel</strong>
+      <small>cloudflared 主动出站连接</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机 HTTP</strong>
+      <small>127.0.0.1:8080</small>
+    </div>
+  </FlowDiagram>
+
+  主线不要求为教学页新增公网 80、443 或 8080 入站。
+
+  ### 传统对照：公网 DNS + Caddy
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>浏览器 HTTPS</strong>
+      <small>app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>公共 DNS / 可选 Cloudflare</strong>
+      <small>指向可达的源站</small>
+    </div>
+    <div className="flow-node">
+      <strong>VPS 443 / Caddy</strong>
+      <small>TLS 与反向代理</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机 HTTP</strong>
+      <small>127.0.0.1:8080</small>
+    </div>
+  </FlowDiagram>
+
+  传统路径要求公网源站可达，需要管理 80/443、防火墙、证书、源站地址暴露和反向代理更新。它不是“更高级”，只是不同的责任分配。
+</section>
+
+<section className="book-section" id="book04-appendix-caddy-prerequisites">
+  ## Caddy 对照路径的停止条件
+
+  只有同时满足以下条件，才应在独立测试主机名或维护窗口继续：
+
+  - 已经记录并移除同一主机名的 Tunnel route，或使用完全不同的测试主机名；
+  - A/AAAA 记录明确指向这台 VPS，公网地址允许被 DNS 与访问者看到；
+  - 云防火墙和主机防火墙允许公网 TCP 80 与 443；
+  - 没有其他 Web 服务器占用 80/443；
+  - Caddy 能绑定 80/443，数据目录可写且持久；
+  - `127.0.0.1:8080` 仍只在 VPS 本机可用；
+  - 已记录如何恢复原 Tunnel route 与原 DNS；
+  - 清楚 Cloudflare Proxied、DNS only 和源站证书的区别。
+
+  <Callout type="danger" title="不要在共用服务器上边试边开端口">
+    80/443 可能已经由其他网站、面板或反向代理使用。先用 `sudo ss -lntp` 查明监听者，再决定是否建立独立环境。不要停止第二册 3X-UI / Xray，也不要把 8080 改成 `0.0.0.0`。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-appendix-caddy-install">
+  ## Caddy 最小安装与配置对照
+
+  截至 2026-08-12，Caddy 官方为 Debian、Ubuntu 和 Raspbian 提供稳定 APT 软件源。下面命令来自官方安装页：
+
+  <CodeBlock label="安装 Caddy 官方稳定软件包" code={caddyInstall} printBreak />
+
+  安装成功后，官方软件包会以名为 `caddy` 的 systemd 服务运行。主线配置可以只有一个站点地址和一个反向代理目标：
+
+  <CodeBlock label="/etc/caddy/Caddyfile 对照内容" code={caddyfileExample} />
+
+  这里的 **reverse proxy（反向代理）** 接收访问者对 `app.example.com` 的请求，再代表访问者向本机 `127.0.0.1:8080` 请求内容。浏览器不直接连接 8080。
+
+  写入配置后，先校验，再 reload：
+
+  <CodeBlock label="校验并重新加载 Caddy" code={caddyValidate} />
+
+  成功状态：配置校验通过，`caddy` 为 `active`，日志没有持续的证书或绑定错误，外部 HTTPS 返回预期页面。
+
+  失败判断：80/443 被占用、DNS 不指向当前 VPS、防火墙不可达、证书签发失败、Caddy 无法读取持久存储，或 `127.0.0.1:8080` 本身不可用。
+</section>
+
+<section className="book-section" id="book04-appendix-caddy-https">
+  ## 自动 HTTPS 与 Cloudflare 源站模式
+
+  Caddy 当前会在配置中出现合格公共域名时自动申请和续期证书，并默认把 HTTP 80 重定向到 HTTPS 443。最小公开路径通常需要：
+
+  - 域名 A/AAAA 指向服务器；
+  - 公网 80/443 可达且由 Caddy 绑定；
+  - Caddy 的数据目录可写并持久；
+  - 域名写在 Caddyfile 中；
+  - 证书颁发机构的验证请求没有被错误规则拦截。
+
+  如果 DNS 记录继续使用 Cloudflare Proxied，Cloudflare 到 Caddy 是另一段 HTTPS。推荐使用 `Full (strict)`：源站必须在 443 提供未过期、主机名匹配并由公共受信 CA 或 Cloudflare Origin CA 签发的证书，否则可能出现 526。
+
+  <ComparisonTable>
+
+  | 源站证书 | 浏览器直连源站 | Cloudflare `Full (strict)` | 适用边界 |
+  | --- | --- | --- | --- |
+  | Caddy 自动申请的公共证书 | 可受信，但仍不建议绕过 Cloudflare | 可以 | 需要公共 ACME 验证与 80/443 |
+  | Cloudflare Origin CA | 浏览器通常不信任 | 可以 | 只用于 Cloudflare 到源站，不能当成普通公网浏览器证书 |
+  | 过期、名称不匹配或未知 CA | 不可信 | 会失败并可能返回 526 | 应修复证书，不降低模式绕过 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="不要把 Flexible 当作修复证书错误的方法">
+    Flexible 会让 Cloudflare 到源站不使用完整 HTTPS，不能解决源站证书管理，只会改变安全边界。传统公开源站路径应修复 443 和证书，并尽可能使用 `Full (strict)`。
+  </Callout>
+
+  使用 Origin CA 时，如果暂停 Cloudflare 或把记录切到 DNS only，浏览器直连源站可能显示 `NET::ERR_CERT_AUTHORITY_INVALID`。需要直接浏览器访问源站时，应使用公共受信证书。
+</section>
+
+<section className="book-section" id="book04-appendix-terms">
+  ## 核心术语表
+
+  <Glossary>
+    <dt>A / AAAA</dt><dd>把名称分别映射到 IPv4 或 IPv6 地址的 DNS 记录。</dd>
+    <dt>Authoritative DNS</dt><dd>权威 DNS，负责给出某个 zone 的正式答案。</dd>
+    <dt>CNAME</dt><dd>把一个名称指向另一个规范名称的记录；不是 HTTP 跳转。</dd>
+    <dt>Connector</dt><dd>运行在服务器上的 `cloudflared` 进程，与 Cloudflare 建立出站连接。</dd>
+    <dt>DNS only</dt><dd>Cloudflare 只回答 DNS，不让该记录的 HTTP/HTTPS 流量经过代理。</dd>
+    <dt>DNSSEC</dt><dd>用签名链帮助解析器验证 DNS 答案完整性的机制。</dd>
+    <dt>DS record</dt><dd>由上级域发布、把 DNSSEC 信任链连接到下级 zone 的委派签名记录。</dd>
+    <dt>Edge certificate</dt><dd>Cloudflare 边缘向访问者浏览器展示的证书。</dd>
+    <dt>Full (strict)</dt><dd>Cloudflare 与源站也使用 HTTPS，并严格验证源站证书有效期、信任与主机名。</dd>
+    <dt>Nameserver</dt><dd>注册商层委派给某个域名的权威 DNS 服务器名称。</dd>
+    <dt>Origin</dt><dd>源站，真正提供应用内容的服务器或本机服务。</dd>
+    <dt>Origin CA</dt><dd>Cloudflare 为边缘到源站连接签发的证书体系，通常不被普通浏览器直接信任。</dd>
+    <dt>Proxied</dt><dd>让受支持记录的 HTTP/HTTPS 请求经过 Cloudflare 边缘，常以橙色云表示。</dd>
+    <dt>Published application route</dt><dd>把公开主机名映射到 Tunnel 后方某个本地服务的规则。</dd>
+    <dt>Reverse proxy</dt><dd>代表访问者向后端服务发起请求，并把响应返回给访问者的服务器。</dd>
+    <dt>TTL</dt><dd>DNS 记录可以被缓存多长时间的提示值，不是全球完成倒计时。</dd>
+    <dt>Tunnel token</dt><dd>允许 connector 加入特定远程管理 Tunnel 的敏感凭证。</dd>
+    <dt>Zone</dt><dd>由一组权威 DNS 记录和设置组成的管理范围。</dd>
+  </Glossary>
+</section>
+
+<section className="book-section" id="book04-appendix-reserved-values">
+  ## 文档示例值
+
+  本书统一使用：
+
+  - `example.com` 与 `app.example.com` 作为文档域名；
+  - `127.0.0.1:8080` 作为第三册本机教学服务；
+  - `book04-web` 作为教学 Tunnel 名称；
+  - `<TUNNEL_TOKEN>`、`<负责人>`、`<YYYY-MM-DD>` 一类明确占位符；
+  - 不使用真实公网 IP、Tunnel UUID、zone ID、账户 ID、邮箱、token 或私钥。
+
+  阅读时需要把域名和负责人替换为自己的受控信息；任何 token、密码或私钥都不应被复制到书、Git 仓库或普通笔记中。
+</section>

@@ -1,0 +1,281 @@
+---
+book: "04-cloudflare"
+order: 5
+slug: "05-read-dns-records"
+title: "看懂 DNS 记录、TTL 与橙色云"
+shortTitle: "读懂 DNS 记录"
+description: "用 Type、Name、Content、Proxy status 和 TTL 五个字段读懂 A、AAAA、CNAME、MX、TXT 与 NS，并为后续 Tunnel 主机名留出清晰空间。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 5
+duration: "预计 25—30 分钟"
+labels:
+  - "DNS 记录"
+  - "Proxy status"
+  - "TTL"
+completionId: "book04-chapter-05"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import PlatformTabs from "../../../components/book/PlatformTabs.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import DnsRecordsMock from "../../../components/mock-ui/DnsRecordsMock.astro";
+
+export const macRecordCheck = `dig A example.com
+dig MX example.com
+dig TXT example.com`;
+
+export const windowsRecordCheck = `Resolve-DnsName -Name example.com -Type A -DnsOnly
+Resolve-DnsName -Name example.com -Type MX -DnsOnly
+Resolve-DnsName -Name example.com -Type TXT -DnsOnly`;
+
+<LearningGoals
+  audience="Cloudflare zone 已经 Active，但看到 DNS Records 表格仍不知道每一列含义的读者"
+  duration="预计 25—30 分钟"
+  outcome="能用五个字段解释常用 DNS 记录，选择 Proxied 或 DNS only，并识别冲突、遗漏和不能随意删除的记录"
+/>
+
+<section className="book-section" id="book04-ch5-result">
+  ## 这一章学会读表，不批量重写记录
+
+  第 4 章已经把权威 DNS 切换到 Cloudflare。本章不要求把所有记录改成一种模板，也不会手工创建第 8 章的 Tunnel 路由记录。
+
+  目标是看到一条 DNS 记录时，能回答：
+
+  1. 它是什么类型；
+  2. 它给哪个名称提供答案；
+  3. 答案的内容或目标是什么；
+  4. 请求是否经过 Cloudflare 代理；
+  5. 答案可以缓存多久。
+
+  <Callout type="warning" title="不认识的记录先标记，不要先删除">
+    DNS 表里看似多余的 MX、TXT、CNAME 或 SRV 可能正在支撑邮箱、第三方登录、证书或设备服务。删除后没有立刻报错，也不代表没有影响。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch5-five-fields">
+  ## 先读懂五个核心字段
+
+  <ComparisonTable>
+
+  | 字段 | 它回答什么 | 示例解释 |
+  | --- | --- | --- |
+  | Type | 这条答案采用哪一种结构 | A 表示名称对应 IPv4 |
+  | Name | 记录属于哪个主机名 | `@` 常代表根域名；`app` 组成 `app.example.com` |
+  | Content / Target | 记录最终保存什么值 | IPv4、目标主机名或验证文本 |
+  | Proxy status | HTTP/HTTPS 是否交给 Cloudflare 代理 | Proxied 或 DNS only |
+  | TTL | 解析器可缓存答案多久 | Auto 或具体秒数 |
+
+  </ComparisonTable>
+
+  `@` 是许多 DNS 控制台用来表示根域名的简写。它不是电子邮箱，也不是必须写入查询命令的字符。
+
+  <DnsRecordsMock />
+
+  仿真表中的 `192.0.2.10` 是专门保留给文档的示例 IPv4，不能直接用于部署。表格只解释字段关系，不要求照抄任何一行。
+</section>
+
+<section className="book-section" id="book04-ch5-a-aaaa">
+  ## A 与 AAAA：名称直接对应 IP 地址
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">A 记录</p>
+      <p>把名称映射到一个 IPv4，例如文档示例 <code>192.0.2.10</code>。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">AAAA 记录</p>
+      <p>把名称映射到一个 IPv6 地址。名称来自早期设计：IPv6 地址长度是 IPv4 的四倍。</p>
+    </section>
+  </InfoGrid>
+
+  A 与 AAAA 的目标必须是对应格式的 IP，不能填 `https://`、端口或路径。
+
+  本书的 Cloudflare Tunnel 主线不会为了 `app.example.com` 手工填写 VPS 公网 IPv4。这样可以让教学服务继续只监听 `127.0.0.1:8080`，公开请求经由 Tunnel 到达。
+</section>
+
+<section className="book-section" id="book04-ch5-cname">
+  ## CNAME：让一个名称指向另一个名称
+
+  CNAME（Canonical Name，规范名称）记录把当前名称指向另一个主机名。例如：
+
+  ```text
+  www.example.com → example.com
+  ```
+
+  它的目标是名称，不是 URL。因此不要填写：
+
+  ```text
+  https://example.com/
+  example.com:8080
+  example.com/path
+  ```
+
+  第 8 章在 Cloudflare Tunnel 中保存公开主机名路由时，Cloudflare 会处理相应 DNS 记录。不要在第 5 章抢先手工创建一个同名 `app` CNAME，否则后面可能出现记录冲突。
+</section>
+
+<section className="book-section" id="book04-ch5-mail-txt">
+  ## MX 与 TXT：邮件和验证最常见的记录
+
+  <ComparisonTable>
+
+  | 类型 | 常见作用 | 必须保留的字段 | 代理状态 |
+  | --- | --- | --- | --- |
+  | MX | 指定接收邮件的服务器 | Name、邮件服务器目标、Priority | DNS only |
+  | TXT | 所有权验证、SPF、DKIM、DMARC 等文本 | Name 与完整文本内容 | DNS only |
+
+  </ComparisonTable>
+
+  MX 的 **Priority（优先级）**通常是数字，数值较小的目标优先。不要因为两个 MX 看起来“重复”就只保留一个，它们可能用于主备邮件投递。
+
+  TXT 可能很长，并包含空格、分号或由服务商生成的字符串。复制时要以提供该记录的官方页面为准，不自行删改；同时不要把真实验证 token 粘贴进公开仓库或求助截图。
+
+  <Callout type="danger" title="不要把邮件主机名设为 Proxied">
+    Cloudflare 的普通代理面向 HTTP/HTTPS 流量。MX、TXT 本身不会经过代理；邮件服务器目标通常也应保持 DNS only。错误代理可能让邮件连接失败。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch5-ns">
+  ## NS 记录与第 4 章 nameserver 设置不是同一个入口
+
+  NS 记录表示某个 DNS 区域由哪些权威 nameserver 负责。在 Cloudflare DNS Records 表中，NS 常用于把某个子域名委派给另一套 DNS。
+
+  第 4 章做的是在**注册商**中更改根域名委派。Cloudflare 分配的两台 nameserver 由平台管理，不需要再作为普通根域名 NS 记录手工添加。
+
+  <ComparisonTable>
+
+  | 操作 | 位置 | 本书是否使用 |
+  | --- | --- | --- |
+  | 更改整个 `example.com` 的权威 DNS | 注册商 nameserver 设置 | 第 4 章已经使用 |
+  | 把 `team.example.com` 委派给其他 DNS | Cloudflare 中添加子域名 NS | 第一版主线不使用 |
+  | 把 Cloudflare 分配值再写入根域名记录表 | Cloudflare DNS Records | 不使用，可能冲突 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch5-proxy">
+  ## Proxied 与 DNS only 怎样选择
+
+  Cloudflare 当前允许 A、AAAA 和 CNAME 记录选择代理状态。
+
+  **Proxied** 时：
+
+  - 公开 DNS 返回 Cloudflare 任播地址；
+  - HTTP/HTTPS 请求先进入 Cloudflare；
+  - Cloudflare 的证书、缓存和安全规则才有机会参与；
+  - 源站仍必须能够由 Cloudflare 当前配置访问。
+
+  **DNS only** 时：
+
+  - DNS 直接返回记录中配置的地址或目标；
+  - 应用流量不经过 Cloudflare HTTP 代理；
+  - 实际目标可能出现在公开 DNS 查询中。
+
+  <ComparisonTable>
+
+  | 场景 | 默认判断 | 仍需确认 |
+  | --- | --- | --- |
+  | 普通公开 Web 主机名 | 通常可使用 Proxied | 源站协议、端口和应用兼容性 |
+  | Cloudflare Tunnel 公开主机名 | 由 Tunnel 路由流程管理 | connector 和 Service URL |
+  | MX、TXT | DNS only | 邮件服务商提供的完整字段 |
+  | 邮件服务器主机名 | DNS only | 邮件服务商的正式说明 |
+  | 非 HTTP/HTTPS 服务 | 不按 Web 记录套用 | Cloudflare 产品是否明确支持该协议 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch5-ttl">
+  ## TTL：答案可以被缓存多久
+
+  TTL（Time To Live，生存时间）表示递归解析器可以缓存 DNS 答案多长时间。TTL 到期前，解析器可以继续使用旧答案，不必每次都询问权威 DNS。
+
+  这解释了为什么你保存新记录后：
+
+  - Cloudflare 页面已经显示新值；
+  - 一部分网络已经得到新值；
+  - 另一部分网络仍暂时使用旧缓存。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    Cloudflare 当前文档说明，Proxied 记录的 TTL 固定为 Auto，当前值为 300 秒，但本地缓存可能保存更久，平台也可能调整该值。不要把“五分钟”写成所有用户都能看到新答案的承诺。
+  </Callout>
+
+  DNS only 记录可根据当前计划和界面选择 TTL。初学阶段如果没有明确的业务变更要求，使用 Auto 比随意设成极低值更稳妥。
+</section>
+
+<section className="book-section" id="book04-ch5-read-query">
+  ## 从终端读取公开记录
+
+  把下面的 `example.com` 换成自己的根域名。命令只读取公开 DNS，不会修改记录。
+
+  <PlatformTabs id="book04-ch5-records" firstPlatform="mac" macLabel="macOS 终端" windowsLabel="Windows PowerShell">
+    <div slot="mac">
+      <CodeBlock label="读取 A、MX 与 TXT" code={macRecordCheck} />
+    </div>
+    <div slot="windows">
+      <CodeBlock label="读取 A、MX 与 TXT" code={windowsRecordCheck} />
+    </div>
+  </PlatformTabs>
+
+  逐条解释输出：
+
+  - A 查询可能返回实际地址，也可能因 Proxied 而返回 Cloudflare 地址；
+  - MX 查询应列出邮件服务器和优先级；
+  - TXT 查询可能返回多条不同用途的文本；
+  - “没有这种记录”不一定是故障，但必须与你的业务预期一致；
+  - 超时、网络断开与 `NXDOMAIN` 不能当作“没有 MX”或“没有 TXT”。
+
+  <Callout type="warning" title="公开 DNS 查询会显示公开记录">
+    DNS 记录本来就是向解析器提供答案，但 TXT 中不应该存放账户密码、私钥或可直接登录的秘密。第三方要求新增验证记录时，只使用该服务当前官方生成的值。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch5-audit">
+  ## 给当前 zone 做一次逐行审计
+
+  在 Cloudflare DNS Records 中从上到下检查：
+
+  1. 同一个 Name 是否有互相冲突的 CNAME 与其他记录；
+  2. A 或 AAAA 是否指向已经退役的服务器；
+  3. 邮件相关 MX、TXT 是否与第 3 章迁移清单一致；
+  4. 所有 Proxied 记录是否真的是要经过 Cloudflare 的 Web 服务；
+  5. 所有 DNS only 记录是否确实需要公开真实目标；
+  6. 是否已经存在 `app`，会与第 8 章 Tunnel 路由冲突；
+  7. 未知记录是否已经标记负责人，而不是被删除。
+
+  本书下一步会规划 `app.example.com`。如果 `app` 已被占用，先决定保留现有用途并选择另一个名称，例如 `lab`，然后在后续各章保持同一个名称。不要在不同页面临时改名。
+</section>
+
+<section className="book-section" id="book04-ch5-failures">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 可能原因 | 处理方向 |
+  | --- | --- | --- |
+  | 保存 CNAME 时提示冲突 | 同名已有 A、AAAA、CNAME 或 Tunnel 记录 | 先查用途，不要强删 |
+  | 查询返回 Cloudflare 地址而非源站 | 记录为 Proxied | 这是预期行为，不代表值被篡改 |
+  | 邮件突然失败 | MX、TXT 或邮件主机名缺失/错误 | 与迁移前清单和邮箱服务商文档对照 |
+  | 修改后仍看到旧答案 | TTL 或本机/递归解析器缓存 | 等待并从不同解析器核对 |
+  | TXT 看起来被分成多段 | DNS 工具的显示格式 | 与完整语义对照，不凭终端换行重写 |
+  | 只有 `app` 无法创建 | 名称已经被其他记录占用 | 查清现有记录，选择保留或改用另一子域名 |
+
+  </ComparisonTable>
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-05"
+  items={[
+    "我能用 Type、Name、Content、Proxy status 和 TTL 解释一条 DNS 记录",
+    "我知道 A 对应 IPv4、AAAA 对应 IPv6、CNAME 对应另一个名称",
+    "我知道 MX 与 TXT 常承载邮件和验证信息，不能随意删除",
+    "我能区分 Proxied 与 DNS only 的公开请求路径",
+    "我知道第 4 章注册商 nameserver 设置与 Cloudflare 普通 NS 记录不同",
+    "我理解 TTL 会让不同解析器在过渡期暂时看到不同答案",
+    "我确认 app 主机名未被占用，或已经为后续章节确定替代名称",
+  ]}
+/>

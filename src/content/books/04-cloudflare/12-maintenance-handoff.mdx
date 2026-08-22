@@ -1,0 +1,409 @@
+---
+book: "04-cloudflare"
+order: 12
+slug: "12-maintenance-handoff"
+title: "续费、变更、回退与下一册交接"
+shortTitle: "维护与交接"
+description: "把域名续费、Cloudflare zone、Tunnel、公开路由、本机源站、临时下线和永久退役整理为可验证、可回退且不含秘密的维护记录。"
+chapterType: "chapter"
+updatedAt: "2026-08-22"
+chapterNumber: 12
+duration: "预计 30—40 分钟"
+labels:
+  - "续费维护"
+  - "变更回退"
+  - "系列交接"
+completionId: "book04-chapter-12"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import Book04HandoffMock from "../../../components/mock-ui/Book04HandoffMock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+export const finalBaseline = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080
+sudo systemctl is-active cloudflared
+sudo systemctl is-enabled cloudflared`;
+
+export const externalBaseline = `nslookup app.example.com
+curl --fail --show-error --location --connect-timeout 10 https://app.example.com`;
+
+export const connectorInventory = `cloudflared --version
+systemctl show cloudflared --property=ActiveState,SubState,UnitFileState --no-pager
+sudo journalctl -u cloudflared --since "30 minutes ago" --no-pager | tail -n 50`;
+
+export const updatePreview = `sudo apt update
+apt list --upgradable 2>/dev/null | grep '^cloudflared/' || true`;
+
+export const applyCloudflaredUpdate = `sudo apt install --only-upgrade cloudflared
+sudo systemctl restart cloudflared.service
+sudo systemctl is-active cloudflared
+cloudflared --version`;
+
+export const handoffTemplate = `# 第四册公开入口交接卡
+
+校验日期：<YYYY-MM-DD>
+负责人：<姓名或团队；不写登录凭证>
+
+## 域名与账户
+
+- 域名：example.com
+- 注册商：<名称>
+- 当前到期日：<YYYY-MM-DD>
+- 自动续费：<已启用 / 未启用及原因>
+- 注册联系邮箱：<受控邮箱；可以写负责人，不必复制完整地址>
+- 2FA 与恢复材料：<只写保存位置和负责人，不写实际值>
+
+## Cloudflare zone
+
+- zone：example.com
+- 预期状态：Active
+- 权威 nameserver：<记录分配值，不含账户凭证>
+- DNSSEC：<启用 / 未启用及原因>
+- 变更负责人：<姓名或团队>
+
+## 公开入口
+
+- 公开 URL：https://app.example.com
+- Tunnel：book04-web
+- Published application：app.example.com → http://127.0.0.1:8080
+- connector 运行位置：<VPS 标签或资产编号，不写 SSH 密码或私钥>
+- cloudflared 管理方式：systemd + 官方 APT 软件包
+
+## 本机源站
+
+- Compose 项目：$HOME/docker-labs/compose-web
+- 本机验证：curl --fail --show-error http://127.0.0.1:8080
+- 主机监听：127.0.0.1:8080
+- 公网 8080：未开放
+- 项目备份与恢复说明：<路径或文档位置，不写访问密钥>
+
+## 检查与恢复
+
+- 外部验证：curl --fail --show-error --location https://app.example.com
+- connector：systemctl is-active cloudflared
+- Compose：sudo docker compose ps
+- 最近一次重启恢复验证：<YYYY-MM-DD>
+- 临时下线：记录并移除 app.example.com 这一条 published route；保留 zone、Tunnel、connector 和 Compose 数据
+- 恢复上线：按本卡重新创建同一 hostname 与 service URL，再逐层验证
+
+## 敏感信息边界
+
+- Tunnel token、账户密码、SSH 私钥、API token、2FA 恢复码：只记录受控保存位置和负责人，不复制实际值
+- 第二册 UUID、Reality 私钥和订阅 URL：不属于本入口，不记录、不修改`;
+
+export const scanHandoff = `grep -En 'BEGIN .*PRIVATE KEY|eyJ[a-zA-Z0-9_-]{20,}|password[[:space:]]*[:=]|token[[:space:]]*[:=]' HANDOFF-BOOK04.md
+grep -En '([0-9]{1,3}\\.){3}[0-9]{1,3}' HANDOFF-BOOK04.md | grep -v '127\\.0\\.0\\.1'`;
+
+<LearningGoals
+  audience="已经通过 app.example.com 打开教学页，需要把域名、Cloudflare 与服务器入口交给未来自己或另一位维护者的读者"
+  duration="预计 30—40 分钟"
+  outcome="得到一份不含敏感凭证的第四册交接卡，知道怎样巡检、更新、临时下线、恢复和永久退役，并能安全进入下一册"
+/>
+
+<section className="book-section" id="book04-ch12-result">
+  ## 能打开只是今天的结果，能恢复才是长期结果
+
+  第四册建立的公开入口依赖多个持续存在的对象：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>域名注册</strong>
+      <small>到期日、付款方式、联系邮箱</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare zone</strong>
+      <small>nameserver、DNSSEC、DNS 记录</small>
+    </div>
+    <div className="flow-node">
+      <strong>公开路由</strong>
+      <small>app.example.com 与 service URL</small>
+    </div>
+    <div className="flow-node">
+      <strong>Tunnel</strong>
+      <small>book04-web 与 connector</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机源站</strong>
+      <small>Compose 与 127.0.0.1:8080</small>
+    </div>
+    <div className="flow-node">
+      <strong>维护证据</strong>
+      <small>检查日期、负责人和回退步骤</small>
+    </div>
+  </FlowDiagram>
+
+  其中任意一层过期、被删或无人管理，都可能让网址失效。最后一章不增加新产品功能，而是把“做了什么”整理为“以后怎样确认、变更和恢复”。
+</section>
+
+<section className="book-section" id="book04-ch12-final-baseline">
+  ## 第一步：保存一次最后已知正常基线
+
+  先在 VPS 上确认 Compose、回环源站和 connector：
+
+  <CodeBlock label="检查服务器端基线" code={finalBaseline} />
+
+  再在自己的电脑上确认公开路径：
+
+  <CodeBlock label="检查外部 DNS 与 HTTPS" code={externalBaseline} />
+
+  成功状态：
+
+  - Compose 配置可以解析，`web` service 持续 Running；
+  - 本机 `127.0.0.1:8080` 返回第三册教学页；
+  - `cloudflared` 同时为 `active` 和 `enabled`；
+  - 公共 DNS 能查询 `app.example.com`；
+  - HTTPS 请求返回预期页面，而不是注册商停放页、旧服务或 Cloudflare 错误页。
+
+  失败判断：任何一项不符合，就回到第 11 章按层排查。不要把计划中的状态写进交接卡，必须写实际验证结果。
+</section>
+
+<section className="book-section" id="book04-ch12-renewal">
+  ## 第二步：把域名续费当作服务依赖
+
+  域名不是一次购买后永久拥有。注册期、自动续费、付款方式、联系邮箱和注册商账户共同决定能否继续控制域名。
+
+  <InfoGrid columns={2}>
+    <div className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">①</span>
+      <h3>记录到期日</h3>
+      <p>从注册商控制台读取，不根据购买邮件或记忆推算。</p>
+    </div>
+    <div className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">②</span>
+      <h3>检查自动续费</h3>
+      <p>确认开关、主要付款方式和账单资料当前有效。</p>
+    </div>
+    <div className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">③</span>
+      <h3>检查联系邮箱</h3>
+      <p>必须能收到验证、到期、续费失败和安全通知。</p>
+    </div>
+    <div className="info-grid__item">
+      <span className="info-grid__icon" aria-hidden="true">④</span>
+      <h3>建立自己的提醒</h3>
+      <p>建议在到期前 60、30、7 天建立日历提醒，不只依赖注册商邮件。</p>
+    </div>
+  </InfoGrid>
+
+  <Callout type="info" title="注册商政策会变化，校订日期：2026-08-12">
+    如果域名注册在 Cloudflare Registrar，当前官方说明默认开启自动续费，首次尝试约在到期前 30 天，但仍明确不保证续费一定成功。其他注册商的时间、宽限期、费用和通知对象可能不同，必须以该注册商当时的控制台和官方政策为准。
+  </Callout>
+
+  成功状态：交接卡里能找到注册商、到期日、自动续费状态、付款负责人和提醒机制。失败判断：只写“应该会自动续费”、邮箱已经停用，或付款方式属于无人维护的账户。
+</section>
+
+<section className="book-section" id="book04-ch12-calendar">
+  ## 第三步：建立克制的巡检周期
+
+  <ComparisonTable>
+
+  | 周期 | 检查什么 | 成功证据 | 异常时先做什么 |
+  | --- | --- | --- | --- |
+  | 每月 | 外部 HTTPS、本机源站、connector、Compose | 外部和本机内容一致，服务持续运行 | 按第 11 章确定故障层 |
+  | 每月 | 注册商和 Cloudflare 安全通知 | 联系邮箱可用，没有陌生管理员或登录 | 保存证据并撤销未知访问 |
+  | 每季度 | 域名到期、自动续费、付款方式 | 日期、开关与付款负责人明确 | 在到期前完成修复，不等待最后一天 |
+  | 每季度 | `cloudflared` 与 Ubuntu 可用更新 | 已记录当前版本、更新窗口和回退方式 | 先读官方变更，再安排维护窗口 |
+  | 每次变更后 | route、DNS、Tunnel、本机服务 | 变更前后验证卡均保存 | 只回退本次改动，不随机重启全部服务 |
+  | 每年或人员变化时 | 2FA、恢复材料、负责人 | 至少两种受控恢复路径仍有效 | 重新分配权限并撤销离职或失效成员 |
+
+  </ComparisonTable>
+
+  巡检不是每天刷新控制台。频率要足以发现到期、失联和更新风险，同时避免为了“看起来勤奋”反复修改稳定配置。
+</section>
+
+<section className="book-section" id="book04-ch12-update">
+  ## 第四步：更新 cloudflared 时先承认会影响流量
+
+  先采集当前版本与最近日志：
+
+  <CodeBlock label="记录 connector 版本与状态" code={connectorInventory} />
+
+  如果第 7 章使用了官方 APT 软件源，可以先只查看是否存在可用更新：
+
+  <CodeBlock label="刷新软件索引并查看 cloudflared 更新" code={updatePreview} />
+
+  <Callout type="warning" title="更新不是无感操作">
+    Cloudflare 当前官方说明：更新 `cloudflared` 后需要重启服务，正在承载的流量会受影响。单 connector 教学环境应安排短维护窗口；需要零停机时，应设计多个 connector 或负载均衡，这不在第一版范围内。
+  </Callout>
+
+  真正更新时采用固定顺序：
+
+  <InstructionStep number={1} title="先保存基线和回退条件">
+    记录版本、服务状态、外部页面、本机页面和最近日志；确认仍能从官方软件源取得上一已知版本或已有受控恢复方案。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="阅读当前官方更新说明">
+    使用与安装时相同的软件包管理器，不混用手工二进制、第三方脚本和 APT 包。正文不把某个未来版本号写成永远正确。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="在维护窗口更新并重启">
+    只更新计划中的软件包，随后重启 `cloudflared.service`。不要同时改 route、DNS、Compose、云防火墙和第二册端口。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="按同一张卡重新验证">
+    依次检查 systemd、Tunnel connector、本机源站、外部 HTTPS 与日志。失败时先恢复上一已知状态，再调查版本差异。
+  </InstructionStep>
+
+  在确认维护窗口、基线和回退条件后，APT 主线使用下面这组命令。`--only-upgrade` 表示只升级已经安装的 `cloudflared`，不会把不存在的软件当作首次安装主线：
+
+  <CodeBlock label="在维护窗口更新并重启 cloudflared" code={applyCloudflaredUpdate} />
+
+  成功状态：APT 完成或说明已经是当前版本，重启后返回 `active`，版本输出可以记录，外部与本机基线再次通过。
+
+  失败判断：APT 软件源或签名错误、服务重启后不是 `active`、日志持续报连接错误，或外部页面无法恢复。此时不要继续修改 DNS 和 Compose；保留日志，按事先记录的包版本与官方回退方法恢复。
+</section>
+
+<section className="book-section" id="book04-ch12-temporary-unpublish">
+  ## 第五步：临时下线只移除公开入口
+
+  “暂时不让互联网访问”不等于“删除域名、Tunnel 和 Compose 数据”。对本书唯一的公开教学页，建议把动作限制在 `app.example.com` 这一条 published application route。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>记录当前 route</strong>
+      <small>hostname、service URL、Tunnel</small>
+    </div>
+    <div className="flow-node">
+      <strong>确认影响范围</strong>
+      <small>只影响 app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>移除该 route</strong>
+      <small>按当前控制台删除/移除操作</small>
+    </div>
+    <div className="flow-node">
+      <strong>检查 DNS</strong>
+      <small>按确认框与 Records 实际结果核对</small>
+    </div>
+    <div className="flow-node">
+      <strong>验证外部不可用</strong>
+      <small>本机服务仍正常</small>
+    </div>
+    <div className="flow-node">
+      <strong>按记录恢复</strong>
+      <small>重建同一 hostname 与 service</small>
+    </div>
+  </FlowDiagram>
+
+  成功状态：外部 `app.example.com` 不再进入教学页，但 `curl http://127.0.0.1:8080` 仍成功，Compose 数据、zone、Tunnel 和 connector 都保留。
+
+  失败判断：删除了整个 zone、域名注册、Tunnel 或 Compose volume；影响了同一 Tunnel 上其他 hostname；没有保存原 route 就开始删除。
+
+  <Callout type="danger" title="控制台中的删除可能同时处理关联 DNS">
+    Cloudflare 的 published application route 与 DNS CNAME 有关联，但 DNS 记录和 Tunnel 是可以分别存在的对象。停止 connector 或 Tunnel 不会自动删除 DNS；官方文档说明，这种残留可能让访问者看到 `1016`。控制台的 route 删除操作是否同时处理关联 DNS，应以当次确认框为准。执行前读取影响范围，执行后分别检查 Routes 和 DNS Records；若无法确认只影响这一条主机名，先停止，不要试错式删除。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch12-decommission">
+  ## 临时下线、迁移和永久退役不是同一个动作
+
+  <ComparisonTable>
+
+  | 目标 | 应保留 | 可以变更 | 不应顺手删除 |
+  | --- | --- | --- | --- |
+  | 临时下线单一页面 | 域名、zone、Tunnel、connector、Compose 数据 | 单一 published route | nameserver、Tunnel、VPS、volume |
+  | 把源站迁到新端口或新应用 | 旧 route 与旧源站直到新路径验证 | 新 service URL、新 route | 旧入口和备份，直到回退窗口结束 |
+  | 更换 connector 服务器 | Tunnel 与 route | 新 connector，验证后再停旧 connector | 正在承载流量的唯一 connector |
+  | 永久退役本书入口 | 先保存交接记录和必要备份 | route → connector → Tunnel 的顺序 | 域名和整个 zone，除非它们也明确退役 |
+
+  </ComparisonTable>
+
+  永久退役应从最外层的单一流量入口开始，再向内确认没有依赖。Cloudflare 当前不允许删除仍有活动连接的 Tunnel，除非使用强制选项；本书不提供强制删除捷径。任何永久删除都应在变更单中写明对象、负责人、备份、验证与恢复截止时间。
+</section>
+
+<section className="book-section" id="book04-ch12-handoff">
+  ## 第六步：写一份不含秘密的交接卡
+
+  <Book04HandoffMock />
+
+  在 Compose 项目旁创建 `HANDOFF-BOOK04.md`，内容可以从下面的模板开始：
+
+  <CodeBlock label="第四册交接卡模板" code={handoffTemplate} printBreak />
+
+  模板里的 `example.com` 是文档示例。真实交接卡可以记录自己的域名与资产标签，但仍然不能记录：
+
+  - Tunnel token、API token 或带 token 的安装命令；
+  - 账户密码、SSH 私钥、2FA 恢复码或一次性验证码；
+  - 第二册 UUID、Reality 私钥或订阅 URL；
+  - `.env`、Cookie、Authorization header 或完整服务环境；
+  - 对外求助不需要的真实客户端 IP 和用户数据。
+
+  写完后，可以用只读扫描帮助发现明显泄露模式：
+
+  <CodeBlock label="扫描交接卡中的高风险模式" code={scanHandoff} />
+
+  两条命令没有输出是较好的结果，但不是绝对保证。人工还要检查截图、链接参数、账户标识和自然语言中复制的恢复信息。
+</section>
+
+<section className="book-section" id="book04-ch12-fifth-book">
+  ## 第七步：把可用入口交给第五册，而不是直接替换它
+
+  第五册会进入具体 AI 应用。第四册交付给下一册的是基础设施边界：
+
+  <MockWindow title="第五册接收清单">
+    <div className="mock-grid">
+      <div className="mock-card">
+        <strong>已有能力</strong>
+        <span>可控域名、Active zone、健康 Tunnel、HTTPS 公开路径</span>
+      </div>
+      <div className="mock-card">
+        <strong>当前源站</strong>
+        <span>第三册无敏感教学页 · 127.0.0.1:8080</span>
+      </div>
+      <div className="mock-card">
+        <strong>尚未具备</strong>
+        <span>真实应用登录、用户权限、应用备份与隐私策略</span>
+      </div>
+      <div className="mock-card">
+        <strong>下一册原则</strong>
+        <span>先建立新应用与安全边界，再规划独立子域名或受控切换</span>
+      </div>
+    </div>
+  </MockWindow>
+
+  不要在第五册准备完成前，把 `app.example.com` 直接指向含聊天记录、API key 或管理功能的应用。更安全的做法是先用新的本机端口和新的子域名验证，再决定是否保留、迁移或关闭教学入口。
+</section>
+
+<section className="book-section" id="book04-ch12-complete">
+  ## 第四册最终验收
+
+  只有下面 12 章完成项全部通过，才应把本册视为完成。附录和资料来源用于查阅，不计入学习完成率。
+
+  <MockWindow title="第四册完成状态仿真">
+    <div slot="toolbar">
+      <MockStatusBadge tone="success">12 / 12 章已核验</MockStatusBadge>
+    </div>
+    <p className="mock-heading">公开入口可解释、可验证、可下线、可恢复</p>
+    <p className="mock-small">完成状态不代表永远安全；续费、更新、账户和应用仍需持续维护。</p>
+  </MockWindow>
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-12"
+  items={[
+    "我仍能控制域名，已记录到期日、自动续费、付款负责人和可用联系邮箱",
+    "Cloudflare zone 为 Active，nameserver、DNSSEC 和负责人记录清楚",
+    "https://app.example.com 可以从外部网络打开预期教学页",
+    "cloudflared 已设为开机启动，并完成至少一次维护窗口内的重启恢复验证",
+    "http://127.0.0.1:8080 仍是可用本机源站，Compose 项目与备份位置明确",
+    "公网 8080 没有向所有来源开放，第二册端口和配置没有被修改",
+    "我知道怎样只移除单一 published route 暂时下线，而不删除 Compose 数据",
+    "我能区分临时下线、源站迁移、connector 更换和永久退役",
+    "更新 cloudflared 前会保存基线、安排窗口，并在重启后逐层验证",
+    "交接卡记录对象、位置、负责人、验证与回退，但不含密码、私钥、token 或恢复码",
+    "我知道当前教学页没有应用鉴权，不会直接替换为含敏感数据的 AI 应用",
+    "我能把域名、zone、Tunnel、route、connector 和本机源站的关系解释给下一位维护者",
+  ]}
+/>

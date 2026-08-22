@@ -1,0 +1,98 @@
+---
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="浏览器 HTTPS 验证仿真">
+  <div class="browser-https-mock">
+    <div class="browser-https-mock__bar">
+      <span aria-hidden="true">←</span>
+      <span aria-hidden="true">↻</span>
+      <div class="browser-https-mock__address">
+        <span aria-hidden="true">◉</span>
+        <code>https://app.example.com</code>
+      </div>
+    </div>
+
+    <div class="browser-https-mock__page">
+      <div>
+        <p class="mock-heading">第三册 Compose 教学页</p>
+        <p class="mock-small">页面内容与 VPS 本机访问 127.0.0.1:8080 时一致。</p>
+      </div>
+      <MockStatusBadge tone="success">连接安全 · 主机名匹配</MockStatusBadge>
+    </div>
+
+    <div class="browser-https-mock__checks" role="note">
+      <span>✓ 主机名没有拼错</span>
+      <span>✓ 没有证书警告</span>
+      <span>✓ URL 不含公网 <code>:8080</code></span>
+    </div>
+  </div>
+</MockWindow>
+
+<style>
+  .browser-https-mock {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .browser-https-mock__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: var(--border-thin);
+    padding-bottom: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  .browser-https-mock__address {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-2);
+    border: var(--border-thin);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-muted);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .browser-https-mock__address code {
+    overflow-wrap: anywhere;
+  }
+
+  .browser-https-mock__page {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-block: var(--space-5);
+  }
+
+  .browser-https-mock__checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    border-top: var(--border-thin);
+    padding-top: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  @media (max-width: 35.625rem) {
+    .browser-https-mock__page {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+
+  @media print {
+    .browser-https-mock {
+      break-inside: avoid;
+    }
+
+    .browser-https-mock__address {
+      background: white;
+    }
+  }
+</style>

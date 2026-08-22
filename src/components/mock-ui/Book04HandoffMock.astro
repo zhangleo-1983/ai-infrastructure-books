@@ -1,0 +1,118 @@
+---
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="第四册交接卡 · 教学仿真">
+  <div class="handoff-mock">
+    <div class="handoff-mock__heading">
+      <div>
+        <p class="mock-heading">app.example.com 公开入口</p>
+        <p class="mock-small">只记录对象、位置、负责人和验证方法，不记录凭证值。</p>
+      </div>
+      <MockStatusBadge>可交接</MockStatusBadge>
+    </div>
+
+    <dl class="handoff-mock__grid">
+      <div>
+        <dt>域名与续费</dt>
+        <dd>注册商、到期日、自动续费、联系邮箱</dd>
+      </div>
+      <div>
+        <dt>Cloudflare zone</dt>
+        <dd>example.com · Active · 负责人</dd>
+      </div>
+      <div>
+        <dt>Tunnel</dt>
+        <dd>book04-web · connector 运行位置</dd>
+      </div>
+      <div>
+        <dt>Published route</dt>
+        <dd>app.example.com → http://127.0.0.1:8080</dd>
+      </div>
+      <div>
+        <dt>源站项目</dt>
+        <dd>$HOME/docker-labs/compose-web</dd>
+      </div>
+      <div>
+        <dt>恢复入口</dt>
+        <dd>本机 curl、systemd、Compose、Cloudflare 控制台</dd>
+      </div>
+    </dl>
+
+    <div class="handoff-mock__secret" role="note">
+      <strong>敏感信息：</strong>
+      <span>仅记录“保存在哪里”和“由谁管理”；不得粘贴 token、密码、私钥或恢复码。</span>
+    </div>
+  </div>
+</MockWindow>
+
+<style>
+  .handoff-mock {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .handoff-mock__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .handoff-mock__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+  }
+
+  .handoff-mock__grid div {
+    min-width: 0;
+    border: var(--border-thin);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-subtle);
+    padding: var(--space-4);
+  }
+
+  .handoff-mock__grid dt {
+    margin-bottom: var(--space-2);
+    color: var(--color-text);
+    font-weight: 700;
+  }
+
+  .handoff-mock__grid dd {
+    margin: 0;
+    color: var(--color-text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .handoff-mock__secret {
+    display: flex;
+    gap: var(--space-2);
+    border-left: 0.25rem solid var(--color-warning);
+    border-radius: var(--radius-sm);
+    background: var(--color-warning-soft);
+    padding: var(--space-4);
+  }
+
+  @media (max-width: 42rem) {
+    .handoff-mock__heading,
+    .handoff-mock__secret {
+      flex-direction: column;
+    }
+
+    .handoff-mock__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media print {
+    .handoff-mock__grid div,
+    .handoff-mock__secret {
+      border-color: #888888;
+      background: white;
+      break-inside: avoid;
+    }
+  }
+</style>

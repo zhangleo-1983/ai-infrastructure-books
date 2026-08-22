@@ -244,6 +244,40 @@ if (book03IndexedPages.length !== 15) {
   );
 }
 
+const book04PrintFile = resolve(
+  outputDirectory,
+  "books/04-cloudflare/print/index.html",
+);
+if (!existsSync(book04PrintFile)) {
+  failures.push("第四册缺少整册打印页");
+} else {
+  const book04PrintDocument = parse(readFileSync(book04PrintFile, "utf8"));
+  if (
+    book04PrintDocument.querySelectorAll("[data-print-chapter]").length !== 15
+  ) {
+    failures.push("第四册整册打印页必须包含 15 个内容单元");
+  }
+}
+const book04ChapterPages = chapterPages.filter(
+  ({ document }) =>
+    document
+      .querySelector("[data-chapter-status-root]")
+      ?.getAttribute("data-book-id") === "04-cloudflare",
+);
+if (book04ChapterPages.length !== 15) {
+  failures.push(
+    `第四册必须生成 15 个独立内容页，实际 ${book04ChapterPages.length}`,
+  );
+}
+const book04IndexedPages = book04ChapterPages.filter(({ document }) =>
+  document.querySelector("[data-pagefind-body]"),
+);
+if (book04IndexedPages.length !== 15) {
+  failures.push(
+    `第四册必须生成 15 个 Pagefind 正文入口，实际 ${book04IndexedPages.length}`,
+  );
+}
+
 const configuredSite = process.env.SITE_URL?.trim();
 if (configuredSite) {
   for (const file of htmlFiles) {
@@ -278,7 +312,9 @@ const unexpectedIps = [...new Set(ipv4Values)].filter(
     !ip.startsWith("198.51.100.") &&
     !ip.startsWith("192.0.2.") &&
     ip !== "0.0.0.0" &&
-    ip !== "127.0.0.1",
+    ip !== "127.0.0.1" &&
+    ip !== "1.1.1.1" &&
+    ip !== "8.8.8.8",
 );
 if (unexpectedIps.length > 0) {
   failures.push(`src 中发现非文档保留 IPv4：${unexpectedIps.join(", ")}`);
@@ -290,6 +326,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一、二、三册各 15 个正文索引页，第二册严格原型回归保持通过。`,
+    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一至第四册各 15 个正文索引页，第二册严格原型回归保持通过。`,
   );
 }

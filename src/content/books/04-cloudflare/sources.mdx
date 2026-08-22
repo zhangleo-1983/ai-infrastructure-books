@@ -1,0 +1,167 @@
+---
+book: "04-cloudflare"
+order: 14
+slug: "sources"
+title: "资料来源与校订记录"
+shortTitle: "资料来源"
+description: "按域名、DNS、Cloudflare zone、Tunnel、HTTPS、安全、维护和 Caddy 对照分类列出第四册使用的官方资料与当前校订边界。"
+chapterType: "sources"
+updatedAt: "2026-08-23"
+labels:
+  - "官方资料"
+  - "校订记录"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book04-sources-scope">
+  ## 本页怎样使用
+
+  第四册的域名、DNS、Cloudflare Tunnel、HTTPS 和 Caddy 技术事实优先依据对应产品或治理机构的官方资料。控制台、套餐、支付、注册政策、安装命令和错误文案都会变化，因此“链接仍能打开”不表示未来界面与正文永远一致。
+
+  当前事实与实机校订日期：**2026-08-23**。
+
+  当前校订状态：
+
+  - “开始之前”、第 1—12 章、附录和本页已经形成 15 个 Release Candidate 内容单元；
+  - 全部内容使用 `draft: false`，已进入 production、Pagefind、完成状态和正式打印；
+  - 主线固定为 Cloudflare Free 完整 DNS 设置、具名远程管理 Tunnel、官方 `cloudflared` APT 软件包和 `app.example.com → http://127.0.0.1:8080`；
+  - Caddy 只作为附录对照，不与 Tunnel 主线同时配置；
+  - 控制台界面均为 HTML/CSS 教学仿真，不是真实软件截图，也不声称与某个版本像素一致；
+  - 已在不承载业务的隔离域名和临时 VPS 上完成 nameserver、DNSSEC、Tunnel、HTTPS、故障恢复与 Caddy 对照，G8 已永久删除教学 route、DNS、connector、Tunnel、VPS 和本机实验凭证；
+  - 仓库没有保存真实域名、IP、nameserver、DS、账户、UUID、token、邮箱或私钥；
+  - 本页不把第三方博客、一键脚本、镜像站、论坛回答或 AI 生成答案作为唯一技术依据；
+  - 第四册已完成脱敏端到端实机校订；单次控制台排列、错误码和等待时间仍不扩展为所有账户与地区的固定结果。
+
+  <Callout type="warning" title="一次实机通过也不能替代后续复核">
+    官方文档和本次隔离实机可以证明校订日期的主线成立，但不能保证某个中国大陆网络、注册商支付流程、账号风控、DNS 等待时间或 Cloudflare 控制台以后完全相同。执行真实变更前仍要重新核对当前官方资料和当次界面。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-sources-domain">
+  ## 域名注册、联系信息与续费
+
+  <ol className="source-list">
+    <li><a href="https://www.icann.org/resources/pages/registration-data-accurate-2023-11-02-en" target="_blank" rel="noopener noreferrer">ICANN：Keeping registration data accurate</a>：注册联系信息应准确、可靠并及时更新；未响应核验可能导致域名暂停或取消。</li>
+    <li><a href="https://www.icann.org/resources/pages/registrant-rights-responsibilities-2013-09-16-en" target="_blank" rel="noopener noreferrer">ICANN：Registrant Rights and Responsibilities</a>：注册人的基本权利、责任和注册协议边界。</li>
+    <li><a href="https://developers.cloudflare.com/registrar/get-started/register-domain/" target="_blank" rel="noopener noreferrer">Cloudflare Registrar：Register a new domain</a>：Cloudflare Registrar 的注册前提、联系信息、验证、付款和默认自动续费行为；只用于理解该注册商，不代表所有注册商。</li>
+    <li><a href="https://developers.cloudflare.com/registrar/account-options/renew-domains/" target="_blank" rel="noopener noreferrer">Cloudflare Registrar：Renew domains</a>：当前自动续费尝试、通知、手动续期和失败边界。</li>
+    <li><a href="https://developers.cloudflare.com/registrar/account-options/domain-management/" target="_blank" rel="noopener noreferrer">Cloudflare Registrar：Domain management</a>：查看到期日、自动续费和账单信息的当前入口。</li>
+  </ol>
+
+  注册商价格、优惠、可用后缀、支付方式、实名或身份验证、退款与宽限期属于时效和地区信息。正文只提供判断框架，不承诺某家厂商对中国大陆用户始终可用。
+</section>
+
+<section className="book-section" id="book04-sources-dns">
+  ## Cloudflare zone、权威 DNS 与 DNSSEC
+
+  <ol className="source-list">
+    <li><a href="https://developers.cloudflare.com/dns/zone-setups/full-setup/" target="_blank" rel="noopener noreferrer">Cloudflare DNS：Primary / full setup</a>：Cloudflare 成为权威 DNS 的主线模型和适用方案。</li>
+    <li><a href="https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/" target="_blank" rel="noopener noreferrer">Set up a primary zone</a>：添加域名、复制分配的 nameserver、在注册商替换并等待 Active。</li>
+    <li><a href="https://developers.cloudflare.com/dns/zone-setups/reference/dns-quick-scan/" target="_blank" rel="noopener noreferrer">DNS quick scan</a>：快速扫描是启发式发现，不能替代原 DNS 完整导出与人工复核。</li>
+    <li><a href="https://developers.cloudflare.com/dns/manage-dns-records/reference/dns-record-types/" target="_blank" rel="noopener noreferrer">DNS record types</a>：A、AAAA、CNAME、MX、TXT、NS 等记录的用途。</li>
+    <li><a href="https://developers.cloudflare.com/dns/proxy-status/" target="_blank" rel="noopener noreferrer">Proxy status</a>：Proxied 与 DNS only、可代理记录类型、返回地址与当前 TTL 行为。</li>
+    <li><a href="https://developers.cloudflare.com/dns/dnssec/" target="_blank" rel="noopener noreferrer">DNSSEC</a>：DNSSEC、DS、启用与迁移顺序；更换 nameserver 前要处理旧 DS。</li>
+    <li><a href="https://developers.cloudflare.com/dns/zone-setups/troubleshooting/pending-nameservers/" target="_blank" rel="noopener noreferrer">Pending nameservers</a>：zone 长期 Pending 的 nameserver 与 DNSSEC 排查。</li>
+    <li><a href="https://developers.cloudflare.com/1.1.1.1/" target="_blank" rel="noopener noreferrer">Cloudflare 1.1.1.1</a>：公共递归解析器样本；不等于权威 DNS。</li>
+    <li><a href="https://developers.google.com/speed/public-dns" target="_blank" rel="noopener noreferrer">Google Public DNS</a>：第二个公共解析器样本，用于交叉观察缓存结果。</li>
+  </ol>
+
+  <Callout type="info" title="TTL 不是全球倒计时">
+    DNS 记录的 TTL、上级委派、DS 缓存、浏览器和本地网络缓存由不同层控制。正文使用多个公共解析器和实际状态判断，不承诺所有用户在固定分钟数内得到同一结果。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-sources-tunnel">
+  ## Cloudflare Tunnel、connector 与 published application
+
+  <ol className="source-list">
+    <li><a href="https://developers.cloudflare.com/tunnel/" target="_blank" rel="noopener noreferrer">Cloudflare Tunnel</a>：公开应用主线、`cloudflared` 与 Cloudflare 之间的出站连接模型。</li>
+    <li><a href="https://developers.cloudflare.com/tunnel/setup/" target="_blank" rel="noopener noreferrer">Set up Cloudflare Tunnel</a>：当前远程管理 Tunnel、connector 安装和 Quick Tunnel 边界。</li>
+    <li><a href="https://developers.cloudflare.com/tunnel/routing/" target="_blank" rel="noopener noreferrer">Routing</a>：公开主机名、服务映射、DNS 记录与 Tunnel 的独立生命周期。</li>
+    <li><a href="https://pkg.cloudflare.com/" target="_blank" rel="noopener noreferrer">Cloudflare package repository</a>：Ubuntu 24.04 Noble 的官方 `cloudflared` APT 仓库、公钥和软件包。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/routing-to-tunnel/" target="_blank" rel="noopener noreferrer">Published applications</a>：公开主机名、Tunnel CNAME 和 Access 不是发布前提。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/" target="_blank" rel="noopener noreferrer">Tunnel with firewall</a>：`cloudflared` 当前 TCP/UDP 7844 出站连接要求。</li>
+    <li><a href="https://developers.cloudflare.com/tunnel/troubleshooting/" target="_blank" rel="noopener noreferrer">Tunnel troubleshooting</a>：Healthy、Inactive、Down、Degraded、1033、502、协议和日志排查。</li>
+    <li><a href="https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1016/" target="_blank" rel="noopener noreferrer">Error 1016</a>：源站 DNS 错误的通用含义、常见原因与核对方向。</li>
+    <li><a href="https://developers.cloudflare.com/tunnel/advanced/tunnel-tokens/" target="_blank" rel="noopener noreferrer">Tunnel tokens</a>：远程管理 Tunnel token 的权限、旋转与强制断开旧连接。</li>
+    <li><a href="https://developers.cloudflare.com/tunnel/downloads/update-cloudflared/" target="_blank" rel="noopener noreferrer">Update cloudflared</a>：按安装方式更新、重启影响、多 connector 与负载均衡的零停机边界。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/tunnel-useful-commands/" target="_blank" rel="noopener noreferrer">Useful commands</a>：Tunnel 列表、信息、清理、删除和 published route 命令的影响范围。</li>
+  </ol>
+
+  主线使用远程管理 Tunnel；本页同时列出本地管理 CLI 资料只是解释对象和删除边界，不表示两种管理方式应该混用。
+</section>
+
+<section className="book-section" id="book04-sources-https">
+  ## HTTPS、证书、代理与应用安全
+
+  <ol className="source-list">
+    <li><a href="https://developers.cloudflare.com/ssl/" target="_blank" rel="noopener noreferrer">Cloudflare SSL/TLS</a>：浏览器到边缘、边缘到源站的连接与证书概念入口。</li>
+    <li><a href="https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/enable-universal-ssl/" target="_blank" rel="noopener noreferrer">Enable Universal SSL</a>：full setup 激活后的默认签发、覆盖、代理要求与当前等待窗口。</li>
+    <li><a href="https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/" target="_blank" rel="noopener noreferrer">Full (strict)</a>：传统公网源站必须在 443 提供有效、匹配且受信的证书；失败可能返回 526。</li>
+    <li><a href="https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/troubleshooting/" target="_blank" rel="noopener noreferrer">Troubleshooting Cloudflare Origin CA</a>：Origin CA 只面向 Cloudflare 到源站，暂停代理或浏览器直连可能显示不受信。</li>
+    <li><a href="https://developers.cloudflare.com/learning-paths/clientless-access/access-application/create-access-app/" target="_blank" rel="noopener noreferrer">Create an Access application</a>：自托管应用的身份策略边界；本册只解释，不配置。</li>
+    <li><a href="https://developers.cloudflare.com/cache/concepts/default-cache-behavior/" target="_blank" rel="noopener noreferrer">Default cache behavior</a>：当前默认缓存类型和 HTML / JSON 边界，自定义规则会改变结果。</li>
+  </ol>
+
+  HTTPS 只说明传输加密和主机名身份的一部分，不自动提供应用登录、授权、数据备份、合规或匿名。Cloudflare Access、应用鉴权、缓存和 WAF 是独立能力。
+</section>
+
+<section className="book-section" id="book04-sources-caddy">
+  ## Caddy 传统反向代理对照
+
+  <ol className="source-list">
+    <li><a href="https://caddyserver.com/docs/install" target="_blank" rel="noopener noreferrer">Caddy：Install</a>：Ubuntu / Debian 官方稳定软件包、仓库与 systemd 服务。</li>
+    <li><a href="https://caddyserver.com/docs/automatic-https" target="_blank" rel="noopener noreferrer">Automatic HTTPS</a>：域名、80/443、证书申请、续期、重定向和持久存储要求。</li>
+    <li><a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy" target="_blank" rel="noopener noreferrer">reverse_proxy</a>：Caddyfile 反向代理指令、上游连接和请求头边界。</li>
+    <li><a href="https://caddyserver.com/docs/running" target="_blank" rel="noopener noreferrer">Keep Caddy Running</a>：官方 systemd 服务、配置路径、reload 与日志方式。</li>
+    <li><a href="https://caddyserver.com/docs/command-line" target="_blank" rel="noopener noreferrer">Caddy command line</a>：`validate`、`reload` 和常用管理命令。</li>
+  </ol>
+
+  附录只给出最小概念对照。它不覆盖高可用、Cloudflare IP 只允许列表、Authenticated Origin Pulls、DNS challenge、wildcard、多个站点、日志轮转或 Caddy 完整安全加固。
+</section>
+
+<section className="book-section" id="book04-sources-fact-table">
+  ## 本轮关键事实记录
+
+  <ComparisonTable>
+
+  | 事实 | 当前校订结论 | 发布前重查触发条件 |
+  | --- | --- | --- |
+  | full DNS setup | Cloudflare 成为权威 DNS，注册商修改分配的 nameserver | Free 方案或 zone onboarding 改版 |
+  | Quick Scan | 不能保证发现全部记录 | 扫描产品或导入流程改版 |
+  | DNSSEC 迁移 | 先处理旧 DS，再换 NS；Active 后建立新链 | 注册商或 Cloudflare 迁移指南变化 |
+  | Proxied | A/AAAA/CNAME 可代理，HTTP/HTTPS 经过边缘 | 代理支持类型、端口或 TTL 改变 |
+  | Tunnel 主线 | connector 主动向 Cloudflare 出站，源站可保持回环监听 | 协议、端口或 Tunnel 产品更名 |
+  | cloudflared 安装 | Ubuntu 24.04 使用官方 Noble APT 软件源 | 软件源、GPG 或支持系统变化 |
+  | Tunnel token | 能运行指定 Tunnel connector，属于敏感凭证 | token 生命周期或轮换流程改变 |
+  | Tunnel 与 DNS 生命周期 | Dashboard 创建 route 会自动建立相关 DNS；停止 Tunnel 不会自动删除 DNS，访问者可能看到 1016 | Routing、Dashboard 或 1016 定义改变 |
+  | Universal SSL | full setup 激活后默认签发；当前文档给出 15 分钟至 24 小时 | 证书覆盖或等待窗口改变 |
+  | HTML 缓存 | 当前默认不缓存 HTML / JSON | 默认缓存或 Free 方案规则改变 |
+  | cloudflared 更新 | 按原安装方式更新并重启，会影响当前流量 | 软件包行为或零停机方案改变 |
+  | Caddy HTTPS | 公共域名主线要求 DNS 正确、80/443 可达和持久存储 | Caddy major 版本或 ACME 默认值改变 |
+  | Full (strict) | 源站证书需有效、受信且匹配主机名 | Cloudflare SSL 模式或信任库改变 |
+  | Origin CA | 只用于 Cloudflare 到源站，浏览器直连通常不信任 | Origin CA 信任策略改变 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-sources-rc">
+  ## 本次 Release Candidate 已完成与后续重查
+
+  - 本次已使用不承载业务的受控域名完成 zone、nameserver、DNSSEC 与 Active 验证；
+  - 已创建具名 Tunnel、安装 connector、重启服务器并验证恢复；
+  - 已添加、故障注入、移除并重建单一 published application route，记录关联 DNS 与回退行为；
+  - 已使用维护电脑、第二网络与手机 5G 验证 DNS、HTTPS、控制台状态和错误边界；
+  - 已在隔离环境验证 Caddy 官方安装、80/443、自动 HTTPS、`Full (strict)` 与完整收口；
+  - G8 已删除教学 route、DNS、connector、Tunnel、临时 VPS 与本机凭证，并核对无计费附加资源；
+  - 后续 RC 必须重新运行内容、安全、内部链接、响应式、深色、无 JavaScript、打印和跨浏览器检查；
+  - 注册商价格、支付、实名、退款、续费，以及 Cloudflare 导航名称仍要按执行当天重新核对；
+  - 所有仿真继续明确标记为教学界面，不声称是像素级真实截图。
+
+  <Callout type="info" title="资料来源不计入完成率">
+    本页与附录用于校订和查阅；第四册完成率只计算第 1—12 章。资料来源和附录不计入完成率，但都进入正式打印与搜索。
+  </Callout>
+</section>

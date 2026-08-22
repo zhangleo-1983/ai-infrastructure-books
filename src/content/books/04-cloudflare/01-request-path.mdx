@@ -1,0 +1,289 @@
+---
+book: "04-cloudflare"
+order: 1
+slug: "01-request-path"
+title: "一个网址怎样找到你的服务？"
+shortTitle: "看懂请求路径"
+description: "从域名、DNS、Cloudflare、Tunnel 到本机 Compose 服务，完整走一遍浏览器请求和响应的来回路径。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 1
+duration: "预计 20—25 分钟"
+labels:
+  - "请求路径"
+  - "DNS"
+  - "反向代理"
+completionId: "book04-chapter-01"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<LearningGoals
+  audience="已经完成“开始之前”、第一次把域名、DNS、HTTPS 和本机服务串在一起理解的读者"
+  duration="预计 20—25 分钟"
+  outcome="能沿着 app.example.com 的请求路径指出每一层负责什么，并知道 DNS 成功、HTTPS 成功和应用成功不是同一件事"
+/>
+
+<section className="book-section" id="book04-ch1-result">
+  ## 这一章先不操作账户
+
+  本章不购买域名、不修改 DNS，也不创建 Tunnel。我们先完整走一遍未来的访问路径：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>读者的浏览器</strong>
+      <small>访问 https://app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>DNS 查询</strong>
+      <small>找到这个主机名应由谁接收</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 边缘</strong>
+      <small>接收 HTTPS 请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare Tunnel</strong>
+      <small>通过 connector 转发请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机 Compose 服务</strong>
+      <small>http://127.0.0.1:8080</small>
+    </div>
+  </FlowDiagram>
+
+  等这条路径在脑中清楚以后，后面的故障排查就不再是“反复点按钮”，而是判断请求停在了哪一层。
+</section>
+
+<section className="book-section" id="book04-ch1-url">
+  ## 先拆开浏览器里的地址
+
+  本书最终希望访问：
+
+  ```text
+  https://app.example.com/
+  ```
+
+  <ComparisonTable>
+
+  | 部分 | 示例 | 含义 |
+  | --- | --- | --- |
+  | 协议 | `https` | 浏览器与公开入口使用加密的 HTTP 连接 |
+  | 主机名 | `app.example.com` | 浏览器要访问的网络名称 |
+  | 子域名 | `app` | 在同一个域名下给这一项服务起的名字 |
+  | 根域名 | `example.com` | 由注册商登记、由权威 DNS 管理的域名 |
+  | 路径 | `/` | 这台服务内部的页面位置；以后也可能是 `/login` |
+
+  </ComparisonTable>
+
+  `app.example.com` 是完整主机名；`app` 只是其中的子域名标签。后续控制台有时要求填完整主机名，有时会把 `app` 和 `example.com` 分成两个字段。看清字段名称，就不会重复填成 `app.example.com.example.com`。
+
+  <Callout type="info" title="域名不是服务器地址的另一种写法">
+    域名是一套可管理的名称。它可以改变指向，也可以通过 Cloudflare 代理请求。VPS 公网 IPv4 是网络地址。两者相关，但不能互相当作同一个对象。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch1-dns">
+  ## 第一步：浏览器先问 DNS
+
+  浏览器要连接 `app.example.com`，必须先知道应当把网络连接发给哪里。DNS（Domain Name System，域名系统）负责回答这种“名称对应什么”的问题。
+
+  一个常见的查询过程是：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>浏览器和操作系统</strong>
+      <small>先查看本机是否有还没过期的缓存答案</small>
+    </div>
+    <div className="flow-node">
+      <strong>递归解析器</strong>
+      <small>通常由网络提供商或公共 DNS 服务提供</small>
+    </div>
+    <div className="flow-node">
+      <strong>权威 DNS</strong>
+      <small>保存 example.com 当前有效的 DNS 记录</small>
+    </div>
+    <div className="flow-node">
+      <strong>DNS 答案</strong>
+      <small>返回给浏览器，并在 TTL 允许的时间内缓存</small>
+    </div>
+  </FlowDiagram>
+
+  这里第一次出现两个词：
+
+  - **递归解析器**：替你的设备寻找答案的 DNS 服务；
+  - **权威 DNS**：对某个域名拥有正式答案的 DNS 服务。
+
+  DNS 只回答名称信息。它不会检查容器是否正在运行，也不会证明网页内容正确。
+</section>
+
+<section className="book-section" id="book04-ch1-proxy">
+  ## 第二步：Cloudflare 代理会改变公开答案
+
+  如果 Web 记录处于 **Proxied（已代理）** 状态，公开 DNS 查询通常返回 Cloudflare 的任播地址，而不是直接暴露源站地址。浏览器先连接附近可用的 Cloudflare 边缘，再由 Cloudflare 处理后续路径。
+
+  如果记录处于 **DNS only（仅 DNS）** 状态，DNS 返回记录中实际配置的目标，Cloudflare 不会代理这次 HTTP 或 HTTPS 流量。
+
+  <ComparisonTable>
+
+  | 状态 | DNS 大致回答什么 | HTTP/HTTPS 是否经过 Cloudflare | 典型用途 |
+  | --- | --- | --- | --- |
+  | Proxied | Cloudflare 的地址 | 是 | A、AAAA、CNAME 形式的 Web 主机名 |
+  | DNS only | 记录中配置的实际目标 | 否 | 邮件、验证，以及不应经过代理的服务 |
+
+  </ComparisonTable>
+
+  “任播”表示同一个公开地址可以从多个网络地点提供服务，网络会把请求送到合适的节点。零基础阶段不需要配置任播，只需要知道 DNS 中看到 Cloudflare 地址不等于记录写错了。
+
+  <Callout type="warning" title="代理状态不是隐身开关">
+    Cloudflare 代理可以避免普通 DNS 查询直接返回源站地址，但不承诺匿名、不可追踪，也不能弥补应用泄漏敏感信息。账户、日志、其他 DNS 记录和应用行为仍需要正常管理。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch1-https">
+  ## 第三步：浏览器与 Cloudflare 建立 HTTPS
+
+  HTTPS 可以先理解为“加密并验证主机名的 HTTP”。浏览器会检查公开入口提供的证书是否与 `app.example.com` 匹配，并在成功后建立加密连接。
+
+  在本书主线中，实际存在两个相邻但不同的连接段：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">浏览器 → Cloudflare</p>
+      <p>用户访问 <code>https://app.example.com</code>，使用公开 HTTPS。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Cloudflare → connector → 本机服务</p>
+      <p>Tunnel 把请求送到同一台 VPS 上的 <code>http://127.0.0.1:8080</code>。</p>
+    </section>
+  </InfoGrid>
+
+  因为 `127.0.0.1` 的连接不会离开这台 VPS，本书不要求给第三册的本机 Nginx 单独申请公网证书。
+
+  <Callout type="danger" title="HTTPS 不等于已经登录">
+    HTTPS 保护传输，也帮助浏览器确认主机名；它不会自动要求访问者输入账户。没有应用登录或 Cloudflare Access 策略时，公开 URL 仍可能被任何互联网用户打开。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch1-tunnel">
+  ## 第四步：Tunnel 从服务器内部接回请求
+
+  `cloudflared` 是运行在 VPS 上的 Cloudflare Tunnel connector（连接器）。它主动向 Cloudflare 建立出站连接，所以本书不需要为了教学 Web 服务把公网 8080 端口开放给所有人。
+
+  当公开主机名的路由被设置为：
+
+  ```text
+  app.example.com → http://127.0.0.1:8080
+  ```
+
+  Cloudflare 收到 `app.example.com` 的请求后，会选择健康的 connector，再让它从 VPS 本机访问 8080。
+
+  <ComparisonTable>
+
+  | 对象 | 能证明什么 | 不能证明什么 |
+  | --- | --- | --- |
+  | Tunnel 显示 Healthy | 至少有 connector 正在连接 Cloudflare | 路由一定填对、容器一定正常 |
+  | DNS 能解析 | 主机名存在可用的 DNS 答案 | HTTPS 或应用内容一定正常 |
+  | 本机 `curl` 成功 | Compose 服务能在 VPS 本机响应 | 公网 DNS、证书和 Tunnel 一定正常 |
+  | 浏览器页面正确 | 整条访问路径已经工作 | 应用已经具备登录、备份或安全更新 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch1-reverse-proxy">
+  ## 什么叫反向代理
+
+  Cloudflare 在公开入口接收用户请求，再把请求交给后方服务，这种角色叫作 **反向代理**。
+
+  “反向”不是说网络真的倒着走，而是相对于普通用户使用的“正向代理”而言：
+
+  - 正向代理通常代表客户端去访问外部服务；
+  - 反向代理代表后方的一组服务接收用户请求；
+  - 用户只需要知道公开主机名，不需要直接连接每个后方服务。
+
+  反向代理可以处理公开 HTTPS、转发请求和一些边缘规则，但不会自动修复应用故障，也不会替你判断页面里能不能放隐私数据。
+</section>
+
+<section className="book-section" id="book04-ch1-response">
+  ## 响应怎样回到浏览器
+
+  请求到达本机服务后，第三册的 Nginx 容器生成 HTML 响应。返回路径依次经过：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Compose web 容器</strong>
+      <small>生成教学页面</small>
+    </div>
+    <div className="flow-node">
+      <strong>127.0.0.1:8080</strong>
+      <small>主机端本机入口</small>
+    </div>
+    <div className="flow-node">
+      <strong>cloudflared</strong>
+      <small>通过既有 Tunnel 返回响应</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 边缘</strong>
+      <small>通过公开 HTTPS 返回</small>
+    </div>
+    <div className="flow-node">
+      <strong>浏览器</strong>
+      <small>解析并显示页面</small>
+    </div>
+  </FlowDiagram>
+
+  浏览器显示正确页面，说明这一轮请求和响应走通。它不代表服务永远在线，因此后面还会建立分层验证和日常检查方法。
+</section>
+
+<section className="book-section" id="book04-ch1-layers">
+  ## 用错误现象判断停在哪一层
+
+  <ComparisonTable>
+
+  | 现象 | 最先检查的层 | 为什么 |
+  | --- | --- | --- |
+  | `NXDOMAIN` | DNS 名称和记录 | 解析器认为名称不存在 |
+  | 域名仍指向旧服务 | nameserver、记录与缓存 | 可能仍在使用旧权威 DNS 或旧缓存 |
+  | 证书主机名错误 | 公开主机名和 HTTPS | 浏览器连接到的入口与证书不匹配 |
+  | Cloudflare Error 1033 | Tunnel connector | Cloudflare 没找到健康 connector |
+  | 502 Bad Gateway | 本机 Service URL 和容器 | connector 存在，但后方服务不可用 |
+  | 页面打开但内容错误 | 路由或应用 | 网络已经通，可能转到了错误服务 |
+
+  </ComparisonTable>
+
+  第 11 章会把这些现象展开成正式排错树。本章只需要记住：错误页面不是一个模糊的“网络坏了”，而是路径中某一层给出的线索。
+</section>
+
+<section className="book-section" id="book04-ch1-exercise">
+  ## 练习：手指沿路径走一遍
+
+  不打开控制台，指着下面每一项口头回答它负责什么：
+
+  1. `example.com` 在哪里注册和续费？
+  2. 哪一组 nameserver 是当前权威 DNS？
+  3. `app.example.com` 的 DNS 记录由谁回答？
+  4. 浏览器的 HTTPS 先连接谁？
+  5. 哪一个进程是 Tunnel connector？
+  6. connector 最终访问哪个本机地址？
+  7. 哪个 Compose service 返回页面？
+
+  如果其中任意一项只能回答“应该就是 Cloudflare”，先回到相应小节再走一遍。Cloudflare 同时承担 DNS、代理和 Tunnel 等多个角色，但每一个角色的成功状态不同。
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-01"
+  items={[
+    "我能拆分 https://app.example.com 的协议、主机名、子域名和根域名",
+    "我能区分递归解析器与权威 DNS",
+    "我知道 Proxied 与 DNS only 的请求路径不同",
+    "我能解释浏览器 HTTPS、Tunnel 和本机 HTTP 是不同连接段",
+    "我知道 HTTPS 不会自动提供登录权限",
+    "我能从浏览器走到 127.0.0.1:8080，再沿响应路径返回",
+  ]}
+/>

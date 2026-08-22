@@ -1,0 +1,296 @@
+---
+book: "04-cloudflare"
+order: 9
+slug: "09-verify-https"
+title: "验证 HTTPS 与完整请求路径"
+shortTitle: "验证 HTTPS"
+description: "从外部 DNS、Cloudflare Universal SSL、浏览器证书、公开响应、本机源站、connector 和 Compose 状态逐层证明 app.example.com 的完整路径。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 9
+duration: "操作约 20—30 分钟；首次证书签发可能等待 15 分钟至 24 小时"
+labels:
+  - "HTTPS"
+  - "Universal SSL"
+  - "分层验证"
+completionId: "book04-chapter-09"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import BrowserHttpsMock from "../../../components/mock-ui/BrowserHttpsMock.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const externalDnsCheck =
+  "nslookup app.example.com";
+
+export const externalHttpsCheck = `curl --head --show-error --connect-timeout 10 https://app.example.com
+curl --fail --show-error --location --connect-timeout 10 https://app.example.com`;
+
+export const externalHttpObservation =
+  "curl --head --show-error --connect-timeout 10 http://app.example.com";
+
+export const serverLayerCheck = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080
+sudo systemctl is-active cloudflared`;
+
+<LearningGoals
+  audience="已经创建 published application route、第一次需要判断 DNS、证书、Tunnel 与本机页面是否全部正常的读者"
+  duration="操作约 20—30 分钟；首次证书签发可能等待 15 分钟至 24 小时"
+  outcome="用外部客户端和 VPS 两组证据证明 app.example.com 的 DNS、HTTPS、内容、connector 与本机源站分别成功，并能区分证书等待与源站故障"
+/>
+
+<section className="book-section" id="book04-ch9-result">
+  ## 页面出现不等于每一层都验证完成
+
+  第 8 章已经做过一次快速冒烟检查。本章把同一条路径拆成可保存的证据：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>外部 DNS</strong>
+      <small>app.example.com 有 Cloudflare 代理答案</small>
+    </div>
+    <div className="flow-node">
+      <strong>边缘 HTTPS</strong>
+      <small>证书覆盖正确主机名</small>
+    </div>
+    <div className="flow-node">
+      <strong>公开响应</strong>
+      <small>状态与页面内容符合预期</small>
+    </div>
+    <div className="flow-node">
+      <strong>Tunnel connector</strong>
+      <small>cloudflared active / Healthy</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机源站</strong>
+      <small>127.0.0.1:8080 返回同一教学页</small>
+    </div>
+  </FlowDiagram>
+
+  任何一层失败，都应停在那一层，而不是同时修改 DNS、证书、route 和容器。
+</section>
+
+<section className="book-section" id="book04-ch9-certificate-model">
+  ## 先理解本书的 HTTPS 发生在哪里
+
+  Cloudflare 位于浏览器和本机服务之间，所以需要分开看连接：
+
+  <ComparisonTable>
+
+  | 连接段 | 本书协议 | 谁提供证书或保护 | 验证方式 |
+  | --- | --- | --- | --- |
+  | 浏览器 → Cloudflare | HTTPS | Cloudflare 边缘证书 | 浏览器连接信息与主机名 |
+  | Cloudflare → cloudflared | Tunnel 连接 | `cloudflared` 主动建立的受保护连接 | Tunnel / connector 状态 |
+  | cloudflared → 同机源站 | HTTP | 仅在 VPS 回环地址内，不使用公网证书 | `curl 127.0.0.1:8080` |
+
+  </ComparisonTable>
+
+  本书没有把传统源站证书安装到 Nginx，也没有使用 Flexible / Full / Full (strict) 模式去连接一个公网 HTTPS 源站。那些模式属于传统反向代理路径，留在附录对照说明。
+
+  <Callout type="danger" title="不要把边缘证书警告当作可以忽略的提示">
+    浏览器警告主机名不匹配、证书不受信任或证书过期时，先停止输入任何数据。不要点击继续访问，也不要用 `curl -k` 把验证失败伪装成成功。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch9-universal-ssl">
+  ## 第一步：确认 Universal SSL 状态
+
+  Cloudflare 当前默认会为已激活的域名签发并续期 Universal SSL 边缘证书。在完整 DNS 设置中，官方给出的首次签发范围是域名激活后约 15 分钟至 24 小时。
+
+  Universal SSL 当前覆盖：
+
+  - 根域名，例如 `example.com`；
+  - 一级子域名，例如 `app.example.com`；
+  - 不自动覆盖任意更深层级，例如 `demo.app.example.com`。
+
+  `app.example.com` 正好是一级子域名，因此属于本书默认覆盖范围。证书即使已经签发，也只有在该主机名经过 Cloudflare 代理时才会向访问者呈现。
+
+  在 Cloudflare 的 SSL/TLS → Edge Certificates 或当前含义相同的页面检查：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Zone</p>
+      <p>必须是 Active。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Universal SSL</p>
+      <p>已启用，证书状态为 Active 或当前正常状态。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">app 记录</p>
+      <p>来自 Tunnel route，并经过 Cloudflare 代理。</p>
+    </section>
+  </InfoGrid>
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    15 分钟至 24 小时是 Cloudflare 当前官方给出的常见签发窗口，不是倒计时承诺。域名激活、验证、CAA、账户或平台状态都可能影响结果；超过窗口时按状态和官方排错处理。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch9-external-dns">
+  ## 第二步：从 VPS 之外检查公开 DNS
+
+  在自己的 Windows 或 macOS 电脑上执行，不是在 VPS 的 SSH 会话中：
+
+  <CodeBlock label="查询公开应用主机名" code={externalDnsCheck} />
+
+  把 `app.example.com` 换成自己的公开主机名。
+
+  成功状态：
+
+  - 查询有回答；
+  - 返回 Cloudflare 代理地址，而不是直接返回 VPS 公网 IP；
+  - 没有 `NXDOMAIN`；
+  - 主机名拼写与第 6、8 章完全一致。
+
+  DNS 失败时先回第 4—5、8 章检查 zone、nameserver 与 route 自动生成的记录。不要因为证书还没检查就先重启容器。
+</section>
+
+<section className="book-section" id="book04-ch9-public-curl">
+  ## 第三步：分别检查响应头和页面内容
+
+  仍在自己的电脑终端执行：
+
+  <CodeBlock label="检查公开 HTTPS 响应头与页面内容" code={externalHttpsCheck} />
+
+  第一行只请求响应头，帮助记录 HTTP 状态；第二行跟随重定向，并在最终响应为错误状态时失败。
+
+  成功状态：
+
+  - TLS 连接没有证书错误；
+  - 最终状态是教学页预期的成功响应；
+  - 第二条命令返回第三册 Compose 教学页内容；
+  - URL 中没有 `:8080`；
+  - 输出不是其他网站、旧页面或 Cloudflare 错误页。
+
+  <TerminalMock title="公开 HTTPS 终端验证成功示意">
+    HTTP/2 <span className="term-green">200</span><br />
+    content-type: text/html<br />
+    ...<br />
+    <span className="term-green">第三册 Compose 教学页内容已返回</span>
+  </TerminalMock>
+
+  实际协议版本可能显示 HTTP/2、HTTP/3 或其他受支持结果，不把某个版本号作为页面成功的唯一条件。
+</section>
+
+<section className="book-section" id="book04-ch9-browser">
+  ## 第四步：在浏览器核对主机名、证书与内容
+
+  手动输入完整地址：
+
+  ```text
+  https://app.example.com
+  ```
+
+  不要从陌生邮件或搜索广告点击链接。打开后检查：
+
+  - 地址栏最终主机名仍是自己的 `app` 子域名；
+  - 浏览器没有证书或隐私警告；
+  - 连接详情显示证书对当前主机名有效；
+  - 页面内容与 VPS 本机 `curl` 返回的教学页一致；
+  - 刷新后仍能稳定打开；
+  - 页面没有突然出现账户、个人数据或管理入口。
+
+  <BrowserHttpsMock />
+
+  浏览器图是教学仿真。不同浏览器可能不再显示传统“小锁”图标，应当打开地址栏的连接信息查看证书和安全状态，而不是只寻找某一个像素图标。
+</section>
+
+<section className="book-section" id="book04-ch9-http">
+  ## 第五步：记录 HTTP 的实际行为
+
+  HTTPS 成功后，可以只读观察未加密 HTTP 地址会怎样响应：
+
+  <CodeBlock label="观察 HTTP 地址的响应头" code={externalHttpObservation} />
+
+  结果可能是重定向到 HTTPS，也可能仍返回 HTTP 响应，取决于当前 Cloudflare 设置。本章不把没有配置过的重定向功能假装成默认必然结果。
+
+  无论结果怎样，都检查：
+
+  - 没有把用户重定向到 VPS 公网 IP；
+  - 没有出现 `:8080`；
+  - 没有绕过 `app.example.com` 到达另一个服务；
+  - 正式分享给用户的地址始终写成 `https://`。
+
+  如果以后要强制所有 HTTP 请求跳转 HTTPS，应当作为单独变更记录并引用 Cloudflare 当前官方设置，不在本章顺手启用未知范围规则。
+</section>
+
+<section className="book-section" id="book04-ch9-inside">
+  ## 第六步：在 VPS 上从内向外核对
+
+  登录 VPS，执行：
+
+  <CodeBlock label="检查 Compose、本机源站和 connector" code={serverLayerCheck} />
+
+  成功状态：
+
+  - Compose 配置检查没有输出；
+  - `web` service 为 Up 或 Running；
+  - 本机 `curl` 返回与外部浏览器一致的教学页；
+  - `systemctl is-active` 返回 `active`。
+
+  这一组结果与外部结果组合后，才能说明整条路径成立。外部成功但本机内容不同，可能是 route 指错、缓存或源站变化；本机成功但外部失败，继续检查 DNS、证书、connector 与 route。
+</section>
+
+<section className="book-section" id="book04-ch9-evidence">
+  ## 建立不含秘密的验证卡
+
+  可以保存：
+
+  ```text
+  验证日期：YYYY-MM-DD HH:mm 时区
+  主机名：公开台账使用 app.example.com 占位
+  Cloudflare zone：Active
+  Universal SSL：Active
+  Tunnel：book04-web / Healthy
+  Route：app.example.com → http://127.0.0.1:8080
+  外部 DNS：有 Cloudflare 代理答案
+  外部 HTTPS：状态成功，内容为第三册教学页
+  本机源站：curl 成功
+  Compose web：Up
+  公网 8080：未开放
+  ```
+
+  不保存完整证书私有材料、Cookie、Cloudflare token、账户 ID、真实 VPS IP 或私人域名截图。
+</section>
+
+<section className="book-section" id="book04-ch9-failures">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 第一判断 | 下一步 |
+  | --- | --- | --- |
+  | DNS 为 NXDOMAIN | route 记录不存在或名称错误 | 回第 8 章查公开主机名和 DNS |
+  | DNS 正常但证书尚未就绪 | Universal SSL 仍在签发或主机名未覆盖 | 核对 Active、一级子域名与签发状态，等待合理窗口 |
+  | 浏览器提示主机名不匹配 | 访问名称或证书覆盖不一致 | 停止访问，核对地址和证书，不忽略警告 |
+  | Cloudflare 1033 | 没有健康 connector | 回第 7、11 章检查 cloudflared |
+  | Tunnel 502 | connector 无法访问本机源站 | 检查 route 与 `curl 127.0.0.1:8080` |
+  | HTTP 200，但页面内容错误 | route、源站或缓存指向错误内容 | 比较外部与本机页面，检查最近变更 |
+  | 只有一个网络失败 | 客户端 DNS、代理或组织网络差异 | 换网络取证，不修改全局 nameserver |
+
+  </ComparisonTable>
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-09"
+  items={[
+    "Cloudflare zone 为 Active，Universal SSL 已启用并覆盖一级子域名",
+    "我从 VPS 之外查询 app 主机名并得到 Cloudflare 代理答案",
+    "公开 HTTPS 响应状态和页面内容都符合第三册教学页预期",
+    "浏览器主机名正确、没有证书警告，连接详情显示证书有效",
+    "HTTP 观察没有泄露公网 IP、8080 或其他服务入口",
+    "VPS 本机 curl、Compose web 和 cloudflared 分别验证成功",
+    "我能区分边缘证书、Tunnel 连接和同机 127.0.0.1 HTTP",
+    "验证卡没有 token、Cookie、账户 ID、真实 IP 或其他秘密",
+  ]}
+/>

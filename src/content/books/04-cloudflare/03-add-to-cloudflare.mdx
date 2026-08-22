@@ -1,0 +1,273 @@
+---
+book: "04-cloudflare"
+order: 3
+slug: "03-add-to-cloudflare"
+title: "把域名添加到 Cloudflare，但先不切换"
+shortTitle: "添加到 Cloudflare"
+description: "创建并保护 Cloudflare 账户，把根域名添加为 zone，选择 DNS 导入方式，人工复核扫描结果并保存分配的 nameserver。"
+chapterType: "chapter"
+updatedAt: "2026-08-12"
+chapterNumber: 3
+duration: "预计 20—30 分钟"
+labels:
+  - "Cloudflare"
+  - "Zone"
+  - "DNS 扫描"
+completionId: "book04-chapter-03"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="已经掌握域名注册商账户、准备第一次把域名加入 Cloudflare 的读者"
+  duration="预计 20—30 分钟"
+  outcome="在不改变现有权威 DNS 的前提下建立 Cloudflare zone，人工核对导入记录，并安全保存两台待使用的 nameserver"
+/>
+
+<section className="book-section" id="book04-ch3-result">
+  ## 本章只完成“准备接管”
+
+  Cloudflare 把一个由自己管理的域名 DNS 区域称为 **zone（区域）**。本章会创建 `example.com` 的 zone，但不会在注册商更改 nameserver。
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>当前注册商</strong>
+      <small>仍保存当前 nameserver</small>
+    </div>
+    <div className="flow-node">
+      <strong>当前权威 DNS</strong>
+      <small>仍回答真实用户查询</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare zone</strong>
+      <small>本章建立并等待接管</small>
+    </div>
+    <div className="flow-node">
+      <strong>两台 Cloudflare nameserver</strong>
+      <small>第 4 章才填入注册商</small>
+    </div>
+  </FlowDiagram>
+
+  这种分开操作的好处是：在真正切换前，你有时间检查 Cloudflare 中的 DNS 记录是否完整。
+</section>
+
+<section className="book-section" id="book04-ch3-account">
+  ## 第一步：创建并保护 Cloudflare 账户
+
+  使用你能长期控制的邮箱注册 Cloudflare 账户。完成邮箱验证后：
+
+  1. 设置唯一密码；
+  2. 开启两因素认证（2FA）；
+  3. 保存恢复码；
+  4. 确认恢复邮箱和密码管理器可用；
+  5. 不把 API token、恢复码或登录验证码粘贴到本书项目中。
+
+  <Callout type="danger" title="不要让域名和 Cloudflare 共用一个不可恢复入口">
+    如果注册商与 Cloudflare 都依赖同一个已停用邮箱，账户故障时可能同时失去两边控制。至少确认邮箱本身有独立恢复方式，并把 2FA 恢复材料保存在受控位置。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch3-apex">
+  ## 第二步：输入根域名，不输入子域名
+
+  在 Cloudflare 控制台选择添加域名或 Onboard a domain，输入：
+
+  ```text
+  example.com
+  ```
+
+  不要输入：
+
+  ```text
+  https://example.com
+  www.example.com
+  app.example.com/path
+  ```
+
+  这里要添加的是 **apex domain（根域名）**，也就是 `example.com`。`app`、`www` 等子域名以后作为同一个 zone 内的 DNS 记录或 Tunnel 路由管理。
+
+  <MockWindow title="添加 Cloudflare zone 仿真">
+    <div className="mock-form-grid">
+      <MockField label="Apex domain" wide>
+        <code>example.com</code>
+      </MockField>
+      <MockField label="当前动作">
+        <MockStatusBadge tone="neutral">仅加入账户</MockStatusBadge>
+      </MockField>
+      <MockField label="注册商 nameserver">
+        <MockStatusBadge tone="success">尚未修改</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+
+  成功状态：Cloudflare 识别出根域名并进入 DNS 记录导入或套餐选择步骤。
+
+  失败判断：页面提示域名无效、已经在其他账户、账户没有权限，或你输入了完整 URL。先解决明确错误，不要换一个拼写相近的域名继续。
+</section>
+
+<section className="book-section" id="book04-ch3-record-method">
+  ## 第三步：选择 DNS 记录导入方式
+
+  Cloudflare 当前完整接入流程可能提供：
+
+  - 快速扫描常见 DNS 记录；
+  - 手工输入记录；
+  - 上传 DNS zone file（区域文件）。
+
+  对第一次迁移且记录不多的读者，可以使用快速扫描作为起点，但必须拿第 2 章保存的现有记录逐项复核。
+
+  <Callout type="warning" title="快速扫描不是现有 DNS 的完整备份">
+    Cloudflare 官方说明，快速扫描使用常见名称和记录模式进行启发式查找，不会针对你的完整 zone 文件工作。自定义子域名、DKIM 和其他不常见记录可能遗漏。
+  </Callout>
+
+  如果域名承载企业邮箱、生产网站或大量子域名，优先使用旧 DNS 提供商的官方导出，再安排有负责人参与的迁移窗口。本书的个人教学路径不能替代生产域名变更流程。
+</section>
+
+<section className="book-section" id="book04-ch3-plan">
+  ## 第四步：选择适合本书的计划
+
+  本书所需的权威 DNS、基础代理和 Tunnel 教学路径可以从 Cloudflare 当前可用的免费计划开始。页面可能同时展示付费计划及附加能力。
+
+  选择前确认：
+
+  - 计划名称和当前费用；
+  - 是否出现试用期、自动续费或附加项；
+  - 付款按钮是否会立即产生费用；
+  - 当前书中没有使用的功能无需为了“以后可能用”提前购买。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    Cloudflare 的产品名称、计划能力和控制台布局可能变化。本章只确认完成主线所需的最小能力；如页面与书中不同，以 Cloudflare 当前官方计划说明和最终结算页为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch3-review">
+  ## 第五步：逐项复核扫描出的 DNS 记录
+
+  Cloudflare 显示扫描结果后，不要立刻点击继续。把每一条记录与旧 DNS 对照：
+
+  <ComparisonTable>
+
+  | 记录类别 | 至少核对什么 | 漏掉时可能发生什么 |
+  | --- | --- | --- |
+  | 根域名 A、AAAA 或 CNAME | 名称、目标、代理状态 | 主页无法访问或连接错误源站 |
+  | `www` 等网站子域名 | 所有正在使用的主机名 | 只有部分网址失效 |
+  | MX | 优先级和邮件服务器目标 | 无法收信或投递异常 |
+  | TXT | 所有权验证、SPF、DKIM、DMARC | 邮件认证、平台验证或登录绑定失效 |
+  | CAA、SRV 等 | 原记录的全部字段 | 证书签发或特定服务异常 |
+  | 未知记录 | 负责人和用途 | 删除后才发现影响生产业务 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="邮件记录不完整时必须暂停">
+    如果域名正在收发邮件，而你不能解释 MX、SPF、DKIM 或 DMARC，请不要切换 nameserver。先联系邮箱服务商或原负责人，得到准确记录。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch3-proxy-review">
+  ## 第六步：检查代理状态
+
+  A、AAAA 和 CNAME 形式的 Web 记录可能显示橙色云朵，即 Proxied。MX、TXT 等不属于 Web 代理的记录保持 DNS only。
+
+  <ComparisonTable>
+
+  | 记录用途 | 本章建议 | 原因 |
+  | --- | --- | --- |
+  | 已确认的 HTTP/HTTPS 网站 | 根据原业务与 Cloudflare 建议决定 Proxied | 代理会改变公开请求路径，需要验证源站兼容性 |
+  | 邮件服务器和 MX 目标 | DNS only | 邮件协议不经过 Cloudflare HTTP 代理 |
+  | TXT 验证和邮件认证 | DNS only | TXT 本身不提供代理切换 |
+  | 不认识的 A、AAAA、CNAME | 先暂停确认 | 不能仅凭记录类型判断业务是否适合代理 |
+
+  </ComparisonTable>
+
+  这一步的目标不是把所有云朵变成同一种颜色，而是让每条记录的状态与它的业务用途一致。
+</section>
+
+<section className="book-section" id="book04-ch3-nameservers">
+  ## 第七步：保存 Cloudflare 分配的两台 nameserver
+
+  Cloudflare 会给当前 zone 分配两台 nameserver。每个域名得到的具体名称可能不同，必须从你自己的 Cloudflare 页面逐字复制。
+
+  <MockWindow title="Cloudflare nameserver 交接卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="Nameserver 1" wide>
+        <span>从当前 zone 逐字复制，不使用书中示例</span>
+      </MockField>
+      <MockField label="Nameserver 2" wide>
+        <span>从当前 zone 逐字复制，不交换为其他账户的值</span>
+      </MockField>
+      <MockField label="Cloudflare zone 状态">
+        <MockStatusBadge tone="warning">Pending</MockStatusBadge>
+      </MockField>
+      <MockField label="注册商状态">
+        <MockStatusBadge tone="success">旧 nameserver 仍在工作</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+
+  `Pending` 表示 Cloudflare 还没有确认注册商已经改用这两台 nameserver。此时出现 Pending 是正常的。
+
+  保存时可以记录完整 nameserver 文本，但不要记录账户密码、API token、付款信息或 2FA 恢复码。
+</section>
+
+<section className="book-section" id="book04-ch3-stop">
+  ## 本章停止在这里
+
+  现在不要切到注册商修改 nameserver。第 4 章会先判断 DNSSEC 状态，并给出安全顺序。
+
+  你现在应当看到：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Cloudflare zone</p>
+      <p>已创建，状态可以是 Pending。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">DNS 记录</p>
+      <p>已经与旧 DNS 逐项对照。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">注册商</p>
+      <p>仍使用旧 nameserver，真实业务没有切换。</p>
+    </section>
+  </InfoGrid>
+</section>
+
+<section className="book-section" id="book04-ch3-failures">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 可能原因 | 本章处理 |
+  | --- | --- | --- |
+  | Cloudflare 提示域名已经存在 | 可能在另一个账户或组织 | 确认所有者，不要反复注册新账户 |
+  | 快速扫描只找到几条记录 | 扫描不是完整备份 | 对照旧 DNS，手工补齐或导入 zone file |
+  | 记录很多且无法解释 | 域名承载的业务超出个人教学范围 | 找原负责人，安排正式迁移 |
+  | 页面显示 Pending | nameserver 尚未切换 | 当前阶段正常，不需要重复添加 zone |
+  | 要求付款但你只需要主线能力 | 可能选中了付费计划或附加项 | 返回核对计划，不在不理解时付款 |
+  | 账户邮箱未验证 | 账户状态不完整 | 完成官方验证后再继续 |
+
+  </ComparisonTable>
+</section>
+
+<ChapterChecklist
+  chapterId="book04-chapter-03"
+  items={[
+    "Cloudflare 账户邮箱已验证，并启用了可恢复的 2FA",
+    "我添加的是根域名，不是 https URL 或 app 子域名",
+    "我知道 zone 是 Cloudflare 管理这个域名 DNS 的区域",
+    "扫描记录已经与旧 DNS 逐项核对，不能解释的记录没有删除",
+    "邮件、验证和 Web 记录的代理状态已经按用途检查",
+    "我保存了当前 zone 分配的两台 nameserver",
+    "注册商仍使用旧 nameserver，本章没有提前切换",
+  ]}
+/>

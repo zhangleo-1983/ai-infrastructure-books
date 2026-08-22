@@ -6,15 +6,15 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第三册发布候选已发布
+  phase: 第四册 RC 发布准备
 current:
-  summary: 第一、二册已形成发布候选基线；第三册 rc.1 已合并、标记并部署，测试 VPS 已销毁，等待试读反馈或第四册策划指令。
+  summary: 第一、二册已形成发布候选基线；第三册 rc.1 已发布且原实机已销毁；第四册 15 个内容单元已进入 1.0.0-rc.1，G1—G8 实机校订、生产构建、Pagefind、完成状态、正式打印、A4 PDF、跨浏览器、无障碍、性能、安全和子路径部署模拟均已通过；临时 VPS 及计费附加资源已清空。
   working_on:
-    - 第三册发布候选线上观察与目标读者试读准备
+    - 完成第四册 book04-v1.0.0-rc.1 标签、GitHub Pages 部署与线上冒烟检查
 next_actions:
-  - 邀请少量目标读者完成第三册关键学习路径并记录理解障碍
-  - 后续维护中处理 GitHub Actions 的 Node 20 弃用警告和打印路由屏幕控件边界
-  - 经 Owner 确认后进入第四册“域名与 Cloudflare”内容策划，不直接撰写完整正文
+  - 合并第四册发布提交到 main，创建并推送 book04-v1.0.0-rc.1 标签
+  - 等待 CI 与 Pages 成功后完成线上封面、正文、搜索、打印、canonical 和 404 冒烟检查
+  - 汇报第四册发布完成状态，并按里程碑规则等待 Owner 确认后再开始第五册策划与样章试写
 blockers: []
 milestones:
   - id: milestone-1
@@ -86,9 +86,57 @@ milestones:
   - id: milestone-23
     name: 第三册 GitHub Pages 发布与线上冒烟检查
     status: completed
+  - id: milestone-24
+    name: 第四册目标读者、章节提案、技术主线、事实校订和风险清单草案已建立
+    status: completed
+  - id: milestone-25
+    name: 第四册最终书名与五项核心实施口径已获 Owner 确认并写入书籍注册表
+    status: completed
+  - id: milestone-26
+    name: 第四册 QA 台账与三篇 draft 样章已建立，并通过类型、内容、生产草稿排除、响应式、无 JavaScript 和打印检查
+    status: completed
+  - id: milestone-27
+    name: 第四册第 1—5 章第一批 draft 已建立，并通过官方事实、内容、生产草稿排除、响应式、深色、无 JavaScript 和打印检查
+    status: completed
+  - id: milestone-28
+    name: 第四册第 6—7、9—10 章第二批 draft 与第 8、11 章连续性复核已完成，并通过官方事实、命令语法、内容、生产草稿排除、响应式、深色、无 JavaScript 和打印检查
+    status: completed
+  - id: milestone-29
+    name: 第四册第 12 章、附录、资料来源与 15 个完整 draft 内容单元已完成，并通过官方事实、内容、生产草稿排除、响应式、深色、无 JavaScript 和草稿打印检查
+    status: completed
+  - id: milestone-30
+    name: 第四册隔离域名、临时 VPS、Tunnel 主线、Caddy 对照、G1—G8 操作闸门、脱敏证据和费用清理闭环的 RC 实机校订方案已建立并通过自动检查
+    status: completed
+  - id: milestone-31
+    name: 第四册 RC 实机校订 G1 已确认第三方注册商中的既有空闲域名、无业务基线和 NS / DNSSEC 管理能力
+    status: completed
+  - id: milestone-32
+    name: 第四册 RC 实机校订 G2 与阶段 1 已完成，临时 VPS、SSH、Docker Compose 回环源站、公网 8080 隔离和备份恢复基线通过
+    status: completed
+  - id: milestone-33
+    name: 第四册 RC 实机校订 G3 与阶段 2 已完成，Cloudflare Free zone、nameserver 迁移、Active 状态和 DNSSEC 公共验证通过
+    status: completed
+  - id: milestone-34
+    name: 第四册 RC 实机校订 G4 与阶段 3—4 已完成，唯一教学 Tunnel、官方 cloudflared、systemd、单个 Healthy connector、出站 7844 和无 route 边界通过
+    status: completed
+  - id: milestone-35
+    name: 第四册 RC 实机校订 G5 与阶段 5 已完成，唯一公开 route、自动 Proxied CNAME、Universal SSL、macOS、手机 5G、第二网络 HTTPS 和回环源站一致性通过
+    status: completed
+  - id: milestone-36
+    name: 第四册 RC 实机校订 G6 与阶段 6—7 已完成，源站、错误 route、connector、单 route 下线、VPS 重启、更新预览和脱敏交接全部验证并恢复
+    status: completed
+  - id: milestone-37
+    name: 第四册 RC 实机校订 G7 Caddy 独立主机名、公共证书、Proxied 与 Full strict 对照及收口
+    status: completed
+  - id: milestone-38
+    name: 第四册 RC 实机校订 G8 教学 route、DNS、connector、Tunnel、临时 VPS、计费附加资源与本机实验凭证永久清理
+    status: completed
+  - id: milestone-39
+    name: 第四册 production、Pagefind、完成状态、正式打印、A4 PDF、跨浏览器、无障碍、性能、安全与子路径发布前综合验收
+    status: completed
 activity:
-  last_meaningful_update: 2026-08-11T16:54:44+08:00
-  last_status_review: 2026-08-11T16:54:44+08:00
+  last_meaningful_update: 2026-08-23T03:47:00+08:00
+  last_status_review: 2026-08-23T03:47:00+08:00
 management:
   archived: false
   status_maintenance: automatic
@@ -100,3 +148,19 @@ confidence:
     - Git 历史与带注释标签直接证明第三册已合并并形成 rc.1 版本基线
     - Vultr 控制台明确显示实例终止、实例列表为空且没有附加 Block Storage
     - GitHub CI 与 Pages 工作流成功，线上关键 URL、搜索、打印、canonical 和 404 冒烟检查通过
+    - 第四册内容规格草案记录了章节提案、Tunnel 主线、作者决策、官方来源与风险矩阵
+    - 项目 Owner 已明确确认第四册最终书名、Tunnel 主线、通用注册商路径、DNSSEC 和 Caddy 附录边界
+    - 第四册三篇 draft 样章、专用 QA、141 项单元测试、production build 和浏览器检查提供直接证据
+    - 第四册第 1—5 章 draft、142 项单元测试、45 页搜索边界、专用 QA 以及三种宽度、深色、无 JavaScript 和打印检查提供直接证据
+    - 第四册第 6—10 章第二批 draft、143 项单元测试、45 页搜索边界、专用 QA 以及三种宽度、深色、无 JavaScript 和打印检查提供直接证据
+    - 第四册 15 个完整 draft、145 项单元测试、45 页搜索边界、专用 QA、三种宽度、深色、无 JavaScript 和草稿打印检查提供直接证据
+    - 第四册 RC 实机执行方案、空白结果台账、146 项单元测试、54 页生产草稿排除和 45 页搜索边界提供直接证据
+    - Owner 明确确认第三方注册商中的既有空闲域名无业务、可管理 NS / DNSSEC 并同意用于第四册校订；远程 DNS 基线未发现 Web、邮件、验证或旧 DS 记录
+    - Owner 核对并 Deploy 单台东京 Ubuntu 24.04 x64 临时 VPS；两次独立 SSH、主机密钥交叉核验、Docker 官方 APT 安装、Compose 回环源站、公网 8080 不可达和备份恢复比对均提供直接证据
+    - Owner 明确授权 G3；Cloudflare Free zone、Quick Scan、无旧 DS 分支、注册商 nameserver 更新、zone Active、新 DS 登记以及两个公共解析器的 DNSSEC 验证均提供直接证据
+    - Owner 明确授权 G4；唯一教学 Tunnel、Cloudflare 官方 Noble APT、隐藏 token 安装、systemd active / running / enabled、单个 Healthy connector、QUIC 与 TCP 7844、无 route 和无新增公网入站均提供直接证据
+    - Owner 明确授权 G5；唯一 app route、自动 Proxied CNAME、两个公共解析器、Universal SSL、macOS Chrome / curl、东京 VPS 第二网络、Owner 手机 5G 和回环源站一致性均提供直接证据
+    - Owner 明确授权 G6；源站停止、错误端口、connector 停止、signed NODATA、route 与自动 DNS 下线重建、VPS 新 boot、服务自恢复、APT 预览和脱敏交接卡均提供直接证据
+    - Owner 明确授权 G7；独立 DNS-only 主机名、官方 Caddy 2.11.4、云与主机防火墙、Let’s Encrypt 公共证书、HTTP 308、Proxied、Full strict、临时 DNS 与 80/443 规则收口、多地端口复核和 app 主线哈希均提供直接证据
+    - Owner 明确授权 G8；Cloudflare route、教学 DNS、connector 与 Tunnel 清理，两个 HTTPS 公共解析器的零答案与 DNSSEC 保留，Vultr 实例销毁、计费附加资源空清单、本机实验凭证永久删除和仓库敏感值精确扫描均提供直接证据
+    - 第四册 148 项单元测试、71 页 production build、60 页 Pagefind、2075 个内部链接、126 项 Playwright、125 页 A4 PDF、Lighthouse 四类 100 分、npm audit 0、敏感值扫描与 GitHub Pages 子路径构建提供发布前直接证据

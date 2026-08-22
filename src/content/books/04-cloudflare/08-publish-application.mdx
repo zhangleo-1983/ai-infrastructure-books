@@ -1,0 +1,429 @@
+---
+book: "04-cloudflare"
+order: 8
+slug: "08-publish-application"
+title: "把域名连接到本机 Compose 服务"
+shortTitle: "连接域名与服务"
+description: "在生产 Cloudflare Tunnel 中创建 published application route，把 app.example.com 映射到 http://127.0.0.1:8080，并分别验证路由、DNS、connector 和源站。"
+chapterType: "chapter"
+updatedAt: "2026-08-22"
+chapterNumber: 8
+duration: "预计 20—30 分钟，不含 DNS 与证书等待"
+labels:
+  - "Cloudflare Tunnel"
+  - "公开主机名"
+  - "Compose 服务"
+completionId: "book04-chapter-08"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import TunnelRouteMock from "../../../components/mock-ui/TunnelRouteMock.astro";
+
+export const originCheck = `cd "$HOME/docker-labs/compose-web"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --show-error http://127.0.0.1:8080`;
+
+export const connectorCheck = `sudo systemctl is-active cloudflared
+sudo systemctl show cloudflared --property=ActiveState --property=SubState --property=UnitFileState`;
+
+export const publicDnsCheck =
+  "nslookup app.example.com";
+
+export const publicHttpsCheck =
+  "curl --fail --show-error --location --connect-timeout 10 https://app.example.com";
+
+export const finalLayerCheck = `${publicDnsCheck}
+${publicHttpsCheck}`;
+
+<LearningGoals
+  audience="已经完成第 1—7 章、拥有 Active Cloudflare zone 和 Healthy 生产 Tunnel 的读者"
+  duration="预计 20—30 分钟，不含 DNS 与证书等待"
+  outcome="得到一条 app.example.com 到 http://127.0.0.1:8080 的 published application route，并能分别证明 DNS、connector、源站和 HTTPS 状态"
+/>
+
+<section className="book-section" id="book04-ch8-result">
+  ## 这一章要完成什么
+
+  第 7 章已经让 `cloudflared` 从服务器主动连接到 Cloudflare，但“Tunnel 已连接”还没有说明哪一个域名应该送到哪一个本地服务。
+
+  本章增加一条 **published application route**。这个词可以理解为“公开应用路由”：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>公开主机名</strong>
+      <small>https://app.example.com</small>
+    </div>
+    <div className="flow-node">
+      <strong>Cloudflare 边缘</strong>
+      <small>接收 DNS 与 HTTPS 请求</small>
+    </div>
+    <div className="flow-node">
+      <strong>生产 Tunnel</strong>
+      <small>选择健康 connector</small>
+    </div>
+    <div className="flow-node">
+      <strong>本机源站</strong>
+      <small>http://127.0.0.1:8080</small>
+    </div>
+    <div className="flow-node">
+      <strong>Compose web</strong>
+      <small>容器内 80/tcp</small>
+    </div>
+  </FlowDiagram>
+
+  这里的“源站”是 Cloudflare 最终要访问的本地服务。它不是读者浏览器里的地址，也不是 VPS 公网 IPv4。
+
+  <Callout type="info" title="校订日期：2026-08-12">
+    Cloudflare 当前官方文档把 published application 定义为“公开主机名到本地服务”的映射，例如 `app.example.com` 到 `http://localhost:8080`。控制台导航和字段名称以后可能变化，正文以字段关系为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch8-preconditions">
+  ## 开始前必须满足四项条件
+
+  <ComparisonTable>
+
+  | 条件 | 怎样确认 | 没有满足时回到哪里 |
+  | --- | --- | --- |
+  | Cloudflare zone 为 Active | Cloudflare 域名概览不再显示 Pending | 第 4 章 nameserver 与 DNSSEC |
+  | `app` 主机名与公开边界已确认 | 第 6 章设计卡为 `app.example.com → 127.0.0.1:8080` | 第 5—6 章重新规划主机名 |
+  | 生产 Tunnel 有健康 connector | `book04-web` 状态为 Healthy，systemd 为 active | 第 7 章检查 cloudflared |
+  | 本机服务正常 | `curl 127.0.0.1:8080` 返回页面 | 第三册第 10 章 |
+
+  </ComparisonTable>
+
+  在 VPS 终端重新执行源站基线：
+
+  <CodeBlock
+    label="确认本机 Compose 服务"
+    code={originCheck}
+  />
+
+  成功状态：
+
+  - `compose config -q` 没有输出；
+  - `web` service 为 Up 或 Running；
+  - `curl` 返回第三册教学页；
+  - 端口仍是 `127.0.0.1:8080 → 80/tcp`。
+
+  如果本机请求失败，先修复源站。创建路由不能让一个已经停止的容器自动恢复。
+</section>
+
+<section className="book-section" id="book04-ch8-fields">
+  ## 先看懂要填写的两个对象
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Public hostname</p>
+      <p>用户在浏览器中访问的名称：<code>app.example.com</code>。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Service URL</p>
+      <p><code>cloudflared</code> 在服务器本机访问的地址：<code>http://127.0.0.1:8080</code>。</p>
+    </section>
+  </InfoGrid>
+
+  两边使用不同协议是正常的：
+
+  - 浏览器使用 `https://` 连接 Cloudflare；
+  - `cloudflared` 与同一台服务器上的教学服务使用 `http://127.0.0.1:8080`；
+  - Tunnel 本身负责 Cloudflare 与 connector 之间的受保护连接；
+  - 本章不会给容器内 Nginx 单独签发公网证书。
+
+  <Callout type="warning" title="不要把浏览器地址填进 Service URL">
+    Service URL 不是 `https://app.example.com`，否则请求可能再次回到 Cloudflare，形成错误的循环。它也不是 `http://公网 IP:8080`；本机 connector 直接访问回环地址即可。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch8-open-route">
+  ## 第一步：打开正确的 Tunnel
+
+  Cloudflare 当前控制台路径可能显示为 `Networking → Tunnels`。进入第 7 章创建的生产 Tunnel，然后打开 Routes（路由）页，选择添加 Published application。
+
+  核对对象名称，而不是只看绿色状态：
+
+  <MockWindow title="Tunnel 概览仿真">
+    <div className="mock-stack">
+      <div className="mock-panel">
+        <strong>名称：book04-web</strong>
+        <p className="mock-small">用途：第四册教学 Web 服务；不包含账户、IP 或 token。</p>
+      </div>
+      <div className="mock-panel">
+        <span>Connector 状态：</span>{" "}
+        <MockStatusBadge tone="success">Healthy · 已连接</MockStatusBadge>
+      </div>
+      <div className="mock-panel">
+        <span>准备添加：</span>{" "}
+        <strong>Published application route</strong>
+      </div>
+    </div>
+  </MockWindow>
+
+  失败判断：
+
+  - 打开了别的 Tunnel；
+  - 状态为 Inactive、Down 或没有 connector；
+  - 看不到自己的域名；
+  - 当前账户不具有修改 Tunnel 的权限。
+
+  出现这些情况不要新建第二个同名 Tunnel。先回第 7 章确认账户、zone 和 connector。
+</section>
+
+<section className="book-section" id="book04-ch8-hostname">
+  ## 第二步：填写 Public hostname
+
+  <InstructionStep number={1} title="Subdomain 填 app">
+    `app` 是这一项服务的名字。不要输入完整 URL，也不要包含 `https://`。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="Domain 选择自己的域名">
+    正文使用 `example.com` 示意。实际页面应从已在 Cloudflare 激活的 zone 中选择，不能手写一个不属于当前账户的域名。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="Path 留空">
+    留空表示 `app.example.com` 下的所有路径都交给这个服务。第一版不使用按路径拆分多个应用的高级路由。
+  </InstructionStep>
+
+  最终公开主机名应当组成：
+
+  ```text
+  app + example.com = app.example.com
+  ```
+
+  如果 DNS Records 中已经存在 `app` 的 A、AAAA 或 CNAME 记录，先查明用途。不要靠删除旧记录强行通过冲突提示。
+</section>
+
+<section className="book-section" id="book04-ch8-service">
+  ## 第三步：填写本机 Service
+
+  选择 HTTP，然后填写：
+
+  ```text
+  127.0.0.1:8080
+  ```
+
+  如果控制台使用一个完整 Service URL 输入框，则填写：
+
+  ```text
+  http://127.0.0.1:8080
+  ```
+
+  下面是字段关系仿真，不是 Cloudflare 当前版本截图：
+
+  <TunnelRouteMock
+    hostname="app.example.com"
+    serviceUrl="http://127.0.0.1:8080"
+  />
+
+  <ComparisonTable>
+
+  | 填法 | 判断 | 原因 |
+  | --- | --- | --- |
+  | `http://127.0.0.1:8080` | 正确 | connector 与服务在同一台服务器 |
+  | `https://127.0.0.1:8080` | 错误 | 第三册本机服务没有在 8080 提供 HTTPS |
+  | `http://0.0.0.0:8080` | 错误 | `0.0.0.0` 是监听含义，不是客户端应连接的目标地址 |
+  | `http://公网 IP:8080` | 不使用 | 绕开本机边界，没有必要扩大请求路径 |
+  | `https://app.example.com` | 错误 | 把公开入口再次当作源站，可能形成循环 |
+  | `http://web:80` | 当前主线不使用 | `cloudflared` 运行在主机而不是 Compose 网络内部 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book04-ch8-public-warning">
+  ## 保存前：确认这是一条公开入口
+
+  没有 Cloudflare Access 策略、应用登录或其他鉴权时，任何能访问互联网的人都可能打开 `app.example.com`。
+
+  本书当前公开的是没有密码、令牌、个人数据或管理功能的第三册教学静态页。它适合验证域名、DNS、Tunnel 和 HTTPS，不适合直接替换成数据库管理面板或私人 AI 对话记录。
+
+  <Callout type="danger" title="HTTPS 不等于只有你能访问">
+    HTTPS 保护传输并帮助浏览器确认访问的主机名，但不会自动要求用户登录。页面含敏感信息时，先停止发布；Cloudflare Access 和应用自身鉴权会在安全边界中另行说明。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch8-save">
+  ## 第四步：保存路由
+
+  保存前逐项朗读最终值：
+
+  <ComparisonTable>
+
+  | 字段 | 本书主线值 |
+  | --- | --- |
+  | Tunnel | 第 7 章创建且 connector Healthy 的生产 Tunnel |
+  | Route type | Published application |
+  | Public hostname | `app.example.com` |
+  | Path | 留空 |
+  | Service type | HTTP |
+  | Service URL | `127.0.0.1:8080` |
+
+  </ComparisonTable>
+
+  然后选择 Add route、Save 或当前界面中含义相同的保存操作。
+
+  成功状态不是“按钮消失”，而是：
+
+  - Routes 列表出现 `app.example.com`；
+  - 目标显示为 `http://127.0.0.1:8080`；
+  - Tunnel connector 仍为 Healthy/Connected；
+  - 在 full DNS 设置中，DNS Records 出现指向 Tunnel 的相关记录；
+  - 没有要求开放服务器公网 8080。
+
+  失败判断：
+
+  - hostname already exists：同名 DNS 或路由已经存在；
+  - domain 不在列表：zone 不属于当前账户或尚未 Active；
+  - 保存后 connector 变为 Down：先检查服务器上的 `cloudflared`；
+  - 路由已存在但 DNS 没有记录：核对 zone 类型和控制台提示，不要手写随机 Tunnel UUID。
+</section>
+
+<section className="book-section" id="book04-ch8-dns">
+  ## 第五步：确认 DNS 记录是路由的一部分
+
+  在 Cloudflare 完整 DNS 设置中，从 Tunnel 控制台添加 published application route 时，Cloudflare 会建立把该主机名指向 Tunnel 的 DNS 记录。
+
+  这条记录只说明：
+
+  ```text
+  app.example.com 的流量应该交给这个 Tunnel
+  ```
+
+  它不说明本机服务一定健康。一个 DNS 记录可以存在，而 connector 或容器仍然离线。
+
+  把这里的上线状态拆成三个对象，会更容易判断故障：
+
+  <ComparisonTable>
+
+  | 对象 | 本章建立或确认的关系 | 单独存在时意味着什么 |
+  | --- | --- | --- |
+  | DNS 记录 | `app.example.com` 指向当前 Tunnel 的专用目标 | 浏览器能找到 Cloudflare 中的主机名，但 Tunnel 不一定在运行 |
+  | Published application route | 把 `app.example.com` 映射到 `http://127.0.0.1:8080` | Cloudflare 知道该主机名应交给哪个本机服务 |
+  | Connector | VPS 上的 `cloudflared` 与 Cloudflare 保持连接 | Tunnel 有可用连接，但 DNS、route 和本机服务仍可能配置错误 |
+
+  </ComparisonTable>
+
+  这三个对象不是同一个总开关。Cloudflare 当前官方文档明确说明：DNS 记录与 Tunnel 可以分别存在；如果 Tunnel 停止，DNS 记录不会因此自动删除，访问者可能看到 `1016`。所以“主机名还能解析”不能证明公开入口仍然可用。
+
+  <Callout type="warning" title="不要再额外创建指向 VPS 公网 IP 的同名 A 记录">
+    同一个 `app` 主机名同时存在冲突记录，会让请求路径难以判断。Tunnel 主线不需要把 `app.example.com` 直接指向 VPS 公网 IPv4。
+  </Callout>
+</section>
+
+<section className="book-section" id="book04-ch8-connector-check">
+  ## 第六步：在服务器检查 connector
+
+  返回 VPS 终端：
+
+  <CodeBlock
+    label="检查 cloudflared systemd 服务"
+    code={connectorCheck}
+  />
+
+  成功状态：
+
+  - 第一行返回 `active`；
+  - `ActiveState=active`、`SubState=running`；
+  - `UnitFileState=enabled`；
+  - 没有持续重复的连接失败；
+  - Tunnel 控制台仍能看到健康 connector。
+
+  如果 `systemctl` 显示 `inactive` 或 `failed`，不要修改 DNS 记录。第 11 章会用日志区分 connector 与源站故障。这里使用 `systemctl show`，避免在普通检查中展开可能包含敏感参数的完整服务定义。
+</section>
+
+<section className="book-section" id="book04-ch8-public-check">
+  ## 第七步：做一次外部冒烟检查
+
+  在自己的 Windows 或 macOS 电脑终端中执行，不是在 VPS 的 SSH 会话里执行：
+
+  <CodeBlock
+    label="检查公开 DNS 和 HTTPS"
+    code={finalLayerCheck}
+  />
+
+  注意：`example.com` 是文档示例。实际执行时，把命令中的 `app.example.com` 替换为你自己的公开主机名。不要把替换后的真实命令提交到公开仓库。
+
+  <TerminalMock title="分层验证成功示意">
+    Name:&nbsp;&nbsp;&nbsp;&nbsp;app.example.com<br />
+    Addresses:&nbsp;<span className="term-blue">Cloudflare 返回的代理地址</span><br />
+    ...<br />
+    <span className="term-green">第三册 Compose 教学页内容已通过 HTTPS 返回</span>
+  </TerminalMock>
+
+  `nslookup` 有结果，只证明 DNS 查询得到了回答。第二条 `curl` 成功，才说明公开 HTTPS 请求已经走到预期页面。
+
+  浏览器中再打开 `https://app.example.com`，做第一次快速核对：
+
+  - 地址栏主机名没有拼错；
+  - 浏览器没有证书警告；
+  - 页面内容确实来自第三册教学服务；
+  - URL 不包含 `:8080`；
+  - 刷新页面后结果稳定。
+
+  这一步只证明 route 保存后有一个可用结果。第 9 章会继续核对 Universal SSL 状态、证书覆盖、HTTP 行为、外部与本机内容一致性，并建立完整验证卡。
+</section>
+
+<section className="book-section" id="book04-ch8-failures">
+  ## 常见失败先怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 先判断哪一层 | 不要先做什么 |
+  | --- | --- | --- |
+  | `nslookup` 显示找不到名称 | DNS 记录和 zone | 不要重启 Docker |
+  | 浏览器显示 1033 | Tunnel connector | 不要删除整个 Cloudflare zone |
+  | 浏览器显示 1016 | DNS 仍存在，但目标 Tunnel 或其他源站目标不可用 | 不要先重启 Docker；核对 DNS 目标、Tunnel 与 route 是否仍存在 |
+  | 浏览器显示 502 | connector 到本机源站 | 不要新增公网 8080 规则 |
+  | 本机 `curl` 也失败 | Compose 服务 | 不要反复改 hostname |
+  | 返回了错误网站 | hostname、route 或缓存 | 不要忽略内容差异 |
+  | 浏览器证书警告 | 主机名与证书状态 | 不要点击忽略后继续 |
+
+  </ComparisonTable>
+
+  第 11 章会把这些现象放进一套完整排错顺序。当前只要能确定失败属于哪一层，就不要用其他层的高风险操作碰运气。
+</section>
+
+<section className="book-section" id="book04-ch8-rollback">
+  ## 如果现在不准备公开，怎样回退
+
+  回退目标是“停止这一个公开主机名”，不是删除 Compose 数据、域名或整个 Cloudflare 账户。
+
+  在 Tunnel 的 Routes 列表中找到 `app.example.com`，核对目标确实是 `http://127.0.0.1:8080`，再使用当前控制台提供的删除或禁用该 route 的操作。操作后：
+
+  - 检查 Routes 列表不再包含该主机名；
+  - 检查 DNS Records 是否仍留有对应记录，并根据当前官方提示处理；
+  - 验证外部主机名不再进入该服务；
+  - 验证本机 `curl 127.0.0.1:8080` 仍然成功；
+  - 不执行 `docker compose down -v`；
+  - 不删除域名 zone，也不销毁整个 Tunnel。
+
+  Cloudflare 控制台对 route 删除和 DNS 记录联动的行为可能变化，因此正文不假定 DNS 一定自动删除。每次都以 Records 页面实际状态为证据。
+</section>
+
+<section className="book-section" id="book04-ch8-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book04-chapter-08"
+    items={[
+      "源站在服务器本机通过 http://127.0.0.1:8080 正常响应",
+      "生产 Tunnel 具有健康 connector",
+      "Published application route 使用 app.example.com 和 HTTP 127.0.0.1:8080",
+      "Cloudflare DNS 中存在与 Tunnel 路由对应且无冲突的记录",
+      "外部 DNS 查询有结果，HTTPS 返回预期教学页",
+      "公网 URL 不包含 :8080，云防火墙没有新增全网 8080 入站",
+      "确认当前教学页不含需要登录保护的敏感内容",
+    ]}
+  />
+</section>
