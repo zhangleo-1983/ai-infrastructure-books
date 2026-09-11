@@ -17,9 +17,9 @@ describe("第七册样章", () => {
     expect(book?.print.enabled).toBe(false);
   });
   it("包含三篇样章并保持连续 order", () => {
-    expect(files).toEqual(["00-introduction.mdx", "01-what-is-n8n.mdx", "02-triggers-and-nodes.mdx", "03-plan-self-hosting.mdx", "04-deploy-n8n.mdx", "05-bootstrap-workspace.mdx", "06-build-first-workflow.mdx", "07-transform-and-branch.mdx", "08-credentials-and-http.mdx", "09-webhook-safely.mdx", "10-executions-and-errors.mdx"]);
+    expect(files).toEqual(["00-introduction.mdx", "01-what-is-n8n.mdx", "02-triggers-and-nodes.mdx", "03-plan-self-hosting.mdx", "04-deploy-n8n.mdx", "05-bootstrap-workspace.mdx", "06-build-first-workflow.mdx", "07-transform-and-branch.mdx", "08-credentials-and-http.mdx", "09-webhook-safely.mdx", "10-executions-and-errors.mdx", "11-backup-update-restore.mdx", "12-maintenance-retirement.mdx", "appendix.mdx", "sources.mdx"]);
     const entries = files.map((file) => { const source = readFileSync(resolve(dir, file), "utf8"); return { source, order: Number(value(source, "order")) }; });
-    expect(entries.map(({ order }) => order).sort((a,b) => a-b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(entries.map(({ order }) => order).sort((a,b) => a-b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
     for (const { source } of entries) { expect(value(source, "book")).toBe("07-n8n"); expect(value(source, "draft")).toBe("true"); expect(value(source, "updatedAt")).toBe("2026-09-11"); }
   });
   it("覆盖自动化边界、执行记录与 Webhook 风险", () => {

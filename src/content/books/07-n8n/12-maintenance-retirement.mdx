@@ -1,0 +1,40 @@
+---
+book: "07-n8n"
+order: 12
+slug: "12-maintenance-retirement"
+title: "日常巡检、停用与费用清理"
+shortTitle: "维护与退役"
+description: "建立执行记录、凭证、Webhook、容器和账单的巡检与退役清单。"
+chapterType: "chapter"
+chapterNumber: 12
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+
+<LearningGoals audience="准备长期维护或结束 n8n 练习的读者" duration="约 30 分钟" outcome="能按顺序停用流程、撤销凭证、关闭入口并核对费用" />
+
+<Callout type="warning" title="停用顺序要留下证据">
+  先停止触发和外部入口，再处理凭证、数据与服务器。不要先删除日志，导致无法确认是否还有运行中的任务。
+</Callout>
+
+## 每周只读巡检
+
+查看激活工作流、最近失败执行、Webhook 请求量、凭证最后使用时间、容器健康和磁盘余量。n8n 的安全审计可以帮助发现未使用凭证、危险节点、未保护的 Webhook 和过期版本；审计结果仍需人工判断。
+
+| 顺序 | 检查 | 发现问题时 |
+| ---: | --- | --- |
+| 1 | 激活工作流与触发器 | 停用不再需要的触发器 |
+| 2 | 执行失败与重试 | 保存最早失败记录，避免无限重试 |
+| 3 | Webhook 与访问策略 | 撤销旧 URL、签名和 route |
+| 4 | 凭证与密钥 | 删除不用的凭证，轮换仍在使用的密钥 |
+| 5 | 磁盘、备份与账单 | 清理临时文件，确认备份可读和费用来源 |
+
+## 退役一套练习环境
+
+先停用全部工作流和 Webhook，等待在途执行结束；再撤销第三方凭证和入口策略。导出需要保留的脱敏工作流定义，按清单删除执行数据、数据卷、容器、网络、备份和 VPS。每项记录“删除、保留或不确定”；发现共用域名、Tunnel、数据库或备份时停在识别阶段，不删除共用对象。
+
+<strong>成功状态：</strong>没有入口继续触发，没有凭证继续可用，账单中不再出现本练习对象。<strong>失败判断：</strong>只关闭浏览器或容器，却保留公开 Webhook、云端备份或可用 key。

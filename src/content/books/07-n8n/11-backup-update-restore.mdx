@@ -1,0 +1,42 @@
+---
+book: "07-n8n"
+order: 11
+slug: "11-backup-update-restore"
+title: "备份、更新和同版本恢复"
+shortTitle: "备份与恢复"
+description: "盘点工作流、凭证、加密密钥和执行数据，再用隔离目录验证同版本恢复。"
+chapterType: "chapter"
+chapterNumber: 11
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+
+<LearningGoals audience="已经能稳定运行练习流程、准备维护 n8n 的读者" duration="约 45 分钟；不含跨版本迁移" outcome="知道备份哪些对象，能在隔离环境读回工作流并明确恢复边界" />
+
+<Callout type="danger" title="工作流 JSON 不是整机备份">
+  工作流定义通常不包含可解密凭证、数据库状态、二进制数据和执行历史。恢复前必须同时确认数据目录、数据库、加密密钥和版本。
+</Callout>
+
+## 先停写再备份
+
+停用练习工作流，确认没有运行中的执行，再记录 n8n 版本、镜像摘要、Compose 文件和环境变量文件的权限。复制前计算清单和 SHA-256；哈希只证明复制一致，不证明内容完整或能成功解密。
+
+| 对象 | 为什么需要 | 恢复时怎么核对 |
+| --- | --- | --- |
+| 工作流定义 | 恢复节点、连线和激活状态 | 导入后比较名称、节点数和版本 |
+| 数据库 / 数据卷 | 用户、设置和执行记录 | 只在隔离项目挂载 |
+| 加密密钥 | 解密凭证 | 与备份来源分开核对，不能重新生成 |
+| 二进制目录 | 文件型节点可能产生的文件 | 逐项哈希，限制权限 |
+| Compose 与版本 | 重建相同运行环境 | 固定镜像摘要，禁止自动拉新 |
+
+## 同版本隔离恢复
+
+恢复项目必须使用新目录、新项目名、新网络和新卷，主项目保持停止；不复用原卷，也不把恢复入口公开。先验证配置，再启动恢复服务。登录成功只证明账户数据可读，不证明所有凭证都能解密或第三方 API 仍可用。
+
+跨版本升级、跨架构迁移、密钥轮换和 VPS 丢失属于不同演练，不能用一次同版本恢复代替。恢复完成后停掉恢复项目，回到原项目，确认没有双活写入，再删除临时副本。
+
+<strong>成功状态：</strong>隔离恢复能读到工作流、用户和必要数据，原项目没有被覆盖。<strong>失败判断：</strong>只导入 JSON、复用生产卷，或把“页面能登录”写成完整灾难恢复成功。
