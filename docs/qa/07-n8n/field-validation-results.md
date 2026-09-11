@@ -20,8 +20,8 @@
 | 步骤 | 状态 | 实际结果/证据 | 费用 | 恢复/遗留 |
 | --- | --- | --- | --- | --- |
 | G1.1 账户、报价、域名与 Tunnel 基线 | 通过（部分） | 2026-09-11；G1.1-R01—R04 | Vultr 账户会话有效，余额/待结算/带宽、东京候选报价、Cloudflare 无 connector、单条既有 CNAME、NS 与 DNSSEC 成功状态均已记录；教学子域尚待选择，部署参数尚待锁定 | 暂不创建资源 |
-| G1.2 创建 VPS、核主机指纹与 SSH | 进行中 | 2026-09-11；Vultr 实例 ID `8e3632a3-dca1-4914-9801-791091c11945`；东京；公网 IPv4 `202.182.125.158`；Debian 13；1 vCPU/2 GB/50 GB NVMe；root；SSH key `book06-dify-lab`；防火墙 `book01-ssh-validation`；状态已启动；Current Charges `$0.03` | noVNC 已到 root 登录提示；本机未找到对应私钥，待 Owner 在控制台输入 Vultr 生成密码或补充私钥后继续 |
-| G1.3 安装 Docker/Compose、核入站与存储 | 未执行 | — | 待核对 | — |
+| G1.2 创建 VPS、核主机指纹与 SSH | 通过 | 2026-09-11；Vultr 实例 ID `8e3632a3-dca1-4914-9801-791091c11945`；东京；公网 IPv4 `202.182.125.158`；Debian 13；1 vCPU/2 GB/50 GB NVMe；root；SSH key `book06-dify-lab`；防火墙 `book01-ssh-validation`；状态已启动；noVNC root 登录成功；内核 `6.12.107+deb13-amd64` | 控制台登录已完成；保留实例继续 G1.3 |
+| G1.3 安装 Docker/Compose、核入站与存储 | 通过（基础项） | `apt-get update` 完成；Docker `26.1.5+dfsg1-9+deb13u1`；Docker Compose `2.26.1-4`；`systemctl is-active docker` 为 `active`；根盘 `/dev/vda2` 47G、已用 7.5G、可用 37G（17%） | Debian 仓库安装；AF_VSOCK systemd 提示不影响服务；n8n Compose 尚未部署 |
 | G1.4 创建无 route connector（如适用） | 未执行 | — | 待核对 | — |
 
 ## 费用与请求账
