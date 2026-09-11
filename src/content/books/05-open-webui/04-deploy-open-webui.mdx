@@ -1,0 +1,268 @@
+---
+book: "05-open-webui"
+order: 4
+slug: "04-deploy-open-webui"
+title: "用 Docker Compose 启动 Open WebUI"
+shortTitle: "部署 Open WebUI"
+description: "建立固定 v0.11.3 的最小 Compose 项目，把数据挂载到 named volume，只监听 127.0.0.1:3000，并验证健康、端口与回退边界。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 4
+duration: "预计 35—55 分钟"
+labels:
+  - "Docker Compose"
+  - "v0.11.3"
+  - "回环监听"
+completionId: "book05-chapter-04"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const createProject = `install -d -m 700 "$HOME/docker-labs/open-webui"
+cd "$HOME/docker-labs/open-webui"
+pwd`;
+
+export const createSecret = `umask 077
+printf '%s\n' 'OPEN_WEBUI_VERSION=v0.11.3' > .env
+printf 'WEBUI_SECRET_KEY=' >> .env
+openssl rand -hex 32 >> .env
+chmod 600 .env
+stat -c '%a %n' .env`;
+
+export const composeYaml = `name: book05-open-webui
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:\${OPEN_WEBUI_VERSION}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:8080"
+    environment:
+      WEBUI_AUTH: "True"
+      WEBUI_SECRET_KEY: "\${WEBUI_SECRET_KEY}"
+    volumes:
+      - open-webui-data:/app/backend/data
+
+volumes:
+  open-webui-data:
+    name: book05-open-webui-data`;
+
+export const validateCompose = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose images`;
+
+export const startCompose = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose pull
+sudo docker compose up -d
+sudo docker compose ps`;
+
+export const localHealth = `curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo ss -lntp 'sport = :3000'
+sudo docker volume inspect book05-open-webui-data --format '{{.Name}} {{.Mountpoint}}'
+sudo docker compose images`;
+
+export const appLogs = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose logs --tail=80 --timestamps open-webui`;
+
+export const externalPortProbe = `read -rp "VPS 公网 IPv4：" VPS_IPV4
+curl --connect-timeout 5 --max-time 8 --show-error "http://\${VPS_IPV4}:3000/health"`;
+
+export const safeRollback = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose down
+sudo docker volume inspect book05-open-webui-data --format '{{.Name}}'`;
+
+<LearningGoals
+  audience="已经完成部署规划，第一次准备启动 Open WebUI 容器的读者"
+  duration="预计 35—55 分钟"
+  outcome="得到固定 v0.11.3、认证启用、数据持久化且只监听 127.0.0.1:3000 的运行基线；失败时保留 volume 并读取证据"
+/>
+
+<section className="book-section" id="book05-ch4-boundary">
+  ## 本章会改变 VPS，但不会公开服务
+
+  按本章实际执行会拉取镜像、创建容器、network 和 named volume，因此会消耗 VPS 磁盘、内存与网络流量。
+  它不会创建 Cloudflare route，不会开放公网 3000，也不会连接模型或产生模型调用费用。
+
+  <Callout type="warning" title="本文件仍是 draft；G2 主线已于 2026-09-10 实机通过">
+    Ubuntu 24.04 amd64 上的固定 Open WebUI v0.11.3 已验证为 healthy，回环端口、named volume、Secret
+    持久与公网 3000 关闭均符合本章主线。本次 2 GB RAM、55 GB SSD 环境中，镜像本地显示约 6.65 GB，
+    拉取后根分区可用空间约从 40 GB 降至 32 GB，healthy 时内存快照约 823 MiB。这只是一次现场样本，
+    不应当作所有版本的固定值；拉取前仍要检查并预留磁盘与内存余量。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch4-project">
+  ## 第一步：创建权限受限的项目目录
+
+  <CodeBlock label="建立并进入第五册 Compose 目录" code={createProject} />
+
+  `install -d -m 700` 会创建目录，并只允许当前用户读取、写入和进入。成功状态：`pwd` 最后一段是
+  `/docker-labs/open-webui`。失败判断：目录属于错误用户、文件系统只读或磁盘已满。
+</section>
+
+<section className="book-section" id="book05-ch4-secret">
+  ## 第二步：生成版本与登录 Secret
+
+  执行：
+
+  <CodeBlock label="生成权限为 600 的 .env" code={createSecret} />
+
+  命令把固定版本写入 `.env`，再生成 32 字节十六进制随机 `WEBUI_SECRET_KEY`。随机值不会显示在终端；
+  `umask 077` 与 `chmod 600` 限制其他本机用户读取。
+
+  成功状态：最后只显示 `600 .env`。不要运行 `cat .env`，也不要把 `.env` 加入 Git、日志、截图或交接卡。
+
+  <Callout type="danger" title="Secret 不是管理员密码">
+    Secret 用于签署登录 token；管理员密码由第 5 章在浏览器中创建。两者都要保护，但不能互换。改变 Secret 会让现有会话失效，因此更新时必须保留原值。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch4-compose">
+  ## 第三步：写入最小 Compose 文件
+
+  在项目目录执行 `nano compose.yaml`，写入：
+
+  <CodeBlock label="compose.yaml" code={composeYaml} />
+
+  <ComparisonTable>
+
+  | 配置 | 做什么 | 成功状态 | 错误边界 |
+  | --- | --- | --- | --- |
+  | `name` | 固定 Compose project | 对象归属为 `book05-open-webui` | 不与其他项目重名 |
+  | `image` | 从 `.env` 读取 `v0.11.3` | 不出现 `main/latest/dev` | 变量为空时停止 |
+  | `restart` | daemon 或 VPS 重启后恢复应用 | `unless-stopped` | 不替代健康检查 |
+  | `ports` | 主机 3000 转到容器 8080 | 只绑定 `127.0.0.1` | 不能改为 `3000:8080` |
+  | `WEBUI_AUTH` | 保持多用户认证 | 值为 `True` | 不得用 `False` 绕过登录 |
+  | volume | 保存 `/app/backend/data` | named volume 名字固定 | 不改成临时匿名 volume |
+
+  </ComparisonTable>
+
+  文件没有模型 API key、管理员密码或 Tunnel token。模型连接必须在第 6 章通过受控管理员界面添加。
+</section>
+
+<section className="book-section" id="book05-ch4-validate">
+  ## 第四步：先只验证配置
+
+  <CodeBlock label="检查 Compose 语法，不展开秘密" code={validateCompose} />
+
+  `docker compose config -q` 只检查解析结果，不打印展开后的配置，因此不会把 Secret 输出到屏幕或日志。
+  成功状态：第一条命令无输出并返回提示符。`compose images` 在尚未拉取时可以为空。
+
+  如果 YAML 行号或变量错误，修正 `compose.yaml` 或 `.env` 后重新运行。不要使用会打印完整展开配置的
+  `docker compose config` 作为截图证据，因为环境值可能被展开。
+</section>
+
+<section className="book-section" id="book05-ch4-start">
+  ## 第五步：拉取固定镜像并启动
+
+  <CodeBlock label="拉取 v0.11.3 并启动服务" code={startCompose} />
+
+  `pull` 只取得固定镜像，`up -d` 在后台创建服务。第一次启动会初始化数据库和数据目录，耗时受 VPS、
+  registry 与磁盘速度影响。
+
+  <MockWindow title="Compose 启动结果仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>Project</strong> book05-open-webui</div>
+      <div className="mock-panel"><strong>Service</strong> open-webui</div>
+      <div className="mock-panel"><strong>Status</strong> <MockStatusBadge tone="success">Running / healthy</MockStatusBadge></div>
+      <div className="mock-panel"><strong>Ports</strong> <code>127.0.0.1:3000-&gt;8080/tcp</code></div>
+    </div>
+  </MockWindow>
+
+  成功状态：`ps` 显示 service 为 Up/Running，并最终进入 healthy。失败判断：Exited、Restarting、unhealthy、
+  端口占用、镜像拉取失败或 volume 权限错误。
+</section>
+
+<section className="book-section" id="book05-ch4-health">
+  ## 第六步：从 VPS 本机验证四层状态
+
+  <CodeBlock label="验证 health、监听、volume 和镜像" code={localHealth} />
+
+  成功状态应同时满足：
+
+  - `/health` 返回包含成功状态的应用响应；
+  - `ss` 只显示 `127.0.0.1:3000`，不显示 `0.0.0.0:3000` 或 `[::]:3000`；
+  - named volume 名称为 `book05-open-webui-data`；
+  - `compose images` 显示 `ghcr.io/open-webui/open-webui` 与固定版本，而非滚动标签；
+  - 云防火墙与主机防火墙没有新增 3000 入站规则。
+
+  <TerminalMock title="本机健康基线示意">
+    <span className="term-green">health: true</span><br />
+    LISTEN&nbsp;0&nbsp;4096&nbsp;<span className="term-green">127.0.0.1:3000</span>&nbsp;0.0.0.0:*<br />
+    volume&nbsp;<span className="term-green">book05-open-webui-data</span><br />
+    image&nbsp;<span className="term-green">v0.11.3</span>
+  </TerminalMock>
+
+  `health` 通过不代表管理员和模型已经可用；它只证明应用进程能在本机响应。
+</section>
+
+<section className="book-section" id="book05-ch4-external">
+  ## 第七步：从 VPS 之外确认公网 3000 不可达
+
+  在自己的电脑终端执行，不是在 VPS SSH 会话中执行：
+
+  <CodeBlock label="验证公网 3000 没有开放" code={externalPortProbe} />
+
+  `read` 让真实 IP 只进入当前 shell 变量，不写入书稿。**本书的成功状态是请求连接失败或超时**；
+  如果返回 Open WebUI health，说明公网边界错误，必须立即停止并检查 Compose 端口绑定、云防火墙和主机防火墙。
+
+  不要把真实 IP 或探测输出提交到仓库。只记录“公网 3000 不可达 + 检查时间 + 检查网络”。
+</section>
+
+<section className="book-section" id="book05-ch4-failure">
+  ## 启动失败时先读证据
+
+  <CodeBlock label="读取最近 80 行应用日志" code={appLogs} />
+
+  只对照当前启动时间寻找镜像架构、数据库迁移、磁盘、权限、Secret、端口和内存错误。日志分享前删除邮箱、
+  Cookie、Authorization、真实域名、IP、聊天正文和可能出现的凭证。
+
+  <ComparisonTable>
+
+  | 现象 | 先查 | 不要做 |
+  | --- | --- | --- |
+  | `pull` 失败 | DNS、registry、磁盘与固定标签是否存在 | 改用 `main` 规避版本问题 |
+  | 端口已占用 | `ss` 与既有容器归属 | 杀死未知进程或开放另一个公网端口 |
+  | 容器反复重启 | 最近日志、磁盘、内存与权限 | 删除 volume 重来 |
+  | `/health` 拒绝连接 | `compose ps`、监听与日志 | 先创建 Tunnel route |
+  | 公网 3000 可达 | Compose 与两层防火墙 | 把暴露误认为成功 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch4-rollback">
+  ## 安全回退：停止应用，保留数据
+
+  如果本章无法形成健康、回环监听的基线，执行：
+
+  <CodeBlock label="停止 Compose 项目并确认 volume 仍在" code={safeRollback} />
+
+  成功状态：容器和 project network 被移除，最后仍返回 `book05-open-webui-data`。修正问题后再次运行
+  `docker compose up -d` 可以复用原数据。
+
+  <Callout type="danger" title="不要运行 docker compose down -v">
+    `-v` 会删除 Compose 管理的 volume。删除 volume、镜像、项目目录或 VPS 都不是普通排错动作，必须在独立备份通过并精确确认目标后另行授权。
+  </Callout>
+</section>
+
+<ChapterChecklist
+  chapterId="book05-chapter-04"
+  items={[
+    "项目目录权限为 700，.env 权限为 600，真实 Secret 没有显示或进入仓库。",
+    "Compose 固定使用 ghcr.io/open-webui/open-webui:v0.11.3。",
+    "WEBUI_AUTH 保持 True，模型 key 与管理员密码没有写入 Compose。",
+    "主机端口只绑定 127.0.0.1:3000，容器内部使用 8080。",
+    "容器为 Running/healthy，本机 /health 返回成功。",
+    "named volume 挂载到 /app/backend/data，公网 3000 从外部不可达。",
+    "失败时我只读取脱敏证据或运行 docker compose down，不使用 down -v。",
+  ]}
+/>

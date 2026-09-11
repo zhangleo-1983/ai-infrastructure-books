@@ -1,0 +1,211 @@
+---
+interface Props {
+  labelId?: string;
+}
+
+const { labelId = "open-webui-path-title" } = Astro.props;
+---
+
+<figure class="path-map" aria-labelledby={labelId}>
+  <figcaption id={labelId}>
+    <span>Open WebUI 的两条请求路径</span>
+    <small>先判断哪条路径失败，再决定检查哪一层</small>
+  </figcaption>
+
+  <div class="path-map__lane path-map__lane--browser">
+    <div class="path-map__label">
+      <strong>路径 A</strong>
+      <span>打开页面</span>
+    </div>
+    <ol>
+      <li><strong>浏览器</strong><small>电脑或手机</small></li>
+      <li><strong>Cloudflare</strong><small>DNS 与 HTTPS</small></li>
+      <li><strong>Tunnel</strong><small>connector 与 route</small></li>
+      <li><strong>Open WebUI</strong><small>127.0.0.1:3000</small></li>
+    </ol>
+  </div>
+
+  <div class="path-map__lane path-map__lane--model">
+    <div class="path-map__label">
+      <strong>路径 B</strong>
+      <span>生成回答</span>
+    </div>
+    <ol>
+      <li><strong>Open WebUI</strong><small>后端发起请求</small></li>
+      <li><strong>API endpoint</strong><small>验证 API key</small></li>
+      <li><strong>模型</strong><small>按模型 ID 生成</small></li>
+      <li><strong>流式回复</strong><small>返回浏览器</small></li>
+    </ol>
+  </div>
+</figure>
+
+<style>
+  .path-map {
+    max-width: 100%;
+    overflow: hidden;
+    margin: 0;
+    border: var(--border-thin);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+  }
+
+  figcaption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border-bottom: var(--border-thin);
+    background: var(--color-surface-muted);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  figcaption span {
+    font-weight: 800;
+  }
+
+  figcaption small {
+    color: var(--color-text-muted);
+  }
+
+  .path-map__lane {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: stretch;
+    padding: var(--space-5);
+  }
+
+  .path-map__lane + .path-map__lane {
+    border-top: var(--border-thin);
+  }
+
+  .path-map__label {
+    display: grid;
+    align-content: center;
+    border-left: 0.25rem solid var(--color-primary);
+    padding-left: var(--space-3);
+  }
+
+  .path-map__label span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  .path-map__lane--model .path-map__label {
+    border-left-color: var(--color-success);
+  }
+
+  ol {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(4, minmax(7.5rem, 1fr));
+    gap: var(--space-6);
+    overflow-x: auto;
+    margin: 0;
+    padding: 0.1rem;
+    list-style: none;
+  }
+
+  li {
+    position: relative;
+    min-width: 0;
+    border-bottom: 0.125rem solid var(--color-primary);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .path-map__lane--model li {
+    border-bottom-color: var(--color-success);
+  }
+
+  li:not(:last-child)::after {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + var(--space-2));
+    content: "→";
+    color: var(--color-text-muted);
+    transform: translateY(-50%);
+  }
+
+  li strong,
+  li small {
+    display: block;
+  }
+
+  li small {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+
+  @media (max-width: 48rem) {
+    figcaption {
+      display: block;
+    }
+
+    figcaption small {
+      display: block;
+      margin-top: var(--space-1);
+    }
+
+    .path-map__lane {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-3);
+      padding: var(--space-4);
+    }
+
+    .path-map__label {
+      min-height: 3rem;
+    }
+
+    ol {
+      grid-template-columns: repeat(4, minmax(8.5rem, 1fr));
+    }
+  }
+
+  @media print {
+    .path-map {
+      border-color: #aaaaaa;
+      background: white;
+      box-shadow: none;
+      break-inside: avoid;
+    }
+
+    figcaption {
+      border-color: #bbbbbb;
+      background: white;
+      padding: 3mm;
+    }
+
+    .path-map__lane {
+      grid-template-columns: 22mm 1fr;
+      gap: 3mm;
+      padding: 3mm;
+    }
+
+    .path-map__lane + .path-map__lane {
+      border-color: #bbbbbb;
+    }
+
+    .path-map__label,
+    .path-map__lane--model .path-map__label {
+      border-left-color: #444444;
+    }
+
+    ol {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5mm;
+      overflow: visible;
+    }
+
+    li,
+    .path-map__lane--model li {
+      border-bottom-color: #777777;
+      padding: 2mm;
+    }
+
+    li:not(:last-child)::after {
+      left: calc(100% + 1.5mm);
+    }
+  }
+</style>

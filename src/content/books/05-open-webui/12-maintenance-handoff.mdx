@@ -1,0 +1,350 @@
+---
+book: "05-open-webui"
+order: 12
+slug: "12-maintenance-handoff"
+title: "巡检、撤销、下线与下一册交接"
+shortTitle: "维护与交接"
+description: "建立不含秘密的维护基线、费用与凭证台账，区分临时下线和永久退役，并把 Open WebUI 的版本、数据、入口、模型和恢复责任交接清楚。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 12
+duration: "预计 40—60 分钟，凭证轮换、外部备份和永久退役另需独立窗口"
+labels:
+  - "维护基线"
+  - "费用与凭证"
+  - "可撤销交接"
+completionId: "book05-chapter-12"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+export const maintenanceBaseline = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo ss -lntp 'sport = :3000'
+sudo docker volume inspect book05-open-webui-data --format '{{.Name}} {{.Driver}}'
+sudo systemctl is-enabled cloudflared
+sudo systemctl is-active cloudflared`;
+
+export const publicBaseline = `nslookup chat.example.com
+curl --head --show-error --connect-timeout 10 https://chat.example.com`;
+
+export const evidenceSnapshot = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose images
+sudo docker compose ps
+sudo docker compose logs --since=15m --tail=100 --timestamps open-webui \
+  | sed -E 's/(Authorization: Bearer|api[_-]?key|token|cookie)[=: ]+[^ ]+/\\1=<REDACTED>/Ig'
+df -h /
+stat -c '%a %n' .env`;
+
+export const maintenanceStop = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose stop open-webui
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health || \
+  echo '符合预期：维护窗口中本机健康检查不可用。'`;
+
+export const maintenanceResume = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose start open-webui
+curl --fail --retry 24 --retry-delay 5 --retry-all-errors \
+  http://127.0.0.1:3000/health
+sudo docker compose ps
+sudo systemctl is-active cloudflared`;
+
+export const handoffSecretScan = `BOOK05_HANDOFF_FILE="$HOME/book05-open-webui-handoff.md"
+test -f "$BOOK05_HANDOFF_FILE"
+if grep -Ein \
+  '(-----BEGIN .*PRIVATE[[:space:]]KEY-----|Authorization: Bearer|api[_-]?key[=:]|secret[=:]|token[=:]|cookie[=:]|password[=:]|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})' \
+  "$BOOK05_HANDOFF_FILE"; then
+  echo '停止：交接文件出现疑似秘密或资源 ID。'
+  exit 1
+fi
+echo '未发现本规则覆盖的疑似秘密；仍需人工逐行复核。'`;
+
+<LearningGoals
+  audience="已经完成公开访问、一次真实对话、备份与更新验证，准备让服务长期运行或交给其他维护者的 Owner"
+  duration="预计 40—60 分钟，凭证轮换、外部备份和永久退役另需独立窗口"
+  outcome="得到已知正常基线、巡检节奏、费用与凭证责任表、临时下线方案和不含秘密的交接卡，并能说清永久退役的独立确认顺序"
+/>
+
+<section className="book-section" id="book05-ch12-purpose">
+  ## 能聊天只证明“今天可用”
+
+  一个几个月后仍能维护的 AI 对话入口，还必须回答这些问题：
+
+  - 哪个固定版本正在运行，谁决定下一次更新；
+  - Open WebUI 数据、备份与 `WEBUI_SECRET_KEY` 分别在哪里，由谁保管；
+  - 公开 hostname、Cloudflare Tunnel 和 connector 是否还服务其他应用；
+  - 模型提供方 key、余额、限额和数据政策由谁复核；
+  - 出现费用异常时，先停模型连接还是先停整个网站；
+  - 临时维护与永久退役分别会影响哪些用户和数据；
+  - 新维护者不读取任何秘密，能否先理解系统并完成只读检查。
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>已知正常基线</strong><small>版本、端口、健康与公开路径</small></div>
+    <div className="flow-node"><strong>巡检与费用</strong><small>异常在变成事故前被发现</small></div>
+    <div className="flow-node"><strong>凭证与备份</strong><small>可轮换、可恢复、责任明确</small></div>
+    <div className="flow-node"><strong>临时下线</strong><small>可恢复且不删除数据</small></div>
+    <div className="flow-node"><strong>永久退役</strong><small>逐对象确认并停止费用</small></div>
+    <div className="flow-node"><strong>无秘密交接</strong><small>事实与凭证分开传递</small></div>
+  </FlowDiagram>
+
+  <Callout type="warning" title="本章不会替你执行永久清理">
+    删除 route、撤销模型 key、删除生产 volume、清除唯一备份或销毁 VPS 都是外部或不可逆操作。它们需要精确目标、影响说明、恢复证据和当次单独确认；阅读到本章末尾不构成删除授权。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch12-known-good">
+  ## 第一步：保存一份“已知正常”基线
+
+  在没有故障、没有更新、没有用户写入的普通时段执行只读检查。先在 VPS 上检查应用与 connector：
+
+  <CodeBlock label="VPS 上的应用与 connector 基线" code={maintenanceBaseline} />
+
+  再从维护电脑检查公开入口：
+
+  <CodeBlock label="维护电脑上的 DNS 与 HTTPS 基线" code={publicBaseline} />
+
+  成功状态应同时满足：
+
+  - Compose 配置可解析，Open WebUI 为 running / healthy；
+  - `/health` 从 `127.0.0.1:3000` 返回成功；
+  - `ss` 只显示回环监听，不出现 `0.0.0.0:3000` 或 `[::]:3000`；
+  - 数据 volume 精确为 `book05-open-webui-data`；
+  - `cloudflared` 为 enabled 且 active；
+  - `https://chat.example.com` 可解析并返回预期 HTTPS 响应；
+  - Owner 能登录、看到预期模型，并完成第 8 章固定低敏感问题；
+  - 提供方用量出现可解释变化，不存在持续未知增长。
+
+  <ComparisonTable>
+
+  | 记录项 | 可以进入交接卡 | 不能进入交接卡 |
+  | --- | --- | --- |
+  | 应用 | 固定版本、服务名、回环端口、最近验证日期 | 完整 `.env` 内容 |
+  | 数据 | volume 名、备份日期、hash、保管位置指针 | 数据库、聊天正文或附件副本 |
+  | 公开入口 | 占位 hostname、route 用途、Tunnel 归属说明 | zone ID、Tunnel UUID 或 token |
+  | 模型 | 提供方名称、连接用途、模型 ID、费用负责人 | API key、Authorization header |
+  | 账户 | 角色数量、Owner 和恢复责任 | 密码、Cookie、JWT、真实邮箱清单 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch12-cadence">
+  ## 第二步：把巡检分成四种节奏
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item"><p className="info-grid__title">每月</p><p>应用健康、公开登录、磁盘余量、备份新鲜度、模型用量和三类持续费用。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">每季度</p><p>用户与角色、模型 allowlist、凭证责任、恢复演练、域名续费和数据保留政策。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">每次变更前后</p><p>固定版本、备份、回退点、端口、route、登录、流式回答与实际用量。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">事故发生时</p><p>先保存时间、现象与脱敏日志，沿第 11 章两条路径定位，不把巡检变成随机修复。</p></section>
+  </InfoGrid>
+
+  <CodeBlock label="故障或变更前保存脱敏证据" code={evidenceSnapshot} />
+
+  这条命令只能遮盖少数常见格式，不能证明日志没有姓名、聊天正文、邮箱或提供方返回内容。分享前仍须人工逐行检查；无法确认时不要把日志带出受控主机。
+
+  <ComparisonTable>
+
+  | 观察项 | 正常基线 | 必须停止并调查 |
+  | --- | --- | --- |
+  | 磁盘 | 能容纳运行数据、下一镜像和一次恢复检查 | 持续增长、inode 异常或接近满盘 |
+  | 应用 | 版本已固定，健康检查稳定 | 未经计划自动变版或反复重启 |
+  | 用户 | 只有已批准身份，signup 关闭 | 陌生 admin / user 或未知注册恢复 |
+  | 模型 | allowlist、余额和请求量可解释 | 未知模型、费用突增、连续 401/429 |
+  | 备份 | 最近归档有 hash，独立位置可读 | 唯一副本只在待销毁 VPS 或从未恢复 |
+  | Tunnel | connector 健康，route 归属明确 | 共用 Tunnel 的影响对象不明 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch12-costs">
+  ## 第三步：用四本账，而不是只看 VPS 月费
+
+  <ComparisonTable>
+
+  | 账单 | 常见计费方式 | 每月记录 | 停止费用前要确认 |
+  | --- | --- | --- | --- |
+  | VPS | 按小时或按月 | 实例套餐、磁盘、流量、税费 | 同机是否还运行第三、四或第六册服务 |
+  | 域名 | 按年续费 | 到期日、自动续费、账单 Owner | 域名是否承载其他 hostname、邮箱或业务 |
+  | 模型提供方 | token、请求、套餐或余额 | 预算、告警、实际用量、异常请求 | 停止连接不一定自动取消套餐或余额充值 |
+  | 备份与快照 | 容量、请求、快照或额外实例 | 保留期、大小、独立位置、恢复日期 | 删除生产不等于应立即删除唯一恢复点 |
+
+  </ComparisonTable>
+
+  截至 2026-09-10，Cloudflare 官方把 Tunnel 列为所有方案可用，并说明发布公开应用不需要购买 Access。
+  这只能证明本书这条 Tunnel / published application 路径不要求单独购买 Access，不能证明整个 Cloudflare
+  账户零费用：zone 套餐、Workers、R2、Argo、备份或其他附加产品仍有各自账单。每个 RC 和每次计划变更
+  都要重新查看账户中的当前方案、已启用产品和账单页。
+
+  <Callout type="danger" title="先停费用增长，再查根因">
+    如果模型用量无法解释，先在 Open WebUI 中禁用对应模型连接或在提供方侧按既定应急流程撤销专用 key，并通知用户暂停发送。不要为了保留聊天页面而让未知按量费用继续增长。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch12-credentials">
+  ## 第四步：凭证轮换不是“把所有 Secret 一起换掉”
+
+  每一种凭证影响不同。轮换时一次只处理一种，并准备独立验证与回退：
+
+  <ComparisonTable>
+
+  | 凭证 | 作用 | 建议轮换方式 | 关键风险 |
+  | --- | --- | --- | --- |
+  | 管理员密码 | 登录 Open WebUI | 在受控浏览器修改，重新登录验证，再结束旧会话 | 忘记恢复路径会锁死管理入口 |
+  | 模型提供方 key | Open WebUI 调用远程模型 | 新建独立低权限 key、更新连接、做固定测试，再撤销旧 key | 先撤销会中断；双 key 并行可能产生误用 |
+  | `WEBUI_SECRET_KEY` | 签名登录 token，并参与部分加密数据 | 只在泄露、所有权变更或官方要求时用维护窗口处理 | 改变会使会话失效，并可能要求重新输入加密配置 |
+  | Tunnel token | 运行指定 Tunnel connector | 按 Cloudflare 当前官方轮换流程，核对同 Tunnel 所有 connector | 共用 Tunnel 时会影响其他 route |
+  | SSH key 与账户恢复 | 管理 VPS、Cloudflare 和模型账户 | 新凭证验证成功后再撤销旧凭证 | 误删唯一 Owner 或恢复因素 |
+
+  </ComparisonTable>
+
+  本书模型连接使用的是“模型提供方 key”。Open WebUI 自己也可以签发供脚本调用应用 API 的凭证，下文称为
+  Open WebUI API key；第一版没有启用这种能力。当前官方行为是一名用户只有一把应用 API key，新建会立即
+  替换旧 key，而且 key 继承该用户的角色与群组权限、不会自动到期。全局 endpoint 限制也不是每把 key 的
+  独立权限清单，因此不能把它与模型提供方 key 混为一谈。
+
+  <InstructionStep number={1} title="写明轮换对象与影响">
+    记录凭证用途、Owner、消费者、撤销入口和失败时回退，不记录凭证值。
+  </InstructionStep>
+  <InstructionStep number={2} title="先建立并验证新路径">
+    如果模型提供方支持两把 key 短时并存，新凭证只进入受控设置或秘密存储；用第 8 章固定低敏感问题验证一次，
+    不开启批量调用。如果提供方每个账户只能保留一把 key，不能套用“先建后删”，应安排会中断调用的独立维护窗口。
+  </InstructionStep>
+  <InstructionStep number={3} title="观察费用与错误">
+    核对新请求成功、旧路径没有继续产生未知用量，日志中没有凭证。
+  </InstructionStep>
+  <InstructionStep number={4} title="单独确认后撤销旧凭证">
+    撤销是外部状态变化；先确认没有其他消费者，再在提供方或账户控制台操作。
+  </InstructionStep>
+</section>
+
+<section className="book-section" id="book05-ch12-temporary-offline">
+  ## 第五步：临时下线要选择最小影响层
+
+  <ComparisonTable>
+
+  | 目标 | 最小动作 | 用户现象 | 保留什么 |
+  | --- | --- | --- | --- |
+  | 只阻止模型费用 | 禁用模型连接或撤销专用 key | 可以登录，但目标模型不可用 | 页面、账户、聊天、route |
+  | 只停止公开入口 | 删除或禁用 `chat` published route | 公网 hostname 不可用 | 本机应用、数据、模型设置、共用 connector |
+  | 进行应用维护 | 停止 `open-webui` 服务 | 公开入口可能返回 502 | volume、Compose、route、connector |
+  | 停整个 connector | 停止 `cloudflared` | 同 Tunnel 上所有 route 都可能失败 | 应用与 volume，但影响范围最大 |
+
+  </ComparisonTable>
+
+  如果只是维护 Open WebUI，不要停止共用 connector。先通知维护窗口，然后在 VPS 上停止应用：
+
+  <CodeBlock label="临时停止应用，不删除容器或数据" code={maintenanceStop} />
+
+  恢复时执行：
+
+  <CodeBlock label="恢复应用并检查本机健康" code={maintenanceResume} />
+
+  随后还要从维护电脑检查 HTTPS、登录、模型和一次固定低敏感问题。`start` 成功只证明进程恢复，不证明公开路径与模型路径完整。
+
+  <Callout type="warning" title="停止不是删除">
+    `docker compose stop` 保留容器和 volume；`docker compose down` 会移除项目容器和网络；`docker compose down -v` 还会请求删除项目 volume。本章的临时维护只使用 `stop` / `start`，不能把它替换成带 `-v` 的命令。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch12-retirement">
+  ## 第六步：永久退役按依赖逆序，逐个过闸门
+
+  永久退役不是一条 Shell 命令。建议按下列顺序为每个对象分别确认：
+
+  <ol className="book-steps">
+    <li><strong>冻结变更并通知用户：</strong>确认最后写入时间、导出需求、保留政策和费用截止目标。</li>
+    <li><strong>验证最终备份：</strong>记录归档 hash，并在独立测试 volume 完成同版本恢复；唯一副本不能只留在待销毁 VPS。</li>
+    <li><strong>先撤销公开 route：</strong>只处理 `chat.example.com` 对应 route 与自动 DNS，核对共用 Tunnel 和其他 hostname 不受影响。</li>
+    <li><strong>停止模型费用路径：</strong>禁用 Open WebUI 连接，确认没有其他消费者后撤销专用模型 key，并检查套餐或自动充值是否还会继续。</li>
+    <li><strong>停止 Open WebUI：</strong>先停止应用，再确认本机端口与公开访问都不可用；不要删除 volume。</li>
+    <li><strong>删除应用对象：</strong>精确区分容器、Compose 网络、应用 volume、测试 volume 和备份；每个持久对象都要列名确认。</li>
+    <li><strong>处理共享基础设施：</strong>只有证明 VPS、Tunnel、connector、域名和备份位置没有其他用途，才分别决定是否保留或销毁。</li>
+    <li><strong>核对账单与残留：</strong>检查实例、磁盘、快照、模型订阅、自动充值、备份存储、域名续费和 DNS 残留。</li>
+  </ol>
+
+  <ComparisonTable>
+
+  | 对象 | 删除前证据 | 删除后的验证 |
+  | --- | --- | --- |
+  | `chat` route / DNS | hostname、Tunnel 与其他 route 的清单 | 公开名称不再导向应用，其他 route 正常 |
+  | 模型 key / 套餐 | key 只供本实例使用，最终账单已记录 | 旧 key 被拒绝，未知用量停止，套餐状态明确 |
+  | Open WebUI 容器 | 已停止、数据 volume 仍可识别 | 目标容器消失，其他 Compose 项目正常 |
+  | `book05-open-webui-data` | 最终备份和隔离恢复均通过 | 精确 volume 不再存在，其他 volume 未变 |
+  | VPS | 服务、用户、快照和附加磁盘归属全清楚 | 实例与附加资源账单都停止 |
+  | 备份 | 保留期、法务/组织要求和替代副本明确 | 目标备份不可恢复，账单与清单已更新 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="永久删除必须单独确认精确名称">
+    不在交接卡或书中保存可直接执行的生产删除脚本。尤其不能用 `docker volume prune`、模糊通配符或未核对的 `docker compose down -v` 代替对象清单。真正 G8 runbook 必须先列出精确目标，再让 Owner 确认当次操作。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch12-handoff">
+  ## 第七步：建立一张不含秘密的交接卡
+
+  <MockWindow title="Open WebUI 维护交接卡仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>服务与版本</strong><p className="mock-small">项目：book05-open-webui；固定版本：vX.Y.Z；回环端口：127.0.0.1:3000；最近验证：&lt;YYYY-MM-DD&gt;</p></div>
+      <div className="mock-panel"><strong>公开入口</strong><p className="mock-small">用途：AI 对话入口；hostname：chat.example.com；Tunnel 来源：安全复用 / 第五册专用；route / connector Owner：&lt;ROLE&gt;</p></div>
+      <div className="mock-panel"><strong>模型与费用</strong><p className="mock-small">连接：&lt;MODEL_CONNECTION_NAME&gt;；模型：&lt;MODEL_ID&gt;；预算与告警 Owner：&lt;ROLE&gt;；不记录 key。</p></div>
+      <div className="mock-panel"><strong>数据与恢复</strong><p className="mock-small">volume：book05-open-webui-data；最近备份：&lt;DATE&gt;；hash：&lt;HASH_LOCATION&gt;；最近隔离恢复：&lt;DATE&gt;</p></div>
+      <div className="mock-panel"><strong>账户与隐私</strong><p className="mock-small">admin / user / pending 数量；signup 状态；允许的数据等级；附件与分享策略；不记录真实邮箱或密码。</p></div>
+      <div className="mock-panel"><strong>停止与恢复</strong><p className="mock-small">模型异常先禁用连接；应用维护用 stop / start；route、凭证、volume 与 VPS 的永久操作各自单独确认。</p></div>
+    </div>
+  </MockWindow>
+
+  交接卡应放在受控文档系统，凭证只通过密码管理器或组织认可的秘密通道单独授权。交接人和接收人一起完成一次只读基线、一次备份定位和一次恢复步骤演练，再撤销离场者权限。
+
+  <CodeBlock label="扫描交接卡中的常见疑似秘密" code={handoffSecretScan} />
+
+  扫描结果为零仍不是安全证明。真实域名、IP、账户 ID、余额截图、用户列表和个人数据未必匹配这些规则，必须人工检查后再分享。
+</section>
+
+<section className="book-section" id="book05-ch12-next-book">
+  ## 给第六册留下清楚边界
+
+  第六册如果使用 Dify 或其他 AI 应用编排平台，应复用本册的运维方法，但不能默认复用本册秘密、管理员账户或模型连接：
+
+  - 可以复用：回环监听原则、归属明确且容量允许的 Tunnel 上的独立 route、固定版本、named volume、备份与费用台账；
+  - 需要重新决定：子域名、端口、数据 volume、管理员、模型 key、用户和数据政策；
+  - 不能直接复制：真实 `.env`、Open WebUI 数据库、Cookie、Secret、Tunnel token、模型 key；
+  - 必须先查：VPS 剩余 CPU、内存、磁盘、端口和模型预算；
+  - 必须避免：为了新增一个应用就删除或改写已有 Open WebUI route 与 volume。
+
+  本册交接完成只表示第五册 draft 的维护设计闭环；它不授权部署第六册，也不证明第五册已经完成实机、RC 或 production 发布。
+</section>
+
+<section className="book-section" id="book05-ch12-checklist">
+  ## 本章验收清单
+
+  <ChapterChecklist
+    chapterId="book05-chapter-12"
+    items={[
+      "保存了应用、回环端口、volume、connector 和公开 HTTPS 的已知正常基线",
+      "巡检表区分每月、每季度、每次变更和事故时检查",
+      "VPS、域名、模型与备份四类费用都有 Owner、预算和停止方法",
+      "管理员密码、模型 key、WEBUI_SECRET_KEY、Tunnel token 与 SSH 凭证没有混为一谈",
+      "我知道 Open WebUI API key 一名用户只有一把、继承用户权限且不会自动到期，第一版保持关闭",
+      "知道只停模型、只撤 route、只停应用和停 connector 的不同影响范围",
+      "永久退役按 route、模型、应用、数据、共享基础设施和账单逐项确认",
+      "交接卡只有对象、版本、责任、验证和撤销方法，不含密码、key、Cookie、token 或真实个人资料",
+      "下一册只复用原则与受控基础设施，不复制第五册秘密和数据",
+    ]}
+  />
+
+  <Callout type="success" title="成功不是“机器还在跑”">
+    你现在可以证明服务的正常基线，知道费用和凭证归属，能用最小影响动作临时下线，并能在不泄露秘密的前提下交给下一位维护者。永久删除仍要等待独立授权和当次 runbook。
+  </Callout>
+</section>

@@ -1,0 +1,311 @@
+---
+book: "05-open-webui"
+order: 8
+slug: "08-first-conversation"
+title: "完成第一次真实对话并核对完整路径"
+shortTitle: "第一次真实对话"
+description: "从电脑与手机经过公开 HTTPS 登录，使用固定的低敏感问题验证模型选择、流式回答、聊天持久化、WebSocket/CORS 和提供方实际用量。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 8
+duration: "预计 25—40 分钟，模型响应与用量入账可能另需等待"
+labels:
+  - "端到端验证"
+  - "流式回答"
+  - "实际用量"
+completionId: "book05-chapter-08"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import OpenWebUIPathMap from "../../../components/book/OpenWebUIPathMap.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const publicPreflight = `nslookup chat.example.com
+curl --head --show-error --connect-timeout 10 https://chat.example.com`;
+
+export const serverPreflight = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo systemctl is-active cloudflared`;
+
+export const publicTestPrompt = `请用两句话解释“浏览器访问路径”和“模型请求路径”的区别。
+不要调用工具，不要访问网页，不要引用外部资料。`;
+
+export const mobileTestPrompt =
+  "请只回复：手机链路测试成功";
+
+<LearningGoals
+  audience="已经通过公开 HTTPS 登录，但还没有证明浏览器、Tunnel、Open WebUI、模型 API、流式返回和用量记录能一起工作的读者"
+  duration="预计 25—40 分钟，模型响应与用量入账可能另需等待"
+  outcome="用两条低敏感、可计数的消息完成电脑与手机端到端验收，并能把页面成功、模型成功、数据持久化和费用证据分别说清"
+/>
+
+<section className="book-section" id="book05-ch8-not-repeat">
+  ## 第 6 章的连接探针还不是公开链路验收
+
+  第 6 章在 SSH 转发下只用一句固定文字证明“Open WebUI 后端能够调用选定模型”。第 7 章只证明公开 HTTPS
+  能打开并登录。现在才把两条路径合起来：
+
+  <OpenWebUIPathMap labelId="book05-chapter-08-path-title" />
+
+  <ComparisonTable>
+
+  | 验收 | 第 6 章 | 第 7 章 | 本章 |
+  | --- | --- | --- | --- |
+  | 模型连接 | 最小本地探针 | 不发送消息 | 公开入口真实对话 |
+  | Cloudflare / Tunnel | 未参与浏览器访问 | 登录页通过 | 登录、发送、流式返回均参与 |
+  | 电脑浏览器 | SSH 转发 | 公开 HTTPS 登录 | 完整对话与刷新 |
+  | 手机网络 | 未验证 | 只打开登录页可选 | 登录、读取并发送固定消息 |
+  | 提供方用量 | 记录连接探针 | 不应新增 | 对照本章时间窗逐项解释 |
+
+  </ComparisonTable>
+
+  <Callout type="warning" title="本章会产生真实模型调用">
+    一条用户消息可能伴随标题、标签或其他后台任务请求。开始前先截图或记录余额、限额与测试时间，但不要记录账户 ID、账单身份信息或 API key。需要充值、订阅或提高支出上限时停止，先经过费用确认。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch8-preflight">
+  ## 第一步：固定测试窗口和停止条件
+
+  先写一张不含秘密的测试卡：
+
+  ```text
+  测试开始：YYYY-MM-DD HH:mm +08:00
+  公开地址：文档只写 https://chat.example.com
+  设备 A：电脑 / 浏览器版本
+  设备 B：手机 / 移动网络或另一 Wi-Fi
+  预期模型：<MODEL_ID>
+  计划用户消息：电脑 1 条，手机 1 条
+  Direct Connections：关闭
+  后台任务：已记录；本次不需要的 Title / Tags / Follow Up / Autocomplete / Query 生成均关闭
+  费用上限：<已在提供方设置的小额边界；不写付款资料>
+  停止条件：陌生模型、未知用户、用量持续增长、CORS/WS 错误、429 或上游异常
+  ```
+
+  在电脑终端执行公开检查：
+
+  <CodeBlock label="电脑侧 DNS 与 HTTPS 预检" code={publicPreflight} />
+
+  在 VPS 执行服务器检查：
+
+  <CodeBlock label="服务器侧应用与 connector 预检" code={serverPreflight} />
+
+  成功状态：DNS 有回答、HTTPS 没有证书错误、应用 healthy、connector active、提供方余额与限额可见。
+  任何一项失败都停在第 7 或第 11 章，不用模型请求来测试一个已经失败的浏览器路径。
+
+  Direct Connections 必须继续关闭。否则某台浏览器可能使用保存在本机 local storage 的个人 key 直接请求提供方，
+  看起来“同一个模型能回答”，实际却绕过了本书要验证的 Open WebUI 后端连接。
+</section>
+
+<section className="book-section" id="book05-ch8-browser-tools">
+  ## 第二步：在电脑上准备观察，不记录秘密
+
+  打开 `https://chat.example.com`，登录 Owner 账户。随后打开浏览器开发者工具：
+
+  <InstructionStep number={1} title="Console 只看错误">
+    Console（控制台）用于查看 CORS、mixed content、JavaScript 与 Cookie 错误。证据卡只记录错误类型和时间，不复制包含真实 URL 查询参数、用户资料或 token 的整段内容。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="Network 关注 Fetch/XHR 与 WS">
+    Fetch/XHR 是网页向后端发出的接口请求；WS 是 WebSocket，允许浏览器与服务保持双向连接。检查状态与持续时间即可，不展开 `Authorization`、Cookie、request payload 或完整聊天正文。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="核对模型选择器">
+    只能看到第 6 章 allowlist 中的预期模型。若出现陌生或更昂贵模型，先退出测试并修复权限。
+  </InstructionStep>
+
+  <MockWindow title="端到端测试观察卡仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>登录</strong> <MockStatusBadge tone="success">Owner · 已认证</MockStatusBadge></div>
+      <div className="mock-panel"><strong>模型</strong> <code>&lt;MODEL_ID&gt;</code> · allowlist 内</div>
+      <div className="mock-panel"><strong>Console</strong> CORS / Cookie / mixed content：0 个错误</div>
+      <div className="mock-panel"><strong>Network</strong> 请求状态可解释；不展开秘密 header</div>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="book05-ch8-desktop">
+  ## 第三步：电脑发送第一条公开链路消息
+
+  新建聊天，明确选择预期模型，只发送下面两行：
+
+  <CodeBlock label="电脑端固定测试问题" code={publicTestPrompt} />
+
+  这个问题不含真实域名、IP、账户、客户信息、源代码或内部文档，也明确不需要 Web Search、工具、附件或 RAG。
+
+  观察并记录：
+
+  - 点击发送的时间；
+  - 页面是否立即进入生成状态；
+  - 文字是否逐步出现，而不是长时间空白后报错；
+  - 最终回答是否确实区分浏览器路径与模型路径；
+  - 生成结束后按钮是否回到可发送状态；
+  - Console 是否出现 CORS 或 WebSocket 403；
+  - Network 是否出现异常连续重试；
+  - 刷新页面后聊天是否仍在；
+  - 重新打开该聊天时，模型与两轮内容是否一致。
+
+  <TerminalMock title="电脑端成功状态示意">
+    Browser → Cloudflare → Tunnel → Open WebUI&nbsp;<span className="term-green">通过</span><br />
+    Open WebUI → &lt;MODEL_API_BASE_URL&gt;&nbsp;<span className="term-green">通过</span><br />
+    流式回答&nbsp;<span className="term-green">连续完成</span><br />
+    刷新后聊天&nbsp;<span className="term-green">仍可读取</span><br />
+    Console&nbsp;<span className="term-green">无 CORS / WS 错误</span>
+  </TerminalMock>
+
+  “回答内容看起来合理”不能替代其他证据。页面可以显示一段缓存内容，但 route、持久化或费用仍可能不符合预期。
+</section>
+
+<section className="book-section" id="book05-ch8-mobile">
+  ## 第四步：手机使用另一条外部网络验证
+
+  为了避免只验证家中同一 DNS 或同一浏览器状态，手机优先使用移动网络；如果所在地网络不适合，则使用另一条已知合规网络。
+  不通过代理绕过模型提供方的地区或服务条款限制。
+
+  按顺序完成：
+
+  1. 手动输入 `https://chat.example.com`，不要从聊天软件中的陌生链接打开；
+  2. 核对最终主机名与证书警告；
+  3. 使用同一个 Owner 账户登录，不把密码保存到公共设备；
+  4. 打开电脑刚创建的聊天，确认同一内容可以读取；
+  5. 回到新聊天，选择同一个 allowlist 模型；
+  6. 在确认还允许一次付费请求后，只发送：
+
+  <CodeBlock label="手机端固定测试问题" code={mobileTestPrompt} />
+
+  成功状态：输入框、模型选择和发送按钮没有横向溢出；回答能逐步显示；页面滚动、停止生成和重新打开聊天正常；
+  手机没有反复登录或空白页面。失败判断：只有 Wi-Fi 能用、手机证书警告、登录循环、模型选择器为空、回答中断或页面无法操作。
+
+  <Callout type="info" title="手机端验证不是性能跑分">
+    移动网络延迟会波动。本章只判断功能、可读性与错误边界，不用一次响应时间承诺未来速度，也不连续发送消息制造负载。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch8-data-path">
+  ## 第五步：把这两条消息分别经过哪里说清楚
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>浏览器</strong><small>输入问题、保存登录 Cookie</small></div>
+    <div className="flow-node"><strong>Open WebUI</strong><small>认证、保存聊天、组织模型请求</small></div>
+    <div className="flow-node"><strong>模型提供方</strong><small>接收必要输入并生成回答</small></div>
+    <div className="flow-node"><strong>Open WebUI</strong><small>接收流式内容并写入数据 volume</small></div>
+    <div className="flow-node"><strong>电脑与手机</strong><small>通过 HTTPS 读取同一聊天</small></div>
+  </FlowDiagram>
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">浏览器与 Cloudflare</p>
+      <p>处理访问地址、HTTPS 和网络转发；它们不因此成为模型本身。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Open WebUI / VPS</p>
+      <p>保存账户、配置、聊天与可能的附件；管理员和主机维护者具有较高访问能力。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">模型提供方</p>
+      <p>接收生成回答所需的请求内容，并依据其当前政策处理日志、计费和保留。</p>
+    </section>
+  </InfoGrid>
+
+  自托管 Open WebUI 不等于问题只留在自己的 VPS。使用远程模型 API 时，本章两条测试文字仍会发送给模型提供方。
+</section>
+
+<section className="book-section" id="book05-ch8-usage">
+  ## 第六步：在提供方核对时间窗与实际用量
+
+  等提供方控制台完成正常入账后，只核对必要字段：
+
+  <ComparisonTable>
+
+  | 字段 | 怎样对照 | 异常判断 |
+  | --- | --- | --- |
+  | 时间与时区 | 落在测试卡记录的开始、结束之间 | 测试前后仍持续增长 |
+  | 模型 ID | 与两台设备选定模型一致 | 出现未授权模型 |
+  | 请求数量 | 用户消息 2 条，加上可解释的后台任务 | 远多于预期且重复增长 |
+  | token / 计量单位 | 与短问题、短回答大致相称 | 异常大且无法由上下文解释 |
+  | 费用或额度 | 不超过开始前的小额边界 | 上限未生效或扣费来源不明 |
+  | 错误记录 | 无持续 401、429 或 5xx 重试 | 同一请求大量失败重试 |
+
+  </ComparisonTable>
+
+  标题、标签或其他后台能力可能产生额外模型请求，所以“用户点击两次”不一定等于“账单只有两条”。
+  但这不是接受任意用量的理由：每一类额外请求都应能由当前启用的功能与同一时间窗解释。
+
+  为了让两台设备的调用能够分开解释，电脑回答结束后先记下时间并等待提供方用量稳定，再开始手机测试；
+  手机回答结束后再记录第二个时间点。若两个窗口之间仍不断出现请求，先禁用连接，不把它们笼统归为“后台任务”。
+
+  <Callout type="danger" title="费用或请求来源无法解释时立即停止">
+    先在 Open WebUI 禁用该模型连接，再到提供方撤销专用 key，确认用量停止增长。不要只删除聊天记录，也不要连续发送更多消息“看看会不会恢复”。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch8-verdict">
+  ## 第七步：给结果下一个有证据的结论
+
+  本章只有三种结论：
+
+  <ComparisonTable>
+
+  | 结论 | 必须满足 | 下一步 |
+  | --- | --- | --- |
+  | 通过 | 电脑、手机、登录、模型、流式回答、持久化和用量均可解释 | 进入第 9 章收紧用户与隐私 |
+  | 部分通过 | 已确定只有某一设备、网络或层级失败 | 保留证据，进入第 11 章对应层 |
+  | 停止公开 | 未知用户、费用异常、凭证风险或公开边界错误 | 禁用连接、移除 `chat` route，再调查 |
+
+  </ComparisonTable>
+
+  可以保存“通过/部分通过/停止 + 时间 + 设备类型 + 模型占位符 + 状态码”；不要保存聊天 Cookie、API key、真实用户邮箱、
+  完整 provider 账单截图或 Network 中的 Authorization header。
+</section>
+
+<section className="book-section" id="book05-ch8-failures">
+  ## 常见现象怎样分流
+
+  <ComparisonTable>
+
+  | 现象 | 路径判断 | 首个检查点 |
+  | --- | --- | --- |
+  | 电脑和手机都打不开 | 浏览器路径共同层 | DNS、证书、route、connector |
+  | 电脑能开，手机打不开 | 客户端或网络差异 | 手机 DNS、时间、网络与证书详情 |
+  | 能登录但模型为空 | 模型路径尚未开始 | connection enable、allowlist 与角色权限 |
+  | 点击发送后 401 / 403 | 模型连接认证或授权 | key、endpoint、账户与地区政策 |
+  | 点击发送后 429 | 提供方速率或费用边界 | 余额、限额、并发与重试 |
+  | 回答开始后中断 | 流式链路 | Console、WS/SSE、CORS 与上游超时 |
+  | 刷新后聊天消失 | 应用持久化 | named volume、写入错误与当前账户 |
+  | 用量远高于两条消息 | 后台任务或异常调用 | 时间窗、任务模型、连接使用者与 key |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch8-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book05-chapter-08"
+    items={[
+      "测试前已记录时间窗、设备、预期模型、小额费用边界和停止条件",
+      "电脑与手机都通过 https://chat.example.com 访问，没有公网 IP 或 :3000",
+      "两台设备只看到 allowlist 中的预期模型",
+      "Direct Connections 保持关闭，两台设备都使用服务器端管理员连接",
+      "本次不需要的后台模型任务已关闭，两个设备分别记录了用量观察窗口",
+      "电脑只发送固定的双路径问题，手机只发送固定的链路测试问题",
+      "两次回答都能流式完成，浏览器没有 CORS、Cookie、mixed content 或 WebSocket 错误",
+      "刷新和跨设备重新打开后，聊天仍在同一账户中可读",
+      "我能说明测试文字经过 Open WebUI 并发送给远程模型提供方",
+      "提供方时间、模型、请求数量、计量单位与费用都能解释",
+      "证据卡没有 Cookie、Authorization、API key、真实邮箱或账单身份信息",
+      "任何用量异常都会先禁用连接并撤销 key，不用更多付费请求排错",
+    ]}
+  />
+</section>

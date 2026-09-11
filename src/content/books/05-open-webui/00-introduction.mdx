@@ -1,0 +1,381 @@
+---
+book: "05-open-webui"
+order: 0
+slug: "start"
+title: "开始之前：先确认服务器、模型账户与费用边界"
+shortTitle: "开始之前"
+description: "在部署 Open WebUI 前，核对 VPS、Docker、域名、Tunnel、模型接口、费用上限、数据边界和秘密保存位置，并明确必须暂停的情况。"
+chapterType: "introduction"
+updatedAt: "2026-09-11"
+duration: "预计 20—30 分钟"
+labels:
+  - "阅读起点"
+  - "双请求路径"
+  - "费用与隐私"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import OpenWebUIPathMap from "../../../components/book/OpenWebUIPathMap.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const platformBaseline = `sudo docker version --format 'Docker Engine {{.Server.Version}}'
+sudo docker compose version
+free -h
+df -h /`;
+
+export const portBaseline =
+  "sudo ss -lntp 'sport = :3000'";
+
+export const tunnelBaseline = `sudo systemctl is-active cloudflared
+sudo systemctl show cloudflared --property=ActiveState --property=SubState --property=UnitFileState`;
+
+<LearningGoals
+  audience="已经具备 VPS、Docker、域名和 Tunnel，第一次准备部署自托管 AI 对话界面的零基础读者"
+  duration="预计 20—30 分钟"
+  outcome="得到一份不含秘密的开始卡，能分清浏览器路径与模型路径，并知道现在可以继续还是必须暂停"
+/>
+
+<section className="book-section" id="book05-start-read-only">
+  ## 这一篇只检查，不部署
+
+  本篇不会拉取 Open WebUI 镜像，不会创建容器，不会开放端口，也不会向任何模型发送请求。
+  这样安排不是拖延，而是因为第五册同时接触四类可能持续收费或保存敏感数据的对象：
+
+  <InfoGrid columns={4}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">VPS</p>
+      <p>保存应用与聊天数据，通常按小时或按月计费。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">域名与 Tunnel</p>
+      <p>负责公开 HTTPS 路径，不替代应用登录。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Open WebUI</p>
+      <p>提供界面、账户、配置与数据管理，不是模型本身。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">模型提供方</p>
+      <p>接收模型请求并计算用量，可能产生按量费用。</p>
+    </section>
+  </InfoGrid>
+
+  <Callout type="info" title="“开始之前”不计入 12 章完成率">
+    这是一道准备门。发现磁盘不足、费用不明或凭证边界不清时，暂停是正确结果。第五册只把第 1—12 章计入完成率。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-start-not-model">
+  ## 先纠正一个最重要的误解
+
+  **Open WebUI 是 AI 对话与管理界面，不是大语言模型。**
+
+  本书主线不会让普通 CPU VPS 在本机运行巨大模型。VPS 负责显示界面、验证用户、保存应用数据，
+  然后通过 HTTPS 把经过授权的请求发送给远程模型接口。
+
+  <ComparisonTable>
+
+  | 对象 | 本书中负责什么 | 不负责什么 |
+  | --- | --- | --- |
+  | Open WebUI | 登录、聊天界面、模型选择、历史记录和管理员设置 | 不凭空生成模型回答，也不替读者支付模型费用 |
+  | 模型 | 根据输入生成回答 | 不管理你的域名、Tunnel 或 Open WebUI 用户 |
+  | API | 让两个程序按约定格式交换请求和响应 | 不是一个账户，也不是一笔固定价格 |
+  | API endpoint | 接收模型请求的网络地址，例如提供方的 `/v1` 接口 | 不是 Open WebUI 的公开聊天网址 |
+  | API key | 让模型提供方识别调用者和权限的秘密凭证 | 不是登录 Open WebUI 的密码 |
+
+  </ComparisonTable>
+
+  如果提供方采用 OpenAI 常见的 Chat Completions 请求格式，Open WebUI 会把它称为
+  **OpenAI-compatible API**，也就是“OpenAI 兼容接口”。名称中的 OpenAI 描述的是接口格式，
+  不代表服务一定由 OpenAI 公司提供。
+</section>
+
+<section className="book-section" id="book05-start-two-paths">
+  ## 一次聊天同时经过两条路径
+
+  <OpenWebUIPathMap labelId="book05-start-path-title" />
+
+  两条路径必须分别验收：
+
+  - 路径 A 失败：用户连登录页都打不开，应先查 DNS、HTTPS、Tunnel、connector 或本机应用；
+  - 路径 A 成功、路径 B 失败：页面可以登录，但模型没有回答，应查连接配置、API key、模型 ID、额度或模型提供方；
+  - 两条路径都成功：还要核对用量、数据保存位置、注册策略与备份，不能只看一次回答。
+
+  <Callout type="warning" title="“页面能开”不等于“模型能用”">
+    Cloudflare 不替 Open WebUI 提供模型；Open WebUI 也不能替模型提供方恢复额度。后续排错会始终先问：失败发生在路径 A，还是路径 B？
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-start-handoff">
+  ## 第一步：拿出前三册交接信息
+
+  如果你还不能确认下面三组输入，先返回对应图书，不要用第五册的命令补洞：
+
+  <ComparisonTable>
+
+  | 来源 | 第五册需要接收什么 | 缺失时返回哪里 |
+  | --- | --- | --- |
+  | 第一册 | 可 SSH 登录的 Ubuntu VPS、计费状态、磁盘与内存 | 第一册首次登录与交接章节 |
+  | 第三册 | Docker Engine、Compose plugin、volume、日志和备份能力 | <a href={sitePath("/books/03-docker/12-handoff/")}>第三册“整理 Compose 项目”</a> |
+  | 第四册 | 可控制域名、Active zone、健康 Tunnel、HTTPS 与分层排错 | <a href={sitePath("/books/04-cloudflare/12-maintenance-handoff/")}>第四册“维护与交接”</a> |
+
+  </ComparisonTable>
+
+  第四册实机教学资源可能已经被清理；真实读者也可能选择暂时下线旧 route。第五册要求的是
+  “知道怎样安全建立一条独立 route”，不是要求 `app.example.com` 永远存在。
+</section>
+
+<section className="book-section" id="book05-start-missing-handoff">
+  ## 如果旧 VPS 或 Tunnel 已经清理
+
+  “完成过前一册”不等于那些临时资源必须永远运行。你可能已经为了停止计费销毁 VPS，也可能只保留
+  域名、Cloudflare zone 与 DNSSEC。此时不要把旧地址、旧 token 或已经删除的 connector 填进第五册。
+
+  <ComparisonTable>
+
+  | 当前情况 | 现在做什么 | 不要做什么 |
+  | --- | --- | --- |
+  | 原 VPS 与 Tunnel 都在，且明确没有未知业务 | 先做只读资源与 route 清点，再决定是否复用 | 不因为“看起来空闲”就停止 connector 或覆盖 route |
+  | VPS 在，Tunnel 已删除 | 先确认 VPS 资源和费用，再按第四册方法建立一个归属明确的 Tunnel | 不复用失效 token，也不同时安装多个 system service |
+  | VPS 已销毁，只保留域名与 zone | 回第一册建立隔离 VPS，再回第三册安装 Docker、回第四册建立 Tunnel | 不把历史 IP、主机指纹或已删除实例当作当前值 |
+  | 对象归属或持续费用说不清 | 停止，先找到账户负责人、账单与资产清单 | 不新建第二套资源来掩盖未知对象 |
+
+  </ComparisonTable>
+
+  新建 VPS 会开始持续计费；创建 Tunnel 会改变外部账户状态。两者都必须放进实机 runbook 的明确闸门，
+  不能因为这一节说明了恢复路径就自动执行。
+</section>
+
+<section className="book-section" id="book05-start-server-baseline">
+  ## 第二步：只读检查服务器资源
+
+  登录 VPS 后执行：
+
+  <CodeBlock
+    label="检查 Docker、内存和根文件系统"
+    code={platformBaseline}
+  />
+
+  四项输出分别回答：
+
+  <ComparisonTable>
+
+  | 检查 | 成功状态 | 失败判断 | 现在是否修改 |
+  | --- | --- | --- | --- |
+  | Docker Engine | 能返回服务器端版本 | 无法连接 daemon 或命令不存在 | 否，先回第三册排错 |
+  | Docker Compose | 返回 v2 版本 | 只有旧的 `docker-compose` 或命令失败 | 否，先恢复 Compose plugin |
+  | `free -h` | 能看见 total、used、available | 可用内存长期接近 0 或已有 OOM 迹象 | 否，先评估现有服务和扩容费用 |
+  | `df -h /` | 根分区有镜像、数据和备份余量 | 逼近 100% 或无法解释大目录 | 否，先安全清理或扩容 |
+
+  </ComparisonTable>
+
+  本篇不写一个对所有部署都成立的“最低内存”。Open WebUI 版本、并发用户、文件处理和
+  Embedding（把文字转换成向量表示）功能都会改变资源需求。第 3 章会以实机基线和官方版本说明决定容量。
+
+  <Callout type="warning" title="不要看到资源不足就自动升级套餐">
+    VPS 升级、快照和额外备份可能持续计费，而且部分实例升级后不能缩回原规格。先记录瓶颈、当前价格和停止方法，再经过费用闸门。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-start-port">
+  ## 第三步：确认主机 3000 端口没有冲突
+
+  本书计划让 Open WebUI 的主机端只监听 `127.0.0.1:3000`，容器内部仍使用 8080。先执行：
+
+  <CodeBlock
+    label="查看主机 3000 端口"
+    code={portBaseline}
+  />
+
+  `ss` 是查看网络 socket（套接字）状态的工具。这里没有输出通常表示端口尚未被进程监听，
+  可以进入后续规划；如果出现输出，则记录进程和监听地址：
+
+  - `127.0.0.1:3000`：已有本机服务占用；
+  - `0.0.0.0:3000`：已有服务在所有 IPv4 网卡监听；
+  - `[::]:3000`：已有服务可能在所有 IPv6 网卡监听；
+  - 陌生进程：不要停止它，先找到负责人和用途。
+
+  成功状态不是“3000 必须为空”，而是你能解释占用情况。第 3 章可以选择另一个未冲突的回环端口，
+  但公开 route、文档和交接卡必须保持一致。
+</section>
+
+<section className="book-section" id="book05-start-tunnel">
+  ## 第四步：确认第四册入口能力仍可用
+
+  执行下面的只读命令：
+
+  <CodeBlock
+    label="检查 cloudflared systemd 状态"
+    code={tunnelBaseline}
+  />
+
+  成功状态：
+
+  - 第一行返回 `active`；
+  - `ActiveState=active`、`SubState=running`；
+  - `UnitFileState=enabled`；
+  - 你知道 Tunnel 由哪个 Cloudflare 账户维护；
+  - 计划使用新的 `chat.example.com`，不覆盖用途不明的主机名。
+
+  <TerminalMock title="入口能力就绪示意">
+    <span className="term-green">active</span><br />
+    ActiveState=<span className="term-green">active</span><br />
+    SubState=<span className="term-green">running</span><br />
+    UnitFileState=<span className="term-green">enabled</span>
+  </TerminalMock>
+
+  connector 不健康时先回第四册排错。不要为了 Open WebUI 新开公网 3000，也不要创建第二个用途重叠的 Tunnel 来掩盖原问题。
+</section>
+
+<section className="book-section" id="book05-start-provider-card">
+  ## 第五步：准备模型连接卡，但不抄写 API key
+
+  开始卡只记录下面这些非秘密信息：
+
+  <MockWindow title="模型连接准备卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="接口协议">
+        <span>OpenAI-compatible Chat Completions</span>
+      </MockField>
+      <MockField label="API base URL">
+        <code>&lt;MODEL_API_BASE_URL&gt;</code>
+      </MockField>
+      <MockField label="模型 ID">
+        <code>&lt;MODEL_ID&gt;</code>
+      </MockField>
+      <MockField label="API key 保存位置">
+        <span>密码管理器中的条目名称</span>
+      </MockField>
+      <MockField label="权限与撤销" wide>
+        <MockStatusBadge tone="success">独立 key · 最小权限 · 可以单独撤销</MockStatusBadge>
+      </MockField>
+      <MockField label="费用保护" wide>
+        <MockStatusBadge tone="neutral">当前价格、余额、限额和告警已核对</MockStatusBadge>
+      </MockField>
+    </div>
+  </MockWindow>
+
+  `base URL` 是接口的基础地址，`model ID` 是提供方用来精确识别模型的字符串。两者都不是秘密，
+  但真实账户页面、余额和资源 ID 仍不应出现在公开截图中。
+
+  API key 必须满足：
+
+  - 为这次 Open WebUI 连接单独创建；
+  - 只具有普通模型调用需要的权限；
+  - 可以单独撤销，不依赖删除整个账户；
+  - 具有合理的额度、预算或告警；
+  - 保存在密码管理器，不写入这张卡；
+  - 不是提供方的账户管理主密钥。
+
+  如果提供方不允许限制权限，也无法设置余额或支出保护，先判断自己是否接受风险，不要因为已经注册就继续。
+</section>
+
+<section className="book-section" id="book05-start-costs">
+  ## 第六步：把四种费用分开记录
+
+  <ComparisonTable>
+
+  | 费用 | 常见计费方式 | 停止后是否自动消失 | 本书要求 |
+  | --- | --- | --- | --- |
+  | VPS | 按小时或按月 | 停止实例不一定停止计费 | 确认销毁方法与附加资源 |
+  | 域名 | 按年续费 | 关闭网站不取消续费 | 记录到期日、自动续费和负责人 |
+  | Cloudflare | 本书主线可使用 Free 能力 | 仍需核对账户中是否有其他付费产品 | 不把付费功能作为完成前提 |
+  | 模型 API | 按 token、请求、额度或套餐 | 关闭 Open WebUI 不一定取消余额或订阅 | 设置限额，测试后核对实际用量 |
+
+  </ComparisonTable>
+
+  token（词元）是模型处理文字时使用的计量单位，不等同于一个汉字或一个单词。输入、历史上下文和输出都可能计入用量。
+
+  <Callout type="warning" title="一次点击可能不只产生一次模型请求">
+    Open WebUI 的标题、标签、搜索查询等后台功能可能额外调用模型。第一次测试必须同时查看 Open WebUI 结果与提供方用量，而不是假设“发一条消息就只计费一次”。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-start-data-boundary">
+  ## 第七步：先决定什么数据不能进入练习
+
+  “自托管 Open WebUI”只说明界面与应用数据由你的服务器管理，不等于所有内容都停留在 VPS。
+
+  <ComparisonTable>
+
+  | 数据 | 可能保存在 VPS | 可能发送给模型提供方 | 本轮练习边界 |
+  | --- | --- | --- | --- |
+  | 账户资料 | 是 | 通常不需要 | 使用专用教学账户，不显示真实邮箱 |
+  | 聊天文字 | 是 | 是，生成回答所必需 | 只使用无隐私的测试问题 |
+  | 历史上下文 | 是 | 可能随下一次请求再次发送 | 不粘贴工作秘密或个人敏感信息 |
+  | 附件 | 是 | 取决于处理与模型功能 | 样章阶段不上传文件 |
+  | 模型 API key | 由管理员连接保存 | 用于向提供方鉴权 | 不进截图、日志摘录或仓库 |
+  | Tunnel token | 由 connector 使用 | 不应发送给模型 | 不放进 Open WebUI Compose |
+
+  </ComparisonTable>
+
+  本书不提供法律结论。处理组织数据、客户数据、健康信息、身份证件或其他受监管内容前，
+  必须获得相应授权并阅读模型提供方当前的数据处理政策。
+</section>
+
+<section className="book-section" id="book05-start-license">
+  ## 第八步：保留 Open WebUI 品牌
+
+  截至 2026-09-10，当前 Open WebUI 版本使用 **Open WebUI License**。它不是项目早期使用的 MIT 许可证，
+  也不是 OSI 批准的开源许可证。官方许可包含品牌保护条件。
+
+  本书主线：
+
+  - 使用官方名称说明实际软件；
+  - 不移除、遮挡、缩小或替换 Open WebUI 原有品牌；
+  - 不把教学仿真声称为官方截图；
+  - 不暗示本书或部署得到 Open WebUI 官方背书；
+  - 发布和实机校订前重新读取官方 LICENSE。
+
+  <Callout type="info" title="这是教学边界，不是法律意见">
+    如果准备改品牌、公开提供商业服务或进行大规模分发，应直接核对当时的完整 LICENSE，并在需要时取得专业法律意见或官方授权。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-start-gate">
+  ## 最后：判断继续还是暂停
+
+  <MockWindow title="第五册开始门仿真">
+    <div className="mock-stack">
+      <div className="mock-panel">
+        <strong>服务器与容器</strong>{" "}
+        <MockStatusBadge tone="success">Docker 可用 · 资源已记录 · 3000 可解释</MockStatusBadge>
+      </div>
+      <div className="mock-panel">
+        <strong>公开入口</strong>{" "}
+        <MockStatusBadge tone="success">域名可控 · Tunnel 健康 · chat 主机名未占用</MockStatusBadge>
+      </div>
+      <div className="mock-panel">
+        <strong>模型与费用</strong>{" "}
+        <MockStatusBadge tone="success">endpoint、模型 ID、受限 key、限额已准备</MockStatusBadge>
+      </div>
+      <div className="mock-panel">
+        <strong>数据边界</strong>{" "}
+        <MockStatusBadge tone="neutral">只使用无隐私测试文字，不上传文件</MockStatusBadge>
+      </div>
+    </div>
+  </MockWindow>
+
+  上面四项全部能解释，才进入第 1 章。出现以下任一情况必须暂停：
+
+  - VPS 资源不足，但扩容价格和能否降配不明；
+  - 3000 被未知进程占用；
+  - cloudflared 不健康或 Tunnel 负责人不明；
+  - `chat.example.com` 已承载其他业务；
+  - 模型接口、模型 ID、价格、余额或地区可用性无法确认；
+  - 只有管理主密钥，无法创建独立 key；
+  - 准备把 key 粘贴到聊天、仓库、截图或 shell 命令；
+  - 准备用真实客户、工作秘密或个人敏感信息测试；
+  - 不知道怎样停止模型费用或销毁不再使用的 VPS。
+
+  本篇通过的成功状态不是“已经安装”，而是你能准确说出：谁负责页面、谁负责模型、数据会去哪里、费用在哪里停止，以及遇到什么情况必须先停。
+</section>

@@ -6,14 +6,14 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第四册 RC 已发布
+  phase: 第五册 1.0.0-rc.1 发布准备
 current:
-  summary: 第一至第四册均已形成发布候选；第四册 book04-v1.0.0-rc.1 已合并到 main 并通过 GitHub CI、Pages 部署与线上冒烟，G1—G8 实机资源、临时 VPS 及计费附加资源已清空，根 zone 与 DNSSEC 保留。
+  summary: 第一至第四册发布候选均已发布；第五册 15 个内容单元已进入 release-candidate / 1.0.0-rc.1。RC 实机校订 G1—G8 已通过：G6 的应用、route、connector、模型 ID 与 CORS 故障均恢复，G7 的停止写入备份、hash、VPS 外副本和同版本隔离恢复通过，G8 已永久删除第五册 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。第五册 production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径发布前验收已通过，等待提交、标签、部署和线上冒烟。
   working_on:
-    - 汇报第四册发布完成结果，并按里程碑规则等待 Owner 确认第五册策划与样章试写
+    - 第五册 1.0.0-rc.1 提交、标签、GitHub Pages 部署与线上冒烟
 next_actions:
-  - Owner 确认后建立第五册目标读者、范围、章节提案、技术主线、事实来源与风险清单
-  - 第五册策划获确认后选择代表性样章试写，并在每个新里程碑结束时汇报等待确认
+  - 将第五册发布候选提交到独立 codex 分支，合并到 main 并创建 book05-v1.0.0-rc.1 带注释标签
+  - 等待 GitHub CI 与 Pages 部署成功，完成线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟检查
   - 后续维护窗口升级 GitHub Actions 依赖的 action 主版本，消除 Node.js 20 弃用提示
 blockers: []
 milestones:
@@ -140,9 +140,66 @@ milestones:
   - id: milestone-41
     name: 第四册 GitHub CI、Pages 部署与线上封面、正文、搜索、打印、canonical、移动端和 404 冒烟检查
     status: completed
+  - id: milestone-42
+    name: 第五册目标读者、15 个内容单元、远程模型技术主线、事实来源、风险、样章与实机闸门提案已建立
+    status: completed
+  - id: milestone-43
+    name: 第五册最终书名、远程 OpenAI-compatible API 主线、部署与安全顺序、第一版排除项和三篇样章已获 Owner 确认并写入注册表
+    status: completed
+  - id: milestone-44
+    name: 第五册 QA 台账与三篇 draft 样章已建立，并通过类型、内容、生产草稿排除、响应式、深色、无 JavaScript 边界和样章打印检查
+    status: completed
+  - id: milestone-45
+    name: 第五册第 1—5 章第一批 draft 已建立，并通过官方事实、Compose 结构、内容、生产草稿排除、响应式、深色、无 JavaScript 和草稿打印检查
+    status: completed
+  - id: milestone-46
+    name: 第五册第 7—10 章第二批 draft 与第 6、11 章连续性复核已完成，并通过官方事实、命令语法、内容、生产草稿排除、响应式、深色、无 JavaScript 和草稿打印检查
+    status: completed
+  - id: milestone-47
+    name: 第五册第 12 章、附录、资料来源与 15 个完整 draft 已完成，并通过官方事实、命令与 Compose 结构、内容、生产草稿排除、响应式、深色、无 JavaScript、草稿打印、外链和敏感模式检查
+    status: completed
+  - id: milestone-48
+    name: 第五册 15 个完整 draft 已获 Owner 确认，独立 G1—G8 实机 runbook、空白结果台账、费用与安全停止边界已建立并通过自动检查
+    status: completed
+  - id: milestone-49
+    name: 第五册首轮整册写作校订已完成，固定版本更新至 v0.11.3，并补齐旧资源清理与地址执行主体分支，通过自动、浏览器、外链和敏感模式检查
+    status: completed
+  - id: milestone-50
+    name: 第五册第二轮整册写作校订已完成，补齐后端与浏览器模型路径、后台任务费用、叠加权限、三类分享、公开加固诊断和交接边界，并通过自动、浏览器、外链和敏感模式检查
+    status: completed
+  - id: milestone-51
+    name: 第五册 RC 实机校订 G1 已完成，隔离临时 VPS、Docker 官方来源、唯一无 route Tunnel、单 Healthy connector、systemd、出站 7844 与公网入站隔离通过
+    status: completed
+  - id: milestone-52
+    name: 第五册 RC 实机校订 G2 已完成，固定 v0.11.3、回环 3000、健康检查、持久 Secret、named volume、重建恢复与公网隔离通过
+    status: completed
+  - id: milestone-53
+    name: 第五册 RC 实机校订 G3 已完成，唯一首位管理员、signup 关闭、默认 pending、第一版权限收紧、认证复测与保留 volume 的重建持久通过
+    status: completed
+  - id: milestone-54
+    name: 第五册 RC 实机校订 G4 已完成，DeepSeek 专用 key、deepseek-flash 单模型 allowlist、合成 SSE 请求、聊天持久化与连接禁用恢复通过
+    status: completed
+  - id: milestone-55
+    name: 第五册 RC 实机校订 G5 已完成，唯一 chat route、自动 Proxied DNS、Universal SSL、公开 URL / CORS / Secure Cookie、桌面与手机蜂窝网络、WebSocket / SSE、固定短答与回环源站一致性通过
+    status: completed
+  - id: milestone-56
+    name: 第五册 RC 实机校订 G6 故障注入与逐项恢复
+    status: completed
+  - id: milestone-57
+    name: 第五册 RC 实机校订 G7 停止写入备份、SHA-256、VPS 外副本与同版本隔离恢复
+    status: completed
+  - id: milestone-58
+    name: 第五册 RC 实机校订 G8 route、DNS、模型连接与 key、数据、备份、connector、Tunnel、临时 VPS 和计费附加资源永久清理
+    status: completed
+  - id: milestone-59
+    name: 第五册 production、Pagefind、完成状态、正式打印、A4 PDF、跨浏览器、无障碍、性能、安全与子路径发布前综合验收
+    status: completed
+  - id: milestone-60
+    name: 第五册 book05-v1.0.0-rc.1 发布提交、标签、GitHub Pages 部署与线上冒烟
+    status: in_progress
 activity:
-  last_meaningful_update: 2026-08-23T03:54:00+08:00
-  last_status_review: 2026-08-23T03:54:00+08:00
+  last_meaningful_update: 2026-09-11T12:50:29+08:00
+  last_status_review: 2026-09-11T12:50:29+08:00
 management:
   archived: false
   status_maintenance: automatic
@@ -171,3 +228,23 @@ confidence:
     - Owner 明确授权 G8；Cloudflare route、教学 DNS、connector 与 Tunnel 清理，两个 HTTPS 公共解析器的零答案与 DNSSEC 保留，Vultr 实例销毁、计费附加资源空清单、本机实验凭证永久删除和仓库敏感值精确扫描均提供直接证据
     - 第四册 148 项单元测试、71 页 production build、60 页 Pagefind、2075 个内部链接、126 项 Playwright、125 页 A4 PDF、Lighthouse 四类 100 分、npm audit 0、敏感值扫描与 GitHub Pages 子路径构建提供发布前直接证据
     - 第四册发布合并提交、带注释标签、GitHub CI verify 与 browser job、Pages build 与 deploy 成功记录，以及线上 7 个关键 URL、搜索、打印、canonical、390px 和 404 冒烟提供发布完成直接证据
+    - 第五册内容规格直接记录了目标读者、主线默认值、15 个内容单元、三篇样章候选、官方事实复核清单、风险矩阵与 G1—G8 外部操作闸门，且明确尚未创建正文或外部资源
+    - 项目 Owner 已明确确认第五册主线并授权三篇样章试写；最终书名、远程兼容 API、固定镜像、回环端口、先收紧注册再公开和第一版排除项已写入内容规格与书籍注册表
+    - 第五册三篇 draft 样章、专用 QA 与事实台账、158 项单元测试、71 页 production 排除、60 页 Pagefind 排除、三种宽度、深色、无 JavaScript 边界、样章打印页和敏感模式扫描提供直接证据
+    - Owner 已明确确认第五册三篇样章并授权第 1—5 章第一批；五篇新 draft、专用 QA、160 项单元测试、Compose YAML 解析、71 页 production 排除、60 页 Pagefind 排除、三种宽度、深色、无 JavaScript、草稿打印和敏感模式扫描提供直接证据
+    - Owner 已明确确认第五册第 1—5 章第一批并授权后续文章；第 7—10 章四篇新 draft、第 6 与 11 章连续性复核、专用 QA、164 项单元测试、19 组 Shell 语法、71 页 production 排除、60 页 Pagefind 排除、三种宽度、深色、无 JavaScript、草稿打印和敏感模式扫描提供直接证据
+    - Owner 已明确确认第五册第二批并授权继续；第 12 章、附录与资料来源三篇新 draft、专用 QA、167 项单元测试、10 组 Shell 与 Compose 结构检查、71 页 production 排除、60 页 Pagefind 排除、三种宽度、深色、无 JavaScript、15 单元草稿打印、34 个官方外链和敏感模式扫描提供直接证据
+    - Owner 已明确确认第五册 15 个完整 draft；独立 G1—G8 实机 runbook、空白结果台账、169 项单元测试、71 页 production 排除、60 页 Pagefind 排除、2075 个内部链接、npm audit 0、diff 检查和敏感模式扫描提供直接证据
+    - 第五册首轮整册写作校订将固定版本更新至 v0.11.3，补齐旧资源清理与四类地址边界；170 项单元测试、71 页 production 排除、60 页 Pagefind 排除、30 组响应式检查、深色、无 JavaScript、15 单元草稿打印、6 个官方外链和敏感模式扫描提供直接证据
+    - 第五册第二轮整册写作校订补齐 Direct Connections、Task Models、叠加权限、三类分享、公开加固后的 SSH 对照和交接费用边界；171 项单元测试、71 页 production 排除、60 页 Pagefind 排除、15 组响应式检查、五章无 JavaScript、深色、15 单元草稿打印、11 个官方外链和敏感模式扫描提供直接证据
+    - Owner 明确授权第五册 G1；单台大阪 Ubuntu 24.04 amd64 临时 VPS、Docker 官方 APT、唯一无 route Tunnel、单 Healthy connector、cloudflared systemd enabled / active、TCP 7844 与 QUIC、Cloudflare DNS / route 零记录和无公网 80 / 443 / 3000 提供直接证据
+    - Owner 授权第五册 G2；固定 v0.11.3、Compose healthy、127.0.0.1:3000、WEBUI_AUTH=True、持久 Secret、named volume、down / up 重建恢复、数据库用户数为 0 和公网 3000 不可达提供直接证据
+    - Owner 授权第五册 G3；唯一首位管理员、signup 关闭、默认 pending、错误密码与再次注册拒绝、第一版权限收紧、浏览器登录刷新、保留 Secret 与 named volume 的容器重建，以及重建后认证与配置持久提供直接证据
+    - Owner 授权第五册 G4；DeepSeek 官方实时价格页与账户模型列表确认 deepseek-flash，专用可撤销 key、单模型 allowlist、一次固定合成 HTTP 200 / SSE 响应、浏览器聊天持久化，以及连接禁用后模型归零、恢复后只返回预期模型提供直接证据
+    - Owner 授权第五册 G5 并人工确认桌面与手机蜂窝网络通过；唯一 chat route、自动 Proxied DNS、Universal SSL、公开 URL / CORS / Secure Cookie、登录刷新、WebSocket / SSE、一次固定短答、聊天持久化、回环源站一致性与公网入站隔离提供直接证据
+    - Owner 授权第五册 G6；错误 route 实际显示 500，错误模型 ID 返回可分辨的不匹配且没有增加提供方用量，两项均已恢复到 G5 基线
+    - Astro 与 Vitest 已完成同主版本安全更新；171 项单元测试、71 页 production build、60 页 Pagefind、2075 个内部链接和 npm audit 0 提供回归证据
+    - Owner 授权第五册 G6；应用停止实际返回公开 502、错误 route 返回 500、connector 停止返回 530、错误 CORS 的 WebSocket 路径返回 500，全部恢复到本机与公开 200 基线
+    - Owner 授权第五册 G7；停止写入归档、SHA-256 manifest、VPS 外副本与同版本测试 volume 恢复通过，数据库 hash、唯一管理员、4 条合成聊天和配置一致且没有模型调用
+    - Owner 授权第五册 G8；公开 route 与 DNS、模型连接与专用 key、容器、两个 volume、Secret、备份、connector、Tunnel、临时防火墙规则和 VPS 已精确删除，公共 DNS 零答案、旧 key 401、计费附加资源清单为空且根 zone 与 DNSSEC 保留
+    - 第五册 172 项单元测试、88 页 production build、75 页 Pagefind、2604 条内部链接、156 项 Playwright 收集结果、20 个中文搜索样本、133 页 A4 PDF、Lighthouse 四类 100 分、npm audit 0 与 GitHub Pages 子路径构建提供发布前直接证据

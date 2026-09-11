@@ -1,0 +1,370 @@
+---
+book: "05-open-webui"
+order: 9
+slug: "09-users-and-privacy"
+title: "管理用户、聊天记录、附件与隐私边界"
+shortTitle: "用户与隐私"
+description: "用最小用户与模型权限建立账户边界，区分聊天、附件、分享、日志、模型提供方和备份中的数据，并明确删除不能证明哪些副本已消失。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 9
+duration: "预计 35—50 分钟"
+labels:
+  - "用户角色"
+  - "最小权限"
+  - "数据边界"
+completionId: "book05-chapter-09"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="已经完成电脑与手机端到端验证，准备决定是否允许第二位用户使用的 Owner"
+  duration="预计 35—50 分钟"
+  outcome="建立只含已知用户和预期模型的访问矩阵，知道聊天、附件、日志、上游模型与备份分别保存什么，并能在分享或删除前说清实际边界"
+/>
+
+<section className="book-section" id="book05-ch9-purpose">
+  ## 公开入口之后，风险不只来自陌生访客
+
+  第 7 章公开了登录页，第 8 章证明 Owner 可以完成对话。接下来最重要的问题不是换主题或安装插件，而是：
+
+  - 谁可以登录；
+  - 谁可以调用会产生费用的模型；
+  - 谁能管理其他用户与全局连接；
+  - 问题、回答、附件和日志分别保存在哪里；
+  - 分享链接会让谁看到内容；
+  - 删除一条聊天以后，哪些副本仍可能存在。
+
+  <Callout type="danger" title="本章不把 Open WebUI 当作强隔离多租户系统">
+    应用管理员、VPS 管理员和备份维护者可能通过不同路径接触数据。关闭某个管理界面的“查看聊天”能力只能减少界面入口，不能阻止拥有数据库、容器或主机权限的人访问底层数据。需要互不信任的组织或客户隔离时，使用独立实例与独立凭证，而不是只分配几个应用角色。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch9-three-roles">
+  ## 先理解 admin、user 与 pending
+
+  当前 Open WebUI 使用三种基础角色。具体按钮与功能还会受管理员策略影响，不能只看角色名称：
+
+  <ComparisonTable>
+
+  | 角色 | 本书中的含义 | 可以做什么 | 不应得到什么 |
+  | --- | --- | --- | --- |
+  | `admin` | 实例最高应用管理员 | 管连接、用户、模型和全局设置 | 不把日常使用者都设为 admin |
+  | `user` | 已批准普通用户 | 登录并使用管理员允许的模型与功能 | 不得管理全局 API key、用户或系统配置 |
+  | `pending` | 等待管理员审核 | 账户存在，但尚未获准正常使用 | 不应在审核前调用模型或读取共享数据 |
+
+  </ComparisonTable>
+
+  第 5 章创建的首位账户是唯一预期 admin。Open WebUI 当前环境变量参考把新用户默认角色列为 `pending`，
+  但本书仍保持 signup 关闭；“默认 pending”不能替代“公开注册关闭”。
+
+  <MockWindow title="Open WebUI 用户清单仿真">
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead><tr><th>显示标识</th><th>角色</th><th>模型</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td>Owner</td><td><code>admin</code></td><td><code>&lt;MODEL_ID&gt;</code></td><td><MockStatusBadge tone="success">已核对</MockStatusBadge></td></tr>
+          <tr><td>第二位使用者</td><td><code>pending</code></td><td>无</td><td><MockStatusBadge tone="neutral">尚未批准</MockStatusBadge></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  仿真不显示真实姓名或邮箱。实际核对只能在受控管理员页面中完成，不把用户清单截图放进仓库。
+</section>
+
+<section className="book-section" id="book05-ch9-additive-permissions">
+  ## 权限会叠加，不能只检查角色名称
+
+  当前 Open WebUI 的 RBAC（基于角色的访问控制）由角色、默认权限、群组和资源授权共同组成，
+  群组权限采用加法：只要任意一个所属群组允许某项能力，用户就可能获得它。一个限制较严的群组
+  不会自动抵消另一个群组授予的权限。
+
+  <ComparisonTable>
+
+  | 检查层 | 要回答的问题 | 常见漏项 |
+  | --- | --- | --- |
+  | 角色 | 当前是 admin、user 还是 pending | 只看到 user 就认定权限很低 |
+  | Default Permissions | 所有普通用户默认得到什么 | 文件上传等默认能力没有主动收紧 |
+  | 群组 | 每个所属群组又增加了什么 | 一个旧群组重新授予分享、API key 或工具能力 |
+  | 资源授权 | 哪些模型、知识库或聊天直接共享给此人 | UI 中看不到入口，却仍通过已保存链接访问 |
+
+  </ComparisonTable>
+
+  成功状态：测试 user 的有效权限等于预期最小集合，所有群组与直接授权都能解释。失败判断：只改了
+  Default Permissions，却没有检查群组；或管理员账户看不到限制就认定普通用户也受限。许多权限对 admin
+  有豁免，因此验收必须使用普通测试 user。
+</section>
+
+<section className="book-section" id="book05-ch9-user-gate">
+  ## 添加第二位用户也是操作闸门
+
+  新用户可能增加模型费用、聊天数据、附件和账号恢复责任。创建或批准前先写访问申请：
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item"><p className="info-grid__title">身份</p><p>由谁申请，管理员通过哪条可信渠道核对。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">用途</p><p>为什么需要使用，预计到期或复核日期。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">模型</p><p>只允许哪一个模型，是否允许产生费用。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">数据</p><p>允许输入的数据等级，附件与分享是否关闭。</p></section>
+  </InfoGrid>
+
+  <ComparisonTable>
+
+  | 创建前检查 | 成功状态 | 停止条件 |
+  | --- | --- | --- |
+  | 身份 | Owner 能独立确认申请者 | 只凭陌生消息或相似邮箱 |
+  | 角色 | 初始为 pending，批准后最多为 user | 对方要求 admin 但无明确职责 |
+  | 模型费用 | 模型 allowlist 与小额限额已说明 | 无法限制或观察用量 |
+  | 密码交付 | 使用受控渠道，由用户尽快更换 | 通过公开聊天、截图或邮件正文长期保存 |
+  | 离场 | 到期日、禁用与删除负责人明确 | 不知道以后由谁撤销 |
+
+  </ComparisonTable>
+
+  本书 draft 不实际创建第二位用户。实机阶段每次只处理一个经过确认的账户，不批量导入真实用户资料。
+</section>
+
+<section className="book-section" id="book05-ch9-review-users">
+  ## 第一步：从现有用户清单开始，而不是先开放注册
+
+  以 Owner 登录，进入 Admin Settings 的 Users 或当前含义相同的用户管理页，逐行核对：
+
+  - 用户总数；
+  - 每个用户的身份与角色；
+  - 是否存在 pending 申请；
+  - 最近活动时间是否合理；
+  - 模型或群组权限是否超出用途；
+  - 账户是否仍需要保留。
+
+  成功状态：清单中只有已知账户，唯一 admin 是 Owner，其他账户至多是 pending 或 user。失败判断：陌生 admin、
+  无法解释的活跃会话、未知邮箱或用户数量变化。
+
+  <Callout type="warning" title="发现未知用户时先保存元数据证据">
+    记录发现时间、角色、最近活动与不含完整邮箱的内部标识，然后临时移除 `chat` route 或禁用模型连接，保护费用与数据边界。不要先删除账户抹掉时间线，也不要把用户邮箱和聊天正文发到公开求助渠道。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch9-registration">
+  ## 第二步：保持 signup 关闭
+
+  signup（注册）是“访客能否自己建立账户”；login（登录）是“已有账户能否进入”。公开实例需要登录，
+  不代表必须开放注册。
+
+  <ComparisonTable>
+
+  | 设置 | 本书主线 | 原因 |
+  | --- | --- | --- |
+  | `WEBUI_AUTH` | `True` | 保持应用认证 |
+  | signup | 关闭 | 不接受未计划的公网账户 |
+  | 默认新用户角色 | `pending` | 临时开放注册时也必须先审核 |
+  | admin 数量 | 1 个 Owner | 避免不必要的全局权限 |
+  | 匿名模型调用 | 禁止 | 防止未知费用与数据输入 |
+
+  </ComparisonTable>
+
+  如果当前版本提供管理员创建用户功能，优先由管理员为一位已核实使用者建立 pending/user 账户；如果只能短时开放 signup，
+  必须单独安排时间窗：开放前记录用户数，用户完成注册后立即关闭，再核对没有第三个账户。不要把注册链接公开发布。
+</section>
+
+<section className="book-section" id="book05-ch9-permissions">
+  ## 第三步：先给最小权限，再按用途增加
+
+  第一版普通 user 只需要“登录、选择一个模型、发送纯文本、读取自己的聊天”。以下功能先保持关闭或不授予普通用户：
+
+  <ComparisonTable>
+
+  | 功能 | 第一版普通用户 | 为什么 |
+  | --- | --- | --- |
+  | 预期模型 | 允许 1 个 allowlist 模型 | 控制用途与费用 |
+  | 管理连接 | 禁止 | 会接触 endpoint、全局凭证与模型范围 |
+  | 用户管理 | 禁止 | 避免提升角色或创建未知账户 |
+  | 文件上传 | 关闭 | 附件增加本机保存、解析与上游外发边界 |
+  | Web Search / URL 抓取 | 关闭 | 会访问额外外部服务和网页 |
+  | Tools / Functions / MCP | 关闭 | 可能执行代码、访问网络或读取更多凭证 |
+  | Direct Connections | 关闭 | 会让浏览器用本机保存的个人 key 绕过 Open WebUI 后端连接 |
+  | 公开分享 | 关闭 | 防止聊天被扩大到其他登录用户或互联网 |
+  | Open WebUI API key | 关闭 | 避免脚本以用户身份绕开网页并长期调用应用 API |
+
+  </ComparisonTable>
+
+  在当前版本中，用户与群组权限可以从管理界面配置；部分默认权限也有环境变量。不要只修改 Compose 后假设数据库里的
+  ConfigVar 已被覆盖。修改后用一个测试 user 实际登录，确认看不到管理员区域、额外模型、上传、分享和工具入口。
+
+  <Callout type="info" title="保持用户信息转发关闭">
+    `ENABLE_FORWARD_USER_INFO_HEADERS` 当前默认是 `False`。启用后，Open WebUI 可能把姓名、用户 ID、邮箱和角色 header 发给多个上游服务。第一版不需要这项能力，应保持关闭。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch9-data-map">
+  ## 第四步：画出数据的四个保存或处理位置
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>用户设备</strong><small>输入、浏览器 Cookie、下载文件</small></div>
+    <div className="flow-node"><strong>Open WebUI volume</strong><small>账户、配置、聊天、附件</small></div>
+    <div className="flow-node"><strong>运行日志与备份</strong><small>错误元数据、数据副本</small></div>
+    <div className="flow-node"><strong>模型及其他上游</strong><small>生成所需输入与服务日志</small></div>
+  </FlowDiagram>
+
+  <ComparisonTable>
+
+  | 数据 | VPS / Open WebUI | 远程模型提供方 | 还可能在哪里 |
+  | --- | --- | --- | --- |
+  | 账户资料 | 数据库中保存必要账户字段 | 通常不需发送；是否转发取决于配置 | 浏览器、身份系统、备份 |
+  | 问题与回答 | 聊天数据库中保存 | 生成所需内容会发送给上游 | 日志、导出、备份、用户复制 |
+  | 附件 | 上传文件与解析结果可能保存在 volume | 必要内容或片段可能进入模型请求 | 浏览器下载、向量库、备份 |
+  | API key | 管理连接或配置中受控保存 | 提供方用它认证请求 | 密码管理器、受控恢复材料 |
+  | Cookie | 主要保存在浏览器 | 不应发送给模型提供方 | 反向代理日志配置不当时可能泄露 |
+  | 用量与账单 | Open WebUI 不等于权威账单 | 提供方记录计量与费用 | 财务系统、告警邮件 |
+
+  </ComparisonTable>
+
+  表中的“通常”和“可能”必须保留。不同功能、提供方与版本会改变实际字段，不能用本书替代模型提供方的当前隐私、
+  保留和训练政策。
+</section>
+
+<section className="book-section" id="book05-ch9-attachments">
+  ## 第五步：附件默认关闭，确有用途再单独验证
+
+  文件上传看似只是把一个文档拖进网页，背后可能包含：
+
+  1. 浏览器把原文件上传到 Open WebUI；
+  2. 文件保存在 `/app/backend/data` 对应 volume；
+  3. 应用抽取文字、建立索引或生成 embedding（把文本转换为可检索数字向量）；
+  4. 用户提问时，相关片段被加入远程模型请求；
+  5. 文件、索引、聊天与回答进入下一次备份。
+
+  因此，第一版把普通用户文件上传权限设为关闭。以后确实需要时，先用无敏感测试文件完成四项验证：保存位置、
+  发送给哪些上游、删除范围、备份保留期。
+
+  <Callout type="danger" title="不要用真实隐私文件做功能测试">
+    身份证件、医疗、财务、人事、客户、合同、源代码、密钥文件与受监管数据都不属于练习材料。HTTPS 只保护传输，不能撤回已经上传或发送给上游的内容。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch9-sharing">
+  ## 第六步：区分三种分享范围，第一版都关闭
+
+  Open WebUI 当前权限命名中至少需要区分：
+
+  <ComparisonTable>
+
+  | 能力 | 可能扩大到谁 | 本书主线 |
+  | --- | --- | --- |
+  | 指定用户 / 群组分享 | 被点名且已登录的用户或群组成员 | 关闭，确有协作需求再逐对象开放 |
+  | Public sharing | 实例中的每一位已登录用户 | 关闭 |
+  | Open sharing | 任何拿到链接的人；无需账户或登录，只读 | 关闭 |
+
+  </ComparisonTable>
+
+  这里的 public 与 open 很容易被中文“公开”混淆。三者都依赖聊天分享父权限；关闭 Public / Open
+  并不自动等于关闭指定用户与群组分享。不能只看到分享图标就假设链接仍受原聊天账户保护。
+  分享前必须在无敏感测试聊天上，从指定普通用户、未指定普通用户和退出登录浏览器分别验证可见范围。
+
+  <MockWindow title="聊天分享边界仿真">
+    <div className="mock-form-grid">
+      <MockField label="实例内公开"><MockStatusBadge tone="neutral">关闭</MockStatusBadge></MockField>
+      <MockField label="无需登录的开放链接"><MockStatusBadge tone="neutral">关闭</MockStatusBadge></MockField>
+      <MockField label="指定用户或群组"><MockStatusBadge tone="neutral">关闭</MockStatusBadge></MockField>
+      <MockField label="测试材料" wide>只使用无敏感、可立即撤销的示例聊天</MockField>
+      <MockField label="验证方式" wide>Owner、普通 user、退出登录浏览器分别检查</MockField>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="book05-ch9-delete">
+  ## 第七步：删除聊天不等于所有副本都消失
+
+  删除前先回答“要删除哪一份、由谁删除、是否有保留义务”：
+
+  <ComparisonTable>
+
+  | 位置 | 在 Open WebUI 点 Delete 能否证明已删除 | 需要另查什么 |
+  | --- | --- | --- |
+  | 当前应用数据库 | 应当删除当前应用中的对象，但要实机验证 | 当前版本行为、审计与错误提示 |
+  | 附件与索引 | 不应凭聊天消失就推断全部清理 | 文件、向量库、关联对象 |
+  | 运行日志 | 不能证明 | 日志内容与保留周期 |
+  | 独立备份 | 不能证明 | 备份保留、过期与恢复流程 |
+  | 模型提供方日志 | 不能证明 | 提供方当前删除与保留政策 |
+  | 其他用户的复制或导出 | 不能撤回 | 分享、下载与组织制度 |
+
+  </ComparisonTable>
+
+  删除用户、聊天、附件或备份都是有损操作。先精确确认对象、保存必要审计证据、核对法律与组织保留要求；
+  不把“界面看不见”写成“所有系统永久删除”。
+</section>
+
+<section className="book-section" id="book05-ch9-admin-access">
+  ## 管理员聊天访问开关不是主机安全边界
+
+  当前版本提供 `ENABLE_ADMIN_CHAT_ACCESS` 一类配置，用于控制管理员界面是否允许浏览用户聊天。
+  如果团队不需要此功能，可以关闭以减少日常界面暴露；但必须同时写明：
+
+  - 如果 `ENABLE_ADMIN_EXPORT` 仍开启，管理员导出的数据或数据库仍可能包含用户聊天；不需要导出时也应关闭；
+  - 有 VPS root / Docker 权限的人仍可能读取数据库文件或备份；
+  - 数据库管理员或恢复人员可能在故障处理时接触内容；
+  - 关闭 UI 入口不能替代最小主机权限、备份加密与访问审计；
+  - 真正互不信任的用户应使用独立实例，不共享同一个数据 volume 和 Secret。
+
+  这项设置的成功标准是“普通管理工作不再暴露聊天内容”，不是“技术管理员从任何路径都无法访问”。
+</section>
+
+<section className="book-section" id="book05-ch9-review-card">
+  ## 保存一张不含个人资料的权限与数据卡
+
+  可以记录：
+
+  ```text
+  复核日期：YYYY-MM-DD
+  admin：1 个 Owner
+  user：<数量，不写完整邮箱>
+  pending：<数量>
+  signup：关闭
+  普通用户模型：<MODEL_ID>，无其他模型
+  文件上传：关闭
+  Web Search / Tools / Functions / MCP：关闭
+  Direct Connections：关闭
+  Open WebUI API keys：全局关闭
+  指定用户 / 群组分享：关闭
+  Public sharing：关闭
+  Open sharing：关闭
+  用户信息 header 转发：关闭
+  管理员聊天访问 / 导出：关闭或写明业务理由与责任人
+  应用数据：book05-open-webui-data
+  上游数据政策：<已复核日期与官方页面>
+  下一次权限复核：<YYYY-MM-DD>
+  ```
+
+  不记录用户密码、完整邮箱清单、聊天标题、附件名、API key、Cookie、Secret 或提供方账户 ID。
+</section>
+
+<section className="book-section" id="book05-ch9-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book05-chapter-09"
+    items={[
+      "唯一 admin 是 Owner；所有 user 与 pending 都能说明身份、用途和复核日期",
+      "signup 保持关闭，默认 pending 不被当作公开注册的替代保护",
+      "普通 user 只获得预期模型和纯文本聊天能力，没有管理员权限",
+      "我已检查 Default Permissions、全部群组和直接资源授权，理解权限会叠加",
+      "文件上传、Web Search、Tools、Functions、MCP、Direct Connections 与 Open WebUI API key 第一版均未开放",
+      "指定用户/群组、Public sharing 与 Open sharing 都关闭，我能区分三者的可见范围",
+      "ENABLE_FORWARD_USER_INFO_HEADERS 保持 False",
+      "不需要管理员查看或导出聊天时，ENABLE_ADMIN_CHAT_ACCESS 与 ENABLE_ADMIN_EXPORT 都关闭",
+      "我能说明账户、聊天、附件、Cookie、日志、备份和提供方数据分别在哪里",
+      "我知道自托管界面不等于问题不会发送给远程模型提供方",
+      "我不会把删除应用聊天描述为日志、备份和提供方副本已经全部删除",
+      "权限与数据卡不含完整邮箱、聊天内容、附件名、凭证或账单身份信息",
+    ]}
+  />
+</section>

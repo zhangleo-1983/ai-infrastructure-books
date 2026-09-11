@@ -245,4 +245,37 @@ describe("系列级内容规范", () => {
     expect(entries.at(-2)?.data.chapterType).toBe("appendix");
     expect(entries.at(-1)?.data.chapterType).toBe("sources");
   });
+
+  it("第五册 Release Candidate 包含开始之前、第 1—12 章、附录和资料来源", () => {
+    const entries = bookContent("05-open-webui");
+
+    expect(entries).toHaveLength(15);
+    expect(entries.map(({ data }) => data.order)).toEqual(
+      Array.from({ length: 15 }, (_, index) => index),
+    );
+    expect(entries.map(({ data }) => data.slug)).toEqual([
+      "start",
+      "01-two-request-paths",
+      "02-choose-model-provider",
+      "03-plan-deployment",
+      "04-deploy-open-webui",
+      "05-bootstrap-admin",
+      "06-connect-model-provider",
+      "07-publish-with-tunnel",
+      "08-first-conversation",
+      "09-users-and-privacy",
+      "10-backup-and-update",
+      "11-troubleshooting",
+      "12-maintenance-handoff",
+      "appendix",
+      "sources",
+    ]);
+    expect(entries.every(({ data }) => !data.draft)).toBe(true);
+    expect(
+      entries.filter(({ data }) => data.chapterType === "chapter"),
+    ).toHaveLength(12);
+    expect(entries.at(0)?.data.chapterType).toBe("introduction");
+    expect(entries.at(-2)?.data.chapterType).toBe("appendix");
+    expect(entries.at(-1)?.data.chapterType).toBe("sources");
+  });
 });

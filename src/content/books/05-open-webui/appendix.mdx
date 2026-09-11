@@ -1,0 +1,246 @@
+---
+book: "05-open-webui"
+order: 13
+slug: "appendix"
+title: "附录：环境变量、命令、错误地图与 Ollama 路径图"
+shortTitle: "附录"
+description: "集中查阅第五册主线使用的环境变量、只读命令、错误分层、数据与费用对象，并用路径图说明 Ollama 可选架构而不扩展为第二套部署教程。"
+chapterType: "appendix"
+updatedAt: "2026-09-11"
+labels:
+  - "环境变量"
+  - "命令速查"
+  - "Ollama 路径图"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+
+export const localReadOnly = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose ps
+sudo docker compose images
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo ss -lntp 'sport = :3000'
+sudo docker volume inspect book05-open-webui-data --format '{{.Name}} {{.Driver}}'
+df -h /`;
+
+export const publicReadOnly = `nslookup chat.example.com
+curl --head --show-error --connect-timeout 10 https://chat.example.com`;
+
+export const connectorReadOnly = `sudo systemctl is-enabled cloudflared
+sudo systemctl is-active cloudflared
+sudo systemctl show cloudflared \
+  --property=ActiveState --property=SubState --property=UnitFileState`;
+
+export const safeLogs = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose logs --since=15m --tail=100 --timestamps open-webui`;
+
+export const linuxHostGatewaySketch = `services:
+  open-webui:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# 仅表示 Linux 容器如何解析宿主机；
+# 不会安装 Ollama，也不会自动把 11434 暴露到公网。`;
+
+<section className="book-section" id="book05-appendix-use">
+  ## 这份附录解决什么问题
+
+  本页是第五册的速查入口，不替代第 1—12 章的顺序、费用确认、备份和停止条件。它使用 2026-09-11 的官方资料与 RC 实机基线；后续版本仍要重新核对当前版本。
+
+  <Callout type="warning" title="速查不等于复制即用">
+    表中值来自本书固定主线或官方当前默认。Open WebUI 的 ConfigVar 可能在首次读取后由数据库中的管理员设置优先；只修改 Compose 环境变量未必覆盖已保存配置。先确认值的归属，再在维护窗口中修改。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-appendix-env">
+  ## 环境变量速查
+
+  <ComparisonTable>
+
+  | 变量 | 本书 RC 值 | 作用 | 变更影响与检查 |
+  | --- | --- | --- | --- |
+  | `WEBUI_AUTH` | `True` | 保持应用登录认证 | 不以关闭认证解决登录问题；现有用户实例也不应依赖这种变更 |
+  | `WEBUI_SECRET_KEY` | 受控随机值，不入仓库 | 签名登录 token，并参与部分加密数据 | 重建必须保持；改变会使会话失效，可能要求重新输入加密配置 |
+  | `ENABLE_SIGNUP` | 初始化后确认关闭 | 控制注册入口 | 当前是 ConfigVar；以管理界面、无痕窗口与用户数共同验收 |
+  | `DEFAULT_USER_ROLE` | `pending` | 新注册用户的默认角色 | 不能替代关闭公开注册；待批准账户不应能调用模型 |
+  | `WEBUI_URL` | `https://chat.example.com` | 公开基础 URL | 改 hostname、反向代理或 OAuth 前重查 |
+  | `CORS_ALLOW_ORIGIN` | `https://chat.example.com` | 允许浏览器 Origin | 使用精确 Origin；错值会影响登录、WebSocket 或流式响应 |
+  | `WEBUI_SESSION_COOKIE_SECURE` | `True` | 只经 HTTPS 发送 session cookie | 公开 HTTPS 路径启用；SSH 回退测试需独立设计 |
+  | `WEBUI_AUTH_COOKIE_SECURE` | `True` | 只经 HTTPS 发送 auth cookie | 与真实 HTTPS、反向代理和登录共同验证 |
+  | `ENABLE_FORWARD_USER_INFO_HEADERS` | `False` | 是否向上游转发用户标识 header | 开启会扩大姓名、ID、邮箱、角色的外发范围 |
+  | `ENABLE_ADMIN_CHAT_ACCESS` | 按第 9 章策略核对 | 管理界面是否允许 admin 访问聊天 | 关闭 UI 入口不阻止主机、数据库或备份管理员接触底层数据 |
+  | `ENABLE_OLLAMA_API` | 主线不使用 | 开启 Ollama API 连接能力 | 只在附录替代路径评估后决定；属于 ConfigVar |
+  | `OLLAMA_BASE_URL` | 主线不设置 | 单个 Ollama API 地址 | Docker 默认语义与宿主机网络有关；不能盲填容器内 localhost |
+  | `OLLAMA_BASE_URLS` | 主线不设置 | 多个 Ollama 地址，以分号分隔 | 会覆盖单地址；多实例需另做模型 ID 与容量设计 |
+
+  </ComparisonTable>
+
+  “默认值”不是推荐值。例如 `ENABLE_SIGNUP` 的产品默认不能替代本书公开前关闭注册的安全决策；`ENABLE_PASSWORD_VALIDATION` 当前默认关闭，也不代表弱密码可以接受。
+</section>
+
+<section className="book-section" id="book05-appendix-commands">
+  ## 只读与低风险命令速查
+
+  ### VPS 上的 Open WebUI
+
+  <CodeBlock label="Compose、健康、回环端口、volume 与磁盘" code={localReadOnly} />
+
+  ### VPS 上的既有 Tunnel connector
+
+  <CodeBlock label="只读检查 cloudflared systemd 状态" code={connectorReadOnly} />
+
+  ### 维护电脑上的公开入口
+
+  <CodeBlock label="检查公开 DNS 与 HTTPS 响应头" code={publicReadOnly} />
+
+  ### 受控主机上的应用日志
+
+  <CodeBlock label="限制时间与行数的应用日志" code={safeLogs} />
+
+  <ComparisonTable>
+
+  | 命令或动作 | 用途 | 不能证明什么 |
+  | --- | --- | --- |
+  | `docker compose config -q` | Compose 语法与插值可解析 | 容器已健康或秘密正确 |
+  | `docker compose ps` | 当前容器状态 | 公开 HTTPS、登录和模型可用 |
+  | `/health` | Open WebUI 本机健康 endpoint 响应 | 数据、模型、WebSocket 与用户路径完整 |
+  | `ss` | 3000 监听地址与进程 | 云防火墙和所有公网路径都安全 |
+  | `docker volume inspect` | volume 名、驱动与挂载对象 | 备份可恢复或内容完整 |
+  | `systemctl is-active` | connector 进程状态 | 所有 published route 都正确 |
+  | `curl --head` | DNS、TLS 与 HTTP 头部样本 | 页面正文、登录、Cookie、流式回答正确 |
+  | `docker compose logs` | 当前层的时间线与错误线索 | 日志天然脱敏或适合公开分享 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="删除命令不属于速查表">
+    本页故意不提供生产 volume、route、Tunnel、key、备份或 VPS 的一键删除命令。`docker volume prune` 和未经逐项核对的 `docker compose down -v` 不能进入日常维护清单。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-appendix-error-map">
+  ## 错误地图：先判断哪条请求路径失败
+
+  <ComparisonTable>
+
+  | 现象 | 更可能的层 | 先检查 | 不要先做 |
+  | --- | --- | --- | --- |
+  | `NXDOMAIN` | DNS / route | hostname、published route 与关联 DNS | 轮换模型 key |
+  | Cloudflare Error 1033 | connector | Tunnel 状态、systemd 与出站连接 | 开放公网 3000 |
+  | 502 Bad Gateway | connector 到源站 | `127.0.0.1:3000`、容器与 service URL | 修改 nameserver |
+  | 登录循环 | URL / Cookie / Secret / 时间 | `WEBUI_URL`、Secure Cookie、Secret 与时钟 | 删除用户数据库 |
+  | WebSocket 403 / CORS | 浏览器 Origin 与代理链 | 精确 Origin、公开 URL、代理 WebSocket | 关闭 `WEBUI_AUTH` |
+  | 模型列表为空 | 模型连接 / 发现 | base URL、`/models`、allowlist、容器网络 | 删除 Open WebUI volume |
+  | 401 / 403 | 鉴权或权限 | 哪个服务返回、key 归属、账户权限 | 把 key 粘贴到 curl 或截图 |
+  | 404 / model not found | endpoint 或模型 ID | API base path、模型 ID、提供方协议 | 随机更换模型供应商 |
+  | 429 | 额度、限速或支出上限 | 提供方用量、余额、告警和重试 | 无限重试或提高并发 |
+  | 回答开始后中断 | SSE / WebSocket / 上游流式 | 浏览器控制台、CORS、代理超时、上游格式 | 同时重启全部服务 |
+  | 更新后旧版也失败 | 数据库迁移 / Secret | 更新前备份、源版本、原 Secret | 只把镜像标签改回旧版 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-appendix-data-cost">
+  ## 数据与费用对象地图
+
+  <InfoGrid columns={2}>
+    <section className="info-grid__item"><p className="info-grid__title">Open WebUI volume</p><p>用户、配置、聊天、附件与数据库；需要停止写入的归档和隔离恢复。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">`.env` 与 Secret</p><p>可重建配置和敏感值；权限应受控，不能提交仓库或放入交接卡。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">模型提供方</p><p>可能接收提示词、上下文和附件衍生内容，并产生独立按量或套餐账单。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">备份与日志</p><p>可能保留已删除的内容、副本与错误上下文；需要保留期、权限和删除责任。</p></section>
+  </InfoGrid>
+
+  <ComparisonTable>
+
+  | 动作 | 应用数据 | 公共入口 | 模型费用 | 基础设施费用 |
+  | --- | --- | --- | --- | --- |
+  | 禁用模型连接 | 保留 | 保留 | 新调用应停止 | VPS、域名、备份继续 |
+  | 删除 `chat` route | 保留 | 停止 | 后台或本机调用未必停止 | VPS、域名、Tunnel 相关资源继续 |
+  | `docker compose stop` | 保留 | 源站停止 | Open WebUI 新调用停止 | VPS、域名、备份继续 |
+  | 删除容器但保留 volume | 保留 | 应用停止 | Open WebUI 新调用停止 | 其他基础设施继续 |
+  | 删除生产 volume | 应用数据不可由该 volume 恢复 | 与 route 独立 | 与模型账户独立 | 与 VPS、域名独立 |
+  | 销毁 VPS | 主机上的未外移数据丢失 | route 可能留下错误响应 | 模型套餐/余额未必取消 | 附加磁盘、快照、域名可能继续收费 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-appendix-ollama">
+  ## Ollama 可选路径：只画边界，不展开第二条教程
+
+  Ollama 是可以在本机或自有服务器上运行模型并提供 API 的独立程序；Open WebUI 是调用该 API 的界面和管理层。换成 Ollama 会改变硬件、网络、模型存储、更新、备份和性能责任，不是把一个 base URL 替换成 `localhost` 就结束。
+
+  ### 路径一：Ollama 在 VPS 宿主机，Open WebUI 在容器
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>浏览器</strong><small>HTTPS 到 Open WebUI</small></div>
+    <div className="flow-node"><strong>Open WebUI 容器</strong><small>不能把 localhost 当宿主机</small></div>
+    <div className="flow-node"><strong>host gateway</strong><small>host.docker.internal:11434</small></div>
+    <div className="flow-node"><strong>Ollama 宿主机服务</strong><small>模型 API 与模型文件</small></div>
+  </FlowDiagram>
+
+  Open WebUI 官方连接说明对“宿主机运行 Ollama、Open WebUI 在 Docker”给出 `http://host.docker.internal:11434`。在 Linux VPS 上还要显式验证这个名称是否解析；Docker Compose 当前支持用 `host-gateway` 建立映射：
+
+  <CodeBlock label="Linux host gateway 架构片段（不直接执行）" code={linuxHostGatewaySketch} />
+
+  这段只解决容器如何找到宿主机，不会安装 Ollama、下载模型、配置 GPU 或防火墙。Ollama 官方当前说明其服务默认绑定 `127.0.0.1:11434`；如果为了容器访问而改变绑定范围，必须先证明 11434 没有暴露到公网。
+
+  ### 路径二：Ollama 与 Open WebUI 在同一 Compose 网络
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>Open WebUI</strong><small>服务名访问</small></div>
+    <div className="flow-node"><strong>Compose 默认网络</strong><small>Docker 内部 DNS</small></div>
+    <div className="flow-node"><strong>ollama:11434</strong><small>独立服务与独立模型 volume</small></div>
+  </FlowDiagram>
+
+  同一 Compose 项目中的服务可通过服务名发现对方，因此概念上的连接地址是 `http://ollama:11434`，不是容器 IP。这个方案需要另外固定 Ollama 镜像版本、模型 volume、CPU/GPU 资源、健康检查、更新顺序和备份；本书不提供完整 Compose，也不建议在未评估磁盘与内存时直接添加服务。
+
+  ### 路径三：使用 Open WebUI 的 Ollama 捆绑镜像
+
+  Open WebUI Quick Start 当前列出带 Ollama 的镜像变体。它把两层打包得更紧，但仍需要为 Open WebUI 数据和 Ollama 模型分别持久化，镜像更大、硬件与更新边界也不同。主线不会把固定标准镜像悄悄替换成捆绑变体。
+
+  <ComparisonTable>
+
+  | 选择 | 优点 | 新责任 | 继续前的停止条件 |
+  | --- | --- | --- | --- |
+  | 宿主机 Ollama | 服务生命周期可与 UI 分开 | host gateway、绑定地址、systemd、模型目录 | 不知道 11434 是否公网可达 |
+  | 同 Compose 网络 | 服务名稳定、无需发布模型端口 | 第二服务、第二 volume、资源与更新编排 | 没有足够磁盘、内存或版本策略 |
+  | 捆绑镜像 | 初始对象较少 | 更大镜像、双数据路径、耦合更新 | 以为一个 volume 会自动保存全部模型 |
+
+  </ComparisonTable>
+
+  <Callout type="danger" title="“本地模型”不自动等于完全离线或零成本">
+    模型下载需要存储和网络；CPU/GPU、内存、磁盘、电费或更高规格 VPS 都可能产生费用。Web 搜索、外部工具、更新检查或其他连接仍可能访问外网。只有逐条验证数据路径和功能，才能描述具体隐私边界。
+  </Callout>
+
+  如果决定采用 Ollama，先另建实验规格：硬件容量、固定版本、模型名称与大小、模型 volume、11434 监听、Open WebUI 连接地址、备份、费用与回退。该规格获得确认后再写独立 runbook，不把本附录当成安装授权。
+</section>
+
+<section className="book-section" id="book05-appendix-glossary">
+  ## 术语速查
+
+  <ComparisonTable>
+
+  | 术语 | 零基础解释 | 本书中的位置 |
+  | --- | --- | --- |
+  | endpoint | 某项 API 的网络入口地址 | 模型 base URL 与具体 path |
+  | OpenAI-compatible | 使用相近请求协议，不表示由 OpenAI 运营或能力完全相同 | 第 2、6、11 章 |
+  | model ID | 提供方用来精确选择模型的字符串 | 连接 allowlist 与第一次对话 |
+  | token | 模型处理文本的计量单位之一；也可能被产品用来称呼凭证 | 必须结合上下文，不把两种含义混淆 |
+  | ConfigVar | Open WebUI 会把值保存到数据库的配置项 | 环境变量未必持续优先于管理界面 |
+  | named volume | Docker 管理并以名称识别的持久数据目录 | `book05-open-webui-data` |
+  | health endpoint | 用于判断应用进程是否响应的轻量地址 | `/health`，不等于端到端验收 |
+  | SSE / WebSocket | 浏览器持续接收流式内容的两种机制 | 回答中断、CORS 与代理排错 |
+  | route | 公开 hostname 到本机 service 的映射 | `chat.example.com → 127.0.0.1:3000` |
+  | allowlist | 明确允许的模型 ID 清单 | 避免所有提供方模型自动暴露给用户 |
+
+  </ComparisonTable>
+
+  <Callout type="info" title="附录不计入完成率">
+    第五册完成率只计算第 1—12 章。本附录与资料来源用于查阅和校订，不计入完成率；它们已随 RC 进入搜索与正式打印。
+  </Callout>
+</section>

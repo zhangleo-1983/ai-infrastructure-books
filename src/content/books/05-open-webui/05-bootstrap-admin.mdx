@@ -1,0 +1,259 @@
+---
+book: "05-open-webui"
+order: 5
+slug: "05-bootstrap-admin"
+title: "创建首位管理员，公开前先收紧注册"
+shortTitle: "初始化管理员"
+description: "通过 SSH 本地端口转发完成第一次访问，创建唯一首位管理员，验证认证、注册自动关闭、用户数量和 pending 角色边界。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 5
+duration: "预计 25—40 分钟"
+labels:
+  - "首位管理员"
+  - "SSH 转发"
+  - "关闭注册"
+completionId: "book05-chapter-05"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import OpenWebUIAdminBootstrapMock from "../../../components/mock-ui/OpenWebUIAdminBootstrapMock.astro";
+
+export const preflight = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo ss -lntp 'sport = :3000'`;
+
+export const sshForward = `read -rp "VPS 管理员用户名：" VPS_ADMIN
+read -rp "VPS 公网 IPv4：" VPS_IPV4
+ssh -L 3000:127.0.0.1:3000 "\${VPS_ADMIN}@\${VPS_IPV4}"`;
+
+export const postBootstrap = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo docker compose logs --tail=40 --timestamps open-webui`;
+
+<LearningGoals
+  audience="已经在回环地址启动 Open WebUI，准备第一次注册但不知道首位用户权限和公开风险的读者"
+  duration="预计 25—40 分钟"
+  outcome="由 Owner 控制的首位账户成为唯一管理员；认证启用，注册关闭，未知用户为 0；整个过程不创建公开 route"
+/>
+
+<section className="book-section" id="book05-ch5-critical-window">
+  ## 第一次注册是一段高权限窗口
+
+  Open WebUI 当前官方 Hardening 说明：signup 只开放到第一个用户注册；第一个用户会成为管理员；
+  随后 signup 自动关闭。如果管理员后来重新开放注册，新账户默认角色为 `pending`，需要管理员批准。
+
+  因此顺序必须是：
+
+  ```text
+  回环启动
+  → SSH 本地转发
+  → Owner 创建首位管理员
+  → 核对用户与注册状态
+  → 第 6 章连接模型
+  → 第 7 章才创建公开 route
+  ```
+
+  <Callout type="danger" title="管理员身份不明时立即停止">
+    如果首次打开就要求登录而不是注册，或用户列表已经存在未知账户，不要创建第二个账户、关闭认证、删除数据库或公开 route。先保存不含个人信息的证据并查明实例是否被初始化过。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch5-preflight">
+  ## 第一步：确认仍是未公开的健康基线
+
+  在 VPS 执行：
+
+  <CodeBlock label="复核容器、health 与回环监听" code={preflight} />
+
+  成功状态：service 为 Running/healthy，`/health` 成功，监听只包含 `127.0.0.1:3000`；Cloudflare 尚无
+  `chat.example.com` route，云与主机防火墙也没有公网 3000 入站规则。
+
+  任一项不符合就回到第 4 章。不要通过开放端口来绕过本机访问问题。
+</section>
+
+<section className="book-section" id="book05-ch5-forward">
+  ## 第二步：从自己的电脑建立 SSH 本地转发
+
+  在自己的电脑终端执行，不是在 VPS SSH 会话中执行：
+
+  <CodeBlock label="把本机 3000 安全转发到 VPS 回环 3000" code={sshForward} />
+
+  `-L` 表示 local forwarding（本地端口转发）：电脑的 `127.0.0.1:3000` 通过现有 SSH 会话连接到
+  VPS 的 `127.0.0.1:3000`。两个 `read` 输入不会进入 shell history。
+
+  成功状态：SSH 登录保持打开，终端没有 forwarding failed。失败判断：
+
+  - `Address already in use`：电脑本地 3000 已被占用；停止并查明本机进程，不要随意换成公网监听；
+  - `Connection refused`：VPS 回环应用未监听，回第 4 章查容器；
+  - SSH 主机密钥异常：停止并核对 VPS 身份，不接受陌生指纹。
+</section>
+
+<section className="book-section" id="book05-ch5-open-local">
+  ## 第三步：只打开本机地址
+
+  保持 SSH 会话不关闭，在自己电脑浏览器打开：
+
+  ```text
+  http://127.0.0.1:3000
+  ```
+
+  不要改成 VPS 公网 IP，不要添加 `chat.example.com`，也不要把页面链接发给其他人。此时 HTTP 只在 SSH 隧道内用于初始化；
+  第 7 章公开后必须使用 HTTPS。
+
+  预期看到创建首位账户的界面。下面是字段关系仿真，不是 v0.11.3 的真实截图：
+
+  <OpenWebUIAdminBootstrapMock />
+
+  v0.11.x 的管理界面仍可能在补丁版本中调整按钮文字、菜单分组和视觉位置，因此必须在 RC 实机校订时重查；本章验收以账户角色、注册状态和用户数量为准。
+
+  <Callout type="info" title="2026-09-10 G3 实机结果">
+    固定 `v0.11.3` 已验证：首位账户是唯一管理员，signup 关闭，默认新用户角色为 `pending`，错误密码与再次注册均被拒绝；刷新页面和保留原 Secret、named volume 的容器重建后仍可登录。为避免管理员凭证进入自动化日志，本次 RC 的初始账户通过同一 SSH 本地转发内的本机认证接口建立，凭证直接来自受控密码管理器；Owner 随后在浏览器完成真实登录与刷新验证。读者主线仍按下文使用浏览器和密码管理器。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch5-create-admin">
+  ## 第四步：由 Owner 创建首位管理员
+
+  <InstructionStep number={1} title="确认这是受控的全新实例">
+    页面应显示 signup / create account，而不是未知账户的登录页。地址栏必须是本机 <code>127.0.0.1:3000</code>。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="填写管理员名称与专用邮箱">
+    使用可长期接收通知、归属明确的地址。不要把真实邮箱写进书稿、截图或交接卡。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="从密码管理器生成唯一强密码">
+    建议至少 16 个随机字符，包含多类字符，并控制在 bcrypt 的 72 字节上限以内。不要在终端命令、聊天或便签中中转。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="提交一次并等待进入应用">
+    不要在网络慢时连续点击。成功后应进入已登录界面，而不是再次出现公开 signup。
+  </InstructionStep>
+
+  Open WebUI 默认不强制密码复杂度；强密码来自密码管理器，而不是依赖默认校验。后续如果启用
+  `ENABLE_PASSWORD_VALIDATION`，只影响注册、改密与创建用户等操作，不会自动替换现有密码。
+</section>
+
+<section className="book-section" id="book05-ch5-verify-role">
+  ## 第五步：确认首位账户确实是管理员
+
+  进入管理员区域，核对能够看到全局 Users、Connections 或等价管理入口。成功状态应同时满足：
+
+  <MockWindow title="首位账户验收仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>当前账户角色</strong> <MockStatusBadge tone="success">admin</MockStatusBadge></div>
+      <div className="mock-panel"><strong>用户总数</strong> <MockStatusBadge tone="success">1</MockStatusBadge></div>
+      <div className="mock-panel"><strong>未知用户</strong> <MockStatusBadge tone="success">0</MockStatusBadge></div>
+      <div className="mock-panel"><strong>应用认证</strong> <MockStatusBadge tone="success">Enabled</MockStatusBadge></div>
+    </div>
+  </MockWindow>
+
+  如果当前账户不是 admin、用户数大于 1 或出现未知邮箱，立即停止。不要删除对方账户掩盖证据，也不要继续添加模型 key。
+</section>
+
+<section className="book-section" id="book05-ch5-signup">
+  ## 第六步：验证注册已经关闭
+
+  当前官方行为是在首位管理员注册后自动关闭 signup。验证时：
+
+  1. 先保持管理员当前会话；
+  2. 打开一个新的无痕窗口；
+  3. 仍访问本机 `http://127.0.0.1:3000`；
+  4. 页面应只允许已有用户登录，不再允许创建新账户；
+  5. 回到管理员界面，确认 signup / user registration 处于关闭状态。
+
+  `ENABLE_SIGNUP` 是 ConfigVar：首次启动可由环境变量初始化，之后界面修改会保存进数据库并优先于外部环境值。
+  本书优先在管理员界面核对最终状态，不用直接修改 SQLite 数据库。
+
+  <ComparisonTable>
+
+  | 状态 | 是否允许进入下一章 | 处理 |
+  | --- | --- | --- |
+  | 注册关闭，用户数 1，唯一用户为 admin | 是 | 保存不含邮箱的验收记录 |
+  | 注册仍开放，但新用户默认 pending | 否 | 先在管理员界面关闭，再用无痕窗口复测 |
+  | 未知用户已存在 | 否 | 停止，查明初始化历史与数据来源 |
+  | `WEBUI_AUTH=False` 或无需登录 | 否 | 不公开；回配置与新实例边界排查 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch5-relogin">
+  ## 第七步：完成一次退出与重新登录
+
+  在管理员会话中退出，再用密码管理器中的账户重新登录。这一步证明保存的密码可用，也能发现 Secret、Cookie 或浏览器状态问题。
+
+  成功状态：
+
+  - 退出后不能访问管理员区域；
+  - 正确密码可以重新登录；
+  - 刷新页面后仍保持会话；
+  - 错误密码不会进入应用；
+  - 无痕窗口仍没有 signup；
+  - 管理员账户仍是唯一用户。
+
+  本书没有配置邮件找回或企业 SSO。密码管理器条目与恢复负责人必须明确，但交接卡只记录条目名称，不记录真实密码。
+</section>
+
+<section className="book-section" id="book05-ch5-server-evidence">
+  ## 第八步：回到 VPS 保存不含秘密的状态证据
+
+  <CodeBlock label="复核容器健康并读取最近日志" code={postBootstrap} />
+
+  日志只用于确认初始化时间附近没有持续认证、数据库或 Secret 错误。分享前删除邮箱、IP、Cookie、Authorization、
+  登录 token 和浏览器请求正文。
+
+  可以记录下面这张不含秘密的结果卡：
+
+  ```text
+  Open WebUI version：v0.11.3（G3 实机固定版本）
+  访问方式：SSH local forwarding
+  管理员角色：admin
+  用户总数：1
+  signup：disabled
+  WEBUI_AUTH：True
+  公网 route：未创建
+  公网 3000：不可达
+  管理员凭证位置：<PASSWORD_MANAGER_ENTRY_NAME>
+  ```
+</section>
+
+<section className="book-section" id="book05-ch5-stop">
+  ## 本章停止条件与费用边界
+
+  出现任一情况都不要进入第 6 章：
+
+  - 首位管理员不是 Owner 控制的账户；
+  - 用户总数不等于 1，或存在未知用户；
+  - signup 仍可创建可用账户；
+  - 认证被关闭；
+  - 管理员密码没有进入密码管理器，或无法重新登录；
+  - Secret 变化导致持续登录循环；
+  - 公网 3000 已开放，或公开 route 已被提前创建；
+  - 为排错需要删除 volume、重建 VPS 或购买扩容。
+
+  本章本身不调用远程模型，不产生模型费用；VPS 原有持续费用仍继续。需要扩容、快照、付费备份或永久删除时必须另行确认。
+</section>
+
+<ChapterChecklist
+  chapterId="book05-chapter-05"
+  items={[
+    "我只通过 SSH local forwarding 打开 127.0.0.1:3000，没有公开 route 或公网 3000。",
+    "首位账户由 Owner 创建并确认角色为 admin。",
+    "管理员密码唯一、足够强，只保存在密码管理器。",
+    "用户总数为 1，未知用户为 0。",
+    "WEBUI_AUTH 保持 True，signup 已自动或手动关闭。",
+    "无痕窗口不能注册新账户，退出后可以用受控账户重新登录。",
+    "结果卡不含邮箱、密码、Cookie、Secret 或其他真实凭证。",
+  ]}
+/>

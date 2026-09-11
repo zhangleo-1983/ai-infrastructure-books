@@ -1,0 +1,225 @@
+---
+book: "05-open-webui"
+order: 3
+slug: "03-plan-deployment"
+title: "规划端口、数据、版本与回退点"
+shortTitle: "规划部署"
+description: "在拉取镜像前确定 Compose 项目、回环端口、named volume、固定版本、Secret、磁盘余量、备份位置和回退动作。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 3
+duration: "预计 30—45 分钟"
+labels:
+  - "Compose 规划"
+  - "数据持久化"
+  - "回退点"
+completionId: "book05-chapter-03"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const planningProbe = `sudo docker version --format 'Docker Engine {{.Server.Version}}'
+sudo docker compose version
+sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+sudo ss -lntp 'sport = :3000'
+df -h /
+free -h`;
+
+export const imageProbe =
+  "sudo docker image inspect ghcr.io/open-webui/open-webui:v0.11.3 >/dev/null 2>&1; echo $?";
+
+<LearningGoals
+  audience="准备复制 Compose 命令，却还没有确定端口归属、数据保存位置、版本与恢复点的读者"
+  duration="预计 30—45 分钟"
+  outcome="形成一张可审阅部署卡，确认 3000 无冲突、磁盘有余量、v0.11.3 固定、volume 与 Secret 可持续保存，且不需要公网入站端口"
+/>
+
+<section className="book-section" id="book05-ch3-plan-first">
+  ## 这一章仍不创建容器
+
+  安装命令很短，但容器归属、端口、数据与回退不能在失败后才想。这里先固定七个对象：
+
+  <InfoGrid columns={4}>
+    <section className="info-grid__item"><p className="info-grid__title">Project</p><p>统一日志、网络、容器和 volume 的归属。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">Image</p><p>固定可复现的 Open WebUI 版本。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">Port</p><p>只在 VPS 回环地址提供入口。</p></section>
+    <section className="info-grid__item"><p className="info-grid__title">Data</p><p>让账户、设置与聊天不随容器消失。</p></section>
+  </InfoGrid>
+
+  后三项是 Secret（会话签名秘密）、Backup（独立备份）与 Rollback（明确回退动作）。规划完成不产生模型调用费用。
+</section>
+
+<section className="book-section" id="book05-ch3-baseline">
+  ## 第一步：建立只读服务器基线
+
+  在 VPS 执行：
+
+  <CodeBlock label="检查 Docker、现有容器、3000 端口和资源" code={planningProbe} />
+
+  <ComparisonTable>
+
+  | 检查 | 成功状态 | 失败判断 |
+  | --- | --- | --- |
+  | Docker Engine | 返回服务器端版本 | daemon 不可用或权限错误 |
+  | Compose plugin | 返回 v2 版本 | 只有旧 `docker-compose` 或命令失败 |
+  | 现有容器 | 每个容器归属和端口可解释 | 有异常重启或未知业务容器 |
+  | 主机 3000 | 没有监听输出 | 已被进程占用，不能直接覆盖 |
+  | 根分区 | 可容纳镜像、数据、备份和更新期双份镜像 | 使用率逼近上限或 inode 不足 |
+  | 内存 | 有稳定可用内存，无近期 OOM 证据 | 持续耗尽或既有服务已不稳定 |
+
+  </ComparisonTable>
+
+  本书不声称一个固定内存数字适用于所有使用方式。上传、Embedding、语音、并发和版本变化都会改变资源需求。
+  资源不足时先停，不自动升级 VPS。
+</section>
+
+<section className="book-section" id="book05-ch3-project">
+  ## 第二步：固定 Compose 项目归属
+
+  <MockWindow title="第五册 Compose 部署卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="Project directory" wide><code>$HOME/docker-labs/open-webui</code></MockField>
+      <MockField label="Compose project" wide><code>book05-open-webui</code></MockField>
+      <MockField label="Service" wide><code>open-webui</code></MockField>
+      <MockField label="Image" wide><code>ghcr.io/open-webui/open-webui:v0.11.3</code></MockField>
+      <MockField label="Port" wide><code>127.0.0.1:3000:8080</code></MockField>
+      <MockField label="Volume" wide><code>book05-open-webui-data → /app/backend/data</code></MockField>
+      <MockField label="Authentication" wide><MockStatusBadge tone="success">WEBUI_AUTH=True</MockStatusBadge></MockField>
+      <MockField label="Public route" wide><MockStatusBadge tone="neutral">尚未创建</MockStatusBadge></MockField>
+    </div>
+  </MockWindow>
+
+  固定目录让读者知道从哪里运行 `docker compose`；固定 project name 让自动生成对象具有可识别前缀；固定
+  service name 让日志、重启和状态命令保持一致。
+</section>
+
+<section className="book-section" id="book05-ch3-version">
+  ## 第三步：固定版本，不固定“最新”
+
+  本轮复核日期为 2026-09-10。Open WebUI 官方 GitHub Releases 当前最新非预发布版本是 `v0.11.3`，
+  发布日期为 2026-08-31。本书 draft 因此固定：
+
+  ```text
+  ghcr.io/open-webui/open-webui:v0.11.3
+  ```
+
+  <ComparisonTable>
+
+  | 标签 | 是否滚动 | 本书用途 |
+  | --- | --- | --- |
+  | `main` / `latest` | 是，会指向新的 main 构建 | 不作为长期运行基线 |
+  | `dev` | 是，包含开发分支变化 | 只用于与 production volume 隔离的测试 |
+  | `v0.11.3` | 固定稳定版本 | 本轮 draft 的部署基线 |
+  | 镜像 digest | 指向精确内容 | 实机拉取后记录，用于审计与更新对比 |
+
+  </ComparisonTable>
+
+  `v0.11.3` 是写作基线，不代表已经在 Ubuntu 24.04 amd64 实机验证。`v0.11.3` 的 release notes
+  包含数据库升级失败时停止启动的修复，因此 G2、G7 仍必须分别记录全新部署与 migration 行为；
+  不能因为采用补丁版本就省略备份。每个 RC 前仍要复查 release notes、已知问题、镜像摘要与资源占用。
+</section>
+
+<section className="book-section" id="book05-ch3-port">
+  ## 第四步：把主机端口锁在回环地址
+
+  计划端口映射：
+
+  ```text
+  127.0.0.1:3000:8080
+  └ VPS 回环 ┘ │ └ 容器端口
+               └ 主机端口
+  ```
+
+  成功状态不是“公网 IP 加 3000 能打开”，而是：
+
+  - VPS 本机访问 `http://127.0.0.1:3000` 成功；
+  - `ss` 只显示 `127.0.0.1:3000`，不是 `0.0.0.0:3000` 或 `[::]:3000`；
+  - 云防火墙与主机防火墙都没有新增公网 3000 入站规则；
+  - 首次访问通过 SSH local forwarding（本地端口转发）；
+  - 后续公开由已准备且归属明确的 Tunnel 独立 route 完成。
+
+  <Callout type="danger" title="不要为了方便首次注册而开放公网 3000">
+    首位注册用户会成为管理员。在管理员创建和注册自动关闭前公开端口或 route，可能让未知访客抢先取得最高权限。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch3-data-secret">
+  ## 第五步：区分数据 volume 与 Secret
+
+  named volume `book05-open-webui-data` 挂载到 `/app/backend/data`，保存应用数据库、账户、设置、聊天、
+  上传内容和相关缓存。它可以跨容器重建保留，但不是独立备份。
+
+  `WEBUI_SECRET_KEY` 用于签署登录 token，并参与部分会话数据的加密。改变它会使现有登录会话失效。
+  本书在 VPS 项目目录的权限受限 `.env` 中显式生成一次并持续保留，不在 MDX 或 Git 写入真实值。
+
+  <ComparisonTable>
+
+  | 对象 | 删除容器后 | 删除 volume 后 | 应怎样保护 |
+  | --- | --- | --- | --- |
+  | Compose 文件 | 主机文件仍在 | 不受影响 | 纳入不含秘密的配置备份 |
+  | `.env` Secret | 主机文件仍在 | 不受影响 | 权限 600、独立受控备份、不截图 |
+  | named volume | 仍在 | 账户、聊天与设置可能永久丢失 | 更新前做独立备份并验证恢复 |
+  | 镜像 | 可重新拉取固定标签 | 不保存业务数据 | 记录标签与 digest |
+
+  </ComparisonTable>
+
+  官方 Quick Start 与 Hardening 对单实例自动生成 Secret 的持久化表述存在差异。显式保存可以把容器重建行为变成可验收对象，
+  但实机 RC 仍需验证会话与数据恢复。
+</section>
+
+<section className="book-section" id="book05-ch3-recovery">
+  ## 第六步：在启动前写下回退点
+
+  第 4 章的最小回退是 `docker compose down`：停止并移除容器与网络，但保留 named volume。
+  本书不把 `docker compose down -v` 放进普通回退，因为 `-v` 会删除数据 volume。
+
+  <TerminalMock title="启动前回退边界">
+    <span className="term-green">可回退：</span>停止服务、移除容器、保留 volume、保留固定配置<br />
+    <span className="term-yellow">需备份后：</span>升级镜像、改变数据库结构、轮换 Secret<br />
+    <span className="term-red">必须单独确认：</span>删除 volume、销毁 VPS、购买扩容或付费备份
+  </TerminalMock>
+
+  备份位置不能只在同一个待销毁 VPS 上。此阶段可以记录目标和负责人，但不自动购买对象存储、快照或备份产品。
+</section>
+
+<section className="book-section" id="book05-ch3-gate">
+  ## 进入部署章前的闸门
+
+  只有同时满足以下条件才进入第 4 章：
+
+  - Docker 与现有服务健康；
+  - 主机 3000 没有冲突；
+  - 磁盘与内存有可以解释的余量；
+  - `v0.11.3` 是明确写下的固定版本，不是滚动标签；
+  - project、service、volume 和目录名字没有与既有项目冲突；
+  - 明确不开放公网 3000；
+  - Secret 保存位置、备份目标和回退负责人已确定；
+  - 若需要扩容、快照或付费备份，已单独完成费用确认。
+
+  `imageProbe` 只用于判断固定镜像当前是否已在本机缓存，返回 `1` 很正常；本章不因此自动拉取镜像。
+
+  <CodeBlock label="可选：只读检查固定镜像是否已缓存" code={imageProbe} />
+</section>
+
+<ChapterChecklist
+  chapterId="book05-chapter-03"
+  items={[
+    "我已记录项目目录、Compose project、service 和 named volume 名称。",
+    "我确认主机 3000 没有冲突，且计划只绑定 127.0.0.1。",
+    "我已固定 v0.11.3，并知道 main、latest 与 dev 都是滚动标签。",
+    "我知道 /app/backend/data volume 保存什么，也知道 volume 不是独立备份。",
+    "我已为 WEBUI_SECRET_KEY 规划权限受限的持久保存位置。",
+    "我知道普通回退只运行 docker compose down，不使用 -v。",
+    "资源或费用不明时我会停止，不会自动扩容、购买快照或开放公网端口。",
+  ]}
+/>
