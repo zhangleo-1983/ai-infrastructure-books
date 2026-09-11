@@ -1,0 +1,40 @@
+---
+book: "07-n8n"
+order: 1
+slug: "01-what-is-n8n"
+title: "n8n 在自动化流程中负责什么"
+shortTitle: "认识 n8n"
+description: "分清自动化平台、模型服务、触发器和外部系统，先画出一次运行的边界。"
+chapterType: "chapter"
+chapterNumber: 1
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="完成样章并准备理解 n8n 结构的读者" duration="约 25 分钟" outcome="能画出触发器、节点、凭证和外部系统之间的关系" />
+
+<Callout type="info" title="先建立边界">
+  n8n 负责编排步骤，不自动替你判断业务正确性。节点显示成功只代表本次节点没有报告错误。
+</Callout>
+
+## 一次自动化包含哪些部分
+
+触发器让流程开始，节点读取或转换数据，凭证让节点访问受保护服务，执行记录保存运行结果。模型、表格、邮件和数据库是被调用的外部服务，它们不属于 n8n 本身。
+
+<MockWindow title="一次运行的路径：教学仿真">
+  <ol><li>手动触发：开始一次练习运行。</li><li>字段节点：把原始报名文本整理成结构化数据。</li><li>条件节点：判断是否需要人工确认。</li><li>输出节点：返回结果，不写入外部系统。</li></ol>
+</MockWindow>
+
+| 对象 | 负责什么 | 本册练习中的处理 |
+| --- | --- | --- |
+| 触发器 | 决定什么时候开始 | 先用手动触发 |
+| 节点 | 完成一项具体处理 | 只用内置低风险节点 |
+| 凭证 | 保存访问服务所需的授权 | 没有必要时不创建 |
+| 执行记录 | 记录一次运行 | 保留低敏感样本并定期清理 |
+
+<strong>成功状态：</strong>能指出每个对象的作用。<strong>失败判断：</strong>把 n8n 当作模型，或认为凭证只是普通文本；此时回到本章表格复核。

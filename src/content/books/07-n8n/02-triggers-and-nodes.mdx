@@ -1,0 +1,32 @@
+---
+book: "07-n8n"
+order: 2
+slug: "02-triggers-and-nodes"
+title: "触发器、节点和数据怎样往下走"
+shortTitle: "触发器与节点"
+description: "理解节点连线、输入输出和表达式，避免把画布上的顺序误当成数据已经正确传递。"
+chapterType: "chapter"
+chapterNumber: 2
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="第一次拖放 n8n 节点的读者" duration="约 30 分钟" outcome="能从节点输入和输出解释一条数据如何传递" />
+
+## 不要只看连线
+
+连线表示可能的执行路径；真正运行时，前一个节点必须产生后一个节点需要的字段。一个节点可以输出多条记录，每条记录有自己的 JSON 字段。表达式（Expression）是在运行时读取字段的写法，字段名拼错会得到空值或 `undefined`。
+
+<MockWindow title="数据流检查：教学仿真">
+  <div className="mock-form-grid"><div><strong>输入</strong><br /><code>raw_text</code>：原始报名文字</div><div><strong>转换</strong><br /><code>guest_count</code>：数字 2</div><div><strong>输出</strong><br />“可以登记”</div></div>
+</MockWindow>
+
+## 逐节点验证
+
+先执行触发器，确认它产生一条记录；再执行字段节点，打开 Input 和 Output 对照字段名；最后执行结果节点。每次只改一处，避免多个错误叠在同一条执行记录中。
+
+<strong>成功状态：</strong>每个节点的输出都包含下一节点需要的字段。<strong>失败判断：</strong>节点绿色但输出没有目标字段，或直接复制旧表达式；暂停运行，打开该节点的 Input 面板重新选择字段。

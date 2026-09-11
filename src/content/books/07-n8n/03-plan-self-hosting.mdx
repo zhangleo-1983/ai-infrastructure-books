@@ -1,0 +1,37 @@
+---
+book: "07-n8n"
+order: 3
+slug: "03-plan-self-hosting"
+title: "规划版本、数据、凭证与费用"
+shortTitle: "规划自托管"
+description: "在部署前列出版本、端口、数据目录、加密密钥和停止费用的方法。"
+chapterType: "chapter"
+chapterNumber: 3
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+
+<LearningGoals audience="已掌握 Docker Compose 基础、准备部署 n8n 的读者" duration="约 35 分钟" outcome="完成一张可核对的部署卡和费用停止卡" />
+
+<Callout type="warning" title="版本先核对再写命令">
+  n8n 版本、镜像摘要和环境变量会变化。正式执行前重新查看官方文档，不把本章草稿中的候选版本当成永久事实。
+</Callout>
+
+## 部署卡至少写清六项
+
+| 项目 | 记录内容 | 成功状态 |
+| --- | --- | --- |
+| 版本 | n8n 版本和镜像摘要 | 能从镜像或启动日志核对 |
+| 主机 | Ubuntu、架构、CPU、内存、磁盘 | 余量足够且归属明确 |
+| 入口 | 管理入口、回环端口、HTTPS 方案 | 未配置公开旁路 |
+| 数据 | n8n 数据目录或命名卷 | 知道备份对象和权限 |
+| 秘密 | `N8N_ENCRYPTION_KEY` 等 | 只由本人保管，权限 600 |
+| 费用 | VPS、流量、第三方 API | 能停止或销毁每个对象 |
+
+n8n 的凭证依赖加密密钥。丢失密钥可能导致备份里的凭证无法解密，因此备份不能只拷贝工作流 JSON。自动化调用第三方 API 还可能产生对方费用；n8n 执行成功不代表费用为零。
+
+<strong>成功状态：</strong>部署卡中每一项都有负责人、核对方法和停止动作。<strong>失败判断：</strong>只有“装一个 Docker”而没有数据、密钥或费用记录；停在规划阶段。

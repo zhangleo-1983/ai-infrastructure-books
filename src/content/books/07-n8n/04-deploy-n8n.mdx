@@ -1,0 +1,36 @@
+---
+book: "07-n8n"
+order: 4
+slug: "04-deploy-n8n"
+title: "用官方 Compose 启动 n8n"
+shortTitle: "部署 n8n"
+description: "从官方来源获取 Compose，固定必要配置，先用回环入口确认服务健康。"
+chapterType: "chapter"
+chapterNumber: 4
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+
+<LearningGoals audience="已完成部署规划并能通过 SSH 登录 VPS 的读者" duration="约 40 分钟；不含域名和公开入口" outcome="启动一套仅回环可达的 n8n，并记录版本与健康状态" />
+
+<Callout type="danger" title="先回环，后公开">
+  管理界面尚未初始化时不要把端口暴露到公网。下面的示例端口和域名是占位符，正式执行前必须替换为部署卡中的值。
+</Callout>
+
+## 获取并检查官方 Compose
+
+在 VPS 的 SSH 终端创建专用目录，保存官方 Compose 和环境文件。不要把真实密钥写进聊天或 Git。执行配置检查时只看退出码和脱敏字段，不能把完整环境输出粘贴出来。
+
+<CodeBlock label="在 VPS 的 SSH 终端：目录与配置检查示例" code={`mkdir -p ~/docker-labs/n8n
+cd ~/docker-labs/n8n
+chmod 700 .
+test -f docker-compose.yml && echo "Compose 文件存在"
+sudo docker compose config -q`} />
+
+配置通过后再启动。主机端口只绑定到 `127.0.0.1`，然后从本地电脑用 SSH 转发访问。成功状态是容器健康、管理页面能打开、没有额外公网监听。失败判断是 Compose 解析失败、端口冲突、容器反复重启或主机监听了 `0.0.0.0`；先停止并查看日志，不要盲目重试。
+
+<strong>成功状态：</strong>版本、监听地址和数据目录都能从部署卡与有效配置对应。<strong>失败判断：</strong>用来历不明的安装脚本替代官方文件，或为了“先打开看看”放开公网端口。

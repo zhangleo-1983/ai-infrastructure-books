@@ -1,0 +1,37 @@
+---
+book: "07-n8n"
+order: 5
+slug: "05-bootstrap-workspace"
+title: "创建工作区并收紧访问"
+shortTitle: "初始化工作区"
+description: "完成首位所有者初始化，设置加密密钥与访问边界，再准备第一条练习工作流。"
+chapterType: "chapter"
+chapterNumber: 5
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="已经通过回环入口打开 n8n 的读者" duration="约 30 分钟" outcome="只有本人能进入工作区，且知道凭证、用户和执行记录在哪里管理" />
+
+<Callout type="info" title="所有者不是普通成员">
+  第一个完成初始化的人通常拥有最高权限。只用本人邮箱和强密码，完成后关闭不需要的注册路径；不要为了测试创建第二个真实用户。
+</Callout>
+
+## 初始化顺序
+
+1. 通过 SSH 本地转发打开管理界面，确认地址不是公开 IP。
+2. 创建本人所有者账户，保存恢复方式，不把密码写入仓库。
+3. 核对 `N8N_ENCRYPTION_KEY` 已持久化，重启后仍能读取设置。
+4. 在用户与权限页面确认没有未知成员，再创建练习工作流。
+
+<MockWindow title="工作区状态卡：教学仿真">
+  <ul><li>所有者：本人唯一账户</li><li>注册：关闭或受控</li><li>入口：仅 SSH 转发；尚无公开 Webhook</li><li>凭证：0 个真实凭证</li><li>工作流：0 个已激活流程</li></ul>
+</MockWindow>
+
+如果重启后再次出现初始化页，先停止服务并检查数据目录、卷名和权限；不要重新注册第二个所有者。若忘记加密密钥，停止继续创建凭证，先从受控备份找回密钥并确认来源。
+
+<strong>成功状态：</strong>唯一所有者可登录，重启后设置和用户仍在，未创建不必要的真实凭证。<strong>失败判断：</strong>未知用户存在、公开注册仍开着，或密钥只保存在当前容器；停在初始化阶段。
