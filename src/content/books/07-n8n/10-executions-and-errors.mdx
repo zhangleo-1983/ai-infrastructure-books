@@ -1,0 +1,39 @@
+---
+book: "07-n8n"
+order: 10
+slug: "10-executions-and-errors"
+title: "从执行记录定位失败与重试"
+shortTitle: "执行记录与排错"
+description: "沿触发器、节点、凭证和外部响应分层排查失败，避免用重复重试掩盖问题。"
+chapterType: "chapter"
+chapterNumber: 10
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+
+<LearningGoals audience="已经运行过手动流程并遇到错误的读者" duration="约 35 分钟" outcome="能用一条执行记录定位最早失败节点，并决定是否重试" />
+
+<Callout type="warning" title="先保存失败证据">
+  修复前记录执行 ID、时间、最早失败节点和错误类别。不要先删除记录或连续点击 Execute，让真正原因被新记录淹没。
+</Callout>
+
+## 四层排查顺序
+
+| 层次 | 要看什么 | 常见判断 |
+| --- | --- | --- |
+| 触发器 | 是否真的开始、输入是否为空 | 没有执行记录时先查触发条件 |
+| 节点数据 | 字段名、类型、连线 | `undefined` 通常来自上游数据不匹配 |
+| 凭证与权限 | 认证状态、作用域、过期时间 | 401/403 不靠重试解决 |
+| 外部响应 | DNS、TLS、状态码、响应体 | 429 与 5xx 需要退避和人工决策 |
+
+打开失败执行，从最后一个成功节点向后查看。若 HTTP 节点返回 429，先停止自动重试，记录 Retry-After 或服务方限制；若是超时，确认请求是否可能已经在对方完成，避免重复写入。只有幂等操作才适合自动重试。
+
+## 失败后的恢复动作
+
+修复后只重跑一条低风险样本，比较新的执行记录和原失败记录。确认没有重复外部写入，再恢复工作流激活状态。执行记录包含敏感数据时，按保留策略删除或缩短保存时间，并记录删除动作。
+
+<strong>成功状态：</strong>能指出最早失败层、恢复动作和是否允许重试。<strong>失败判断：</strong>把所有错误都归因于“网络不稳定”，或为了通过测试关闭权限、证书校验和日志；此时停止流程。

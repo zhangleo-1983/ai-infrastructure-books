@@ -1,0 +1,41 @@
+---
+book: "07-n8n"
+order: 7
+slug: "07-transform-and-branch"
+title: "清理字段并用条件节点分支"
+shortTitle: "字段与分支"
+description: "用内置字段节点清理练习输入，再用条件节点把可登记和人工确认分开。"
+chapterType: "chapter"
+chapterNumber: 7
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="已经能运行第一条手动工作流的读者" duration="约 35 分钟" outcome="能解释条件分支的真值、两条输出路径和人工确认边界" />
+
+<Callout type="info" title="分支不是安全判断的替代品">
+  IF 节点只比较你配置的字段。它不会理解报名内容，也不会自动发现恶意输入；涉及外部写入时仍需单独校验。
+</Callout>
+
+## 先清理，再比较
+
+在条件节点前添加字段节点，将 `guest_count` 转成数字，并创建 `needs_review` 布尔字段。保留 `raw_text` 供人工复核，避免清理动作覆盖原始输入。条件设置为 `guest_count` 小于等于 2：真分支返回“可以登记”，假分支返回“需要人工确认”。
+
+<MockWindow title="IF 节点：教学仿真">
+  <div><strong>左值：</strong><code>guest_count</code>（Number）</div>
+  <div><strong>运算：</strong>小于等于</div>
+  <div><strong>右值：</strong><code>2</code></div>
+  <div><strong>True：</strong>返回练习摘要；<strong>False：</strong>返回人工确认提示</div>
+</MockWindow>
+
+## 逐条运行两个样本
+
+先运行人数为 2 的样本，再运行人数为 3 的样本。分别打开两条执行记录，确认它们进入不同分支，且原始文本没有被改写。不要只看最后一个节点的文字；查看 IF 节点实际收到的类型和值。
+
+若两个样本都走同一分支，检查左值是不是字符串、条件运算符是否选错，或上游字段节点是否没有连线。修复后重新运行，并保留第一次失败记录。
+
+<strong>成功状态：</strong>两个样本分别进入预期分支，执行记录能显示比较值。<strong>失败判断：</strong>用模型猜测人数、把真分支当成业务批准，或删除原始输入以“让结果通过”。
