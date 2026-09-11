@@ -1,0 +1,184 @@
+---
+book: "06-dify"
+order: 5
+slug: "05-first-workflow"
+title: "连好输入、模型与输出，完成第一次运行"
+shortTitle: "完成第一次工作流运行"
+description: "手工创建一个单次 Workflow，设置 question 输入约束、模型参数与 answer 输出，先检查连线，再运行一次合成问题。"
+chapterType: "chapter"
+chapterNumber: 5
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+
+export const firstPrompt = `你是一个教学用的文字助手。
+用简体中文、最多两句话回应用户问题。
+当前没有接入活动资料，不回答具体报名、活动时间或取消规则。
+遇到此类问题，请说明“尚未接入资料，无法确认”。
+不声称执行了报名、取消、付款或发送消息等操作。`;
+export const firstQuestion = `请用一句话说明你现在能做什么。`;
+
+<LearningGoals audience="已有本人工作区和已核对模型连接的读者" duration="约 20—30 分钟；含一次小额模型运行，用量等待另计" outcome="得到一个能解释输入、生成和输出来源的最小 Workflow，并保留草稿基线" />
+
+<Callout type="info" title="第一次只验证最短链路">
+  本章为 2026-09-11 校订草稿；三节点流程已实机单次运行成功，使用 104 tokens。
+  本章步骤不接入知识库、不批量测试、不发布到公网。
+  第四章连接验证消耗的请求也要计入本章开始前的剩余预算。
+</Callout>
+
+<section className="book-section" id="book06-05-create">
+  ## 第一步：手工创建 Workflow，不导入陌生模板
+
+  在自己的电脑经 SSH 转发打开 Dify，确认是本人的工作区。进入 Studio，选择创建空白应用，
+  类型选 Workflow（单次工作流），名称填“虚构活动常见问题助手”。描述写“仅解释合成练习资料；不执行外部操作”。
+  当前应用还不具备资料能力，先使用这个名称为后面衔接做准备。
+
+  如果界面要求选择起点，选 User Input（用户手动输入），不选定时或外部事件 Trigger。
+  Trigger 是自动触发条件，会引入额外运行时机；本练习只保留一个手动输入起点。
+  不从 Marketplace 导入包含未知工具、凭证字段或外部地址的应用定义。
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>User Input</strong><small>question：本次问题</small></div>
+    <div className="flow-node"><strong>LLM</strong><small>text：模型文字</small></div>
+    <div className="flow-node"><strong>Output</strong><small>answer：返回字段</small></div>
+  </FlowDiagram>
+
+  <strong>成功状态：</strong>空白 Workflow 画布可编辑，起点是 User Input。
+  <strong>失败判断：</strong>出现多轮聊天的 Answer、会话变量或定时触发；先核对类型，不把不同流程强行接起来。
+</section>
+
+<section className="book-section" id="book06-05-input">
+  ## 第二步：建立一个有名字、有边界的输入
+
+  选中 User Input，在右侧输入字段设置中添加 Short Text（短文本）。变量名填 `question`，
+  显示给用户的 Label 填“本次问题”，勾选 Required（必填），最大长度设为 200 个字符。
+  200 是本书的教学选择，用来避免首次试验粘贴长文；它不是 token 数，也不是完整的费用硬限额。
+
+  短文本有长度上限；不要选允许长文的 Paragraph 再以为它自动沿用本章限制。
+  如果当前版本没有可配置的最大长度字段，先核对版本和官方说明，不只靠描述文字写“最多 200 字”。
+  不加文件、隐藏预填变量或其他输入。
+  [官方 User Input 字段](https://docs.dify.ai/en/self-host/use-dify/nodes/user-input)
+
+  <MockWindow title="User Input 设置：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="类型">Short Text / 短文本</MockField>
+      <MockField label="Variable name">question</MockField>
+      <MockField label="Label">本次问题</MockField>
+      <MockField label="Required / 最大长度">必填 / 200 字符</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>变量列表出现 question，类型为文本，必填和长度设置保存后仍在。
+  <strong>失败判断：</strong>写成中文变量名、选成文件、使用了 Chatflow 的 userinput.query；先改正，再添加模型。
+</section>
+
+<section className="book-section" id="book06-05-model">
+  ## 第三步：选择核对过的模型，并关闭额外调用
+
+  在 User Input 后添加 LLM（大语言模型）节点，把连线接到它。模型选择器中明确选择第四章记录的
+  Flash 项，核对提供方、插件和模型名称；不选“随工作区默认”来代替核对。
+
+  打开模型参数，把 Thinking（思考模式）关闭，最大输出 max_tokens 设为 256，输出格式选普通文本。
+  temperature（随机程度）与 top_p（另一种采样参数）先不调整。这里的 256 是模型输出预算，
+  不包括全部输入、验证或隐藏重试。若参数缺失、无法保存或插件实际没有发出非思考设置，先停下来核对。
+
+  当前 DeepSeek 默认开启思考模式；插件也有相应开关。隐藏“思考过程”的显示选项并不等于关闭思考，
+  提示词写“不要思考”也不是接口参数。我们需要核对的是节点参数及实际请求结果。
+  [官方思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/) ·
+  [插件 Flash 参数定义](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/models/llm/deepseek-v4-flash.yaml)
+
+  在节点错误处理设置中关闭自动重试，不配置备用模型或失败后再次生成；不用循环、批量、工具和其他模型节点。
+  保存后重新点开核对。界面关闭重试不能证明底层 SDK 从不重试，后续仍要用提供方记录核对实际次数。
+</section>
+
+<section className="book-section" id="book06-05-prompt">
+  ## 第四步：把变量真正放进模型消息
+
+  提示词是交给模型的任务说明。System（系统消息）放固定要求，User（用户消息）放本次输入。
+  在 System 编辑区粘贴以下内容，暂时不引用任何知识库。
+
+  <CodeBlock label="粘贴到 LLM 的 System 消息" code={firstPrompt} />
+
+  在 User 编辑区先输入“本次问题：”，再用变量选择器展开 User Input，选择 question。
+  选择后应显示变量标签。不要直接输入 question、`User Input.question` 或一段你猜的模板语法。
+  Context（上下文资料）本章留空；第七章才把检索片段放进去。
+
+  <MockWindow title="最小 LLM 消息：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="System">本书固定说明；尚未接入活动资料</MockField>
+      <MockField label="User">本次问题：［User Input → question 标签］</MockField>
+      <MockField label="Context">留空；没有知识库</MockField>
+      <MockField label="输出 text">运行后由模型生成，本章不手工填写</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>固定要求和动态问题分开，能指认 question 标签。
+  <strong>失败判断：</strong>没有标签、把 key 写到提示词、给模型塞进未核对的真实文件；先清除错误内容，若秘密已提交则撤销并核对用量。
+  [官方 LLM 节点](https://docs.dify.ai/en/self-host/use-dify/nodes/llm)
+</section>
+
+<section className="book-section" id="book06-05-output">
+  ## 第五步：明确返回哪个结果
+
+  在 LLM 后添加 Output（输出，旧界面可能称 End），输出字段名称填 `answer`，
+  值从变量选择器选 LLM → text。answer 是你给结果起的名字，text 才是模型节点输出的实际内容。
+  这一步不会再次调用模型。
+
+  用鼠标从起点沿线走一遍，应只有 User Input → LLM → Output 三个节点，没有悬空节点或第二条路径。
+  若画布自动生成了 Output，可直接配置现有节点，不再重复添加。没有声明返回值时，即使模型运行过，
+  最终结果也可能没有你需要的字段。
+  [官方 Output 节点](https://docs.dify.ai/en/self-host/use-dify/nodes/output)
+
+  <strong>成功状态：</strong>输出为 answer，来源是 LLM.text，连线唯一。
+  <strong>失败判断：</strong>值显示字面量“text”、绑定到不存在的节点、Output 在模型之前；先改画布，不用付费试跑寻找拼写错误。
+</section>
+
+<section className="book-section" id="book06-05-run">
+  ## 第六步：先检查输入限制，再只运行一次正常问题
+
+  点 Test Run（测试运行）打开输入面板。先不填问题尝试提交，表单应提示必填且不启动节点。
+  再粘贴一段超过 200 字符的合成文字，检查是否拒绝或限制长度。确认执行记录没有因此产生模型调用；
+  若空白、纯空格或超长输入仍能运行，停止计费测试，把输入校验缺口记入第八章检查，不把外观当作服务器验证。
+
+  清空这段长文本，填入下面的短问题。核对第四章以来累计用量和次数，确认仍在本次预算内后点一次运行。
+
+  <CodeBlock label="本次唯一正常试跑问题：合成内容" code={firstQuestion} />
+
+  等流程明确结束，再看 answer。它应简短说明当前只能处理教学文字、尚不能确认活动规则，
+  具体措辞可能变化，不要求模型逐字照抄标准答案。不要问真实业务或追加“再试一次”凑成功。
+
+  <ComparisonTable>
+
+  | 在执行详情里看什么 | 通过标准 | 不通过时先做什么 |
+  | --- | --- | --- |
+  | User Input 输入 | question 等于本次短问题 | 检查变量名、标签与测试缓存 |
+  | LLM 输入与参数 | 有本次问题、固定说明、明确模型与非思考设置 | 不扩大 token 或重试次数，先修绑定 |
+  | LLM 输出与执行状态 | 有可读 text；没有未预期额外模型步骤 | 记录脱敏错误，核对提供方用量 |
+  | Output | answer 对应刚才的 text | 检查输出字段来源，而非重跑模型 |
+  | 提供方账单 | 验证与试跑请求、token、费用可对应 | 账单未更新时停，不继续累积请求 |
+
+  </ComparisonTable>
+
+  Dify 中的一次节点执行记录与提供方请求次数不一定一一对应。下游 Output 出错时，上游模型可能已经扣费；
+  “整条流程失败”不等于免费。页面关闭或取消按钮也不能直接证明远程请求被中止。
+</section>
+
+<section className="book-section" id="book06-05-save">
+  ## 第七步：保留草稿基线，不急着发布
+
+  等自动保存提示完成，记下应用名称、模型选择、question 约束、节点数量和本次成功运行时间。
+  重新打开画布，确认配置仍在；若当前版本提供草稿历史或命名版本功能，可给这份最小流程注明
+  “未接知识库的基线”，并确认它没有触发 Publish。没有该功能就保留本地脱敏配置卡和成功运行记录，
+  不借发布按钮伪装“保存草稿”。第八章再讲应用定义导出与发布版本。
+
+  下一章只建立知识库，暂不改这三个节点；第七章会删除输入直达模型的旧连线，加入检索与条件分支。
+  能解释每个变量、知道实际花了多少请求且没有遗留运行，才继续。失败时保留证据，不反复创建多个同名应用。
+</section>

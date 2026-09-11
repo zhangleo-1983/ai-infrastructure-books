@@ -1,0 +1,8 @@
+# 教学差异配置：仅适用于 Dify 1.17.1 的全新隔离部署。
+# 必须与官方 docker-compose.yaml 一起使用，不能单独启动。
+services:
+  nginx:
+    ports: !override
+      - "127.0.0.1:8088:80"
+  plugin_daemon:
+    ports: !override []

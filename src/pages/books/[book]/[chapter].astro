@@ -109,6 +109,7 @@ const sourceAnchor = entry.data.sourceAnchor ?? entry.data.slug;
 const completionEligible = isCompletionEligible(
   book,
   entry.data.chapterType,
+  entry.data.draft,
 );
 const searchEligible = isSearchEligible(book, entry.data.chapterType);
 const isDraftPreview = entry.data.draft || book.status === "drafting";

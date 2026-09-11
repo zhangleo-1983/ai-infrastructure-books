@@ -1,0 +1,212 @@
+---
+book: "06-dify"
+order: 13
+slug: "appendix"
+title: "附录：术语、变量、错误地图与备选路线"
+shortTitle: "附录"
+description: "按问题查阅术语、输入输出绑定、三种地址环境、配置和恢复材料，并比较 Cloud、Chatflow、Embedding 与本地模型的新增责任。"
+chapterType: "appendix"
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Glossary from "../../../components/book/Glossary.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const changeCard = `第六册变更卡（只填脱敏结论）
+要解决的具体问题：
+当前版本、应用与资料状态：
+本次只改哪一项：
+新增请求、数据接触者、费用与权限：
+变更前备份与已验证的恢复范围：
+计划测试题与成功标准：
+失败后如何回到原状态：
+结果：通过 / 失败 / 未覆盖
+费用与剩余对象：`;
+
+<Callout type="info" title="怎样使用这份附录">
+  校订日期为 2026-09-11，依据 Dify 1.17.1 候选主线与官方资料。全册仍是写作草稿，没有 Dify 实机通过结论。
+  找到问题后沿链接回到正文，读完前提、操作与失败处理；表格不是可直接导入的配置，也不代替实际状态检查。
+</Callout>
+
+<section className="book-section" id="book06-appendix-terms">
+  ## 常见术语：先认出它负责什么
+
+  <Glossary>
+    <dt>Dify / 模型</dt><dd>Dify 组织应用和处理步骤；远程模型按输入生成文字。能登录 Dify 不代表模型连接正常。</dd>
+    <dt>Workflow / 节点</dt><dd>Workflow 是一次任务的处理流程；节点是其中一步。本册由本人手动触发，不使用循环、定时或外部工具。</dd>
+    <dt>变量 / 数组</dt><dd>变量把本次数据交给下一步；数组是一组有顺序的项。检索 result 是片段数组，空数组表示没有项。</dd>
+    <dt>知识库 / 分段</dt><dd>知识库收集可检索资料；分段把文件切成适合查找的片段。片段必须保留理解规则需要的上下文。</dd>
+    <dt>索引 / Top K</dt><dd>索引帮助查找资料；Top K 控制最多取回多少候选。候选数量和相关分数都不是答案正确率。</dd>
+    <dt>RAG / Context</dt><dd>RAG 是先检索再生成；Context 是交给模型的上下文资料。本册既绑定检索结果，也在提示词中引用 Context。</dd>
+    <dt>Embedding / Rerank</dt><dd>Embedding 把文字变成用于比较含义的数值；Rerank 给候选片段重排。它们与生成回答的模型是不同能力，可能分别收费。</dd>
+    <dt>API / key / token</dt><dd>API 是程序接口，API key 是调用凭证。模型 token 是计量文字的词元；Tunnel token 却是连接凭证，两种 token 不要混用。</dd>
+    <dt>PostgreSQL / Redis / worker</dt><dd>分别承担结构化数据、缓存与队列支持、后台任务执行等职责。具体数据归属按第二、十一章盘点，不能只备份网页容器。</dd>
+    <dt>Compose / 项目</dt><dd>Compose 依据文件管理一组服务；项目名区分同机对象。改项目名不自动改变宿主机目录，也不自动隔离外部资源。</dd>
+    <dt>bind mount / named volume</dt><dd>前者把宿主机目录挂入容器；后者由 Docker 管理独立数据卷。普通移除容器不会代替两者的数据清理。</dd>
+    <dt>image ID / 镜像包</dt><dd>image ID 标识本机实际镜像；save 生成可供 load 恢复的镜像包。二者都不包含容器外的数据库和上传文件。</dd>
+    <dt>Access / Tunnel / route</dt><dd>Access 检查身份；Tunnel 建立通道；route 把主机名请求交给源站。HTTPS 负责加密传输，不替代身份检查。</dd>
+    <dt>DSL / 备份</dt><dd>DSL 描述应用定义与依赖引用；完整备份还需要资料、数据库、索引、配置秘密、卷和程序版本。</dd>
+    <dt>哈希 / 恢复</dt><dd>哈希用于比较文件内容是否变化；恢复要启动匹配程序并核对原数据。校验和一致不证明数据一致性、加密或应用可用。</dd>
+  </Glossary>
+
+  读不懂输入到输出的方向，回<a href={sitePath("/books/06-dify/01-from-chat-to-workflow/")}>第一章</a>；
+  分不清服务与数据归属，回<a href={sitePath("/books/06-dify/02-plan-stack-and-costs/")}>第二章</a>。
+</section>
+
+<section className="book-section" id="book06-appendix-variables">
+  ## 工作流字段：同名文字不等于变量绑定
+
+  <ComparisonTable>
+
+  | 字段 | 谁产生、谁使用 | 本书检查点 |
+  | --- | --- | --- |
+  | question | User Input → 检索 Query Text 与 LLM User | 文本必填、200 字符为作者限制；用变量选择器插入，不手打变量名冒充绑定 |
+  | result | Knowledge Retrieval → If-Else、LLM Context、来源模板 | 片段数组；IF 检查 Is empty，不输入字符串“[]” |
+  | Context | LLM 的资料字段 → System 中的 Context 标签 | 字段绑定和提示词引用两处都需要检查 |
+  | chunks | 来源 Template 的输入变量 → 模板循环 | 绑定本次 result；逐项输出实际标题/content，不能用模型生成的来源 |
+  | output | 两个 Template 各自的结果 | 空提示模板与来源模板不是同一节点，选择时核对来源节点名 |
+  | answer | 有结果分支的 Output 字段 | 值绑定 LLM 实际文本；不是手填“answer” |
+  | references | 有结果分支的 Output 字段 | 值绑定来源模板 output；它展示候选，不保证 answer 全部有依据 |
+  | notice | 空分支的 Output 字段 | 值绑定固定提示模板 output；路径不得经过 LLM |
+
+  </ComparisonTable>
+
+  在画布检查选中的节点、来源标签和本次数据类型，再用不调用模型的节点测试验证条件/模板。
+  来源缺失、数组类型不对或还存在输入直达模型的旧连线时，回
+  <a href={sitePath("/books/06-dify/07-grounded-workflow/")}>第七章</a>修正。
+  测试缓存不是完整运行证据，六类评估与真实空结果要按
+  <a href={sitePath("/books/06-dify/08-evaluate-and-export/")}>第八章</a>分别登记。
+</section>
+
+<section className="book-section" id="book06-appendix-addresses">
+  ## 地址与环境变量：先确定你在哪套环境
+
+  <ComparisonTable>
+
+  | 环境 | 项目与入口 | 配置文件和用途 |
+  | --- | --- | --- |
+  | 原项目、本地学习 | book06-dify；SSH 转发到 127.0.0.1:8088 | 官方 docker-compose.yaml ＋ compose.book06.yaml；第三章 |
+  | 原项目、受保护 HTTPS | 同一个 book06-dify；示例 dify.example.com | 同两文件，按第九章修改 .env 地址；先有 Access，后建 route |
+  | 同版本恢复副本 | book06-dify-restore；SSH 转发到 127.0.0.1:8089 | 独立目录；再加 compose.images.yaml 与 compose.restore.yaml；第十一章 |
+
+  </ComparisonTable>
+
+  localhost 是正在发出请求的那台设备自身。电脑浏览器的 localhost 依靠 SSH 转发到 VPS；容器里的 localhost
+  指向该容器，不能拿来代替另一个服务。下表公开域名仅为保留示例，真实地址只在本人受控界面填写。
+
+  <ComparisonTable>
+
+  | 变量组 | 本地 / HTTPS / 恢复副本 | 必须保留的区别 |
+  | --- | --- | --- |
+  | CONSOLE_API_URL、CONSOLE_WEB_URL | `http://localhost:8088` / `https://dify.example.com` / `http://localhost:8089` | 控制台浏览器入口，两个地址随环境同步 |
+  | SERVICE_API_URL、APP_API_URL、APP_WEB_URL | 同上三种基础地址 | 应用/API 对外地址，不能因控制台能开就不检查 |
+  | FILES_URL | 同上三种基础地址 | 外部文件地址仍需 Access；不能另开匿名文件域名 |
+  | NEXT_PUBLIC_SOCKET_URL | ws://localhost:8088 / wss://dify.example.com / ws://localhost:8089 | WebSocket 是持续双向连接；HTTPS 环境使用 wss |
+  | WEB_API_CORS_ALLOW_ORIGINS、CONSOLE_CORS_ALLOW_ORIGINS | 对应上述 http 或 https 基础地址 | CORS 是浏览器跨来源约束，来源要精确；不是身份认证 |
+  | SERVER_CONSOLE_API_URL、INTERNAL_FILES_URL | 三种环境均为 `http://api:5001` | 服务内部请求，不能全部替换成 Access 前的公网 URL |
+  | COMPOSE_PROFILES | weaviate,postgresql,collaboration | 本书固定启用组合；不是适合所有版本的常数 |
+  | FORCE_VERIFYING_SIGNATURE、PLUGIN_PPROF_ENABLED | true、false | 保持签名校验、关闭该诊断开关；还需检查安装权限和实际端口 |
+  | SECRET_KEY、DB_PASSWORD、Redis/插件/Agent 等配套秘密 | 不在表中提供值 | 第三章仅为全新目录生成；恢复保留配套值，不能重新生成来“修复”认证 |
+
+  </ComparisonTable>
+
+  修改地址时回<a href={sitePath("/books/06-dify/09-protected-https/")}>第九章</a>按顺序编辑、保存和应用；
+  配置结构正确不证明实际网络安全。恢复副本还必须有新卷、独立挂载与内部网络，详见
+  <a href={sitePath("/books/06-dify/11-backup-restore-update/")}>第十一章</a>。
+  [官方环境变量](https://docs.dify.ai/en/self-host/deploy/configuration/environments)
+</section>
+
+<section className="book-section" id="book06-appendix-files">
+  ## 文件与命令：先认清会不会改变状态
+
+  <ComparisonTable>
+
+  | 材料 | 作用 | 不能拿它替代什么 |
+  | --- | --- | --- |
+  | prepare-env.py | 第三章首次建立随机配套 .env | 不用于更新、恢复或内部秘密轮换 |
+  | check-config.py | 第三章只读检查本地初始部署的有效配置 | HTTPS 后不能直接用只允许 localhost 的初始检查规则判正常配置错误 |
+  | compose.book06.yaml | 覆盖 nginx 回环端口、清掉插件调试映射 | 不代替官方完整 Compose，不适用其他任意版本 |
+  | 三份 01/02/03 合成 TXT | 第六章原文，含稳定 R/S/C 段号 | 文件存在不证明已上传、分段或索引完成 |
+  | compose.restore.yaml、check-restore-config.py | 第十一章新目录/卷/端口/镜像/网络的静态约束 | 不证明任务队列没有副作用或离线插件能正常启动 |
+  | docker.tar.gz、两个 Agent 卷及四个代理卷 tar | 停写后的目录与目录外数据 | 单份目录包不能覆盖六个独立卷；代理卷映射另存 proxy-volumes.json |
+  | images.tar、compose.images.yaml、image-map.txt、version.txt | 实际镜像留存和版本对应 | 不保证跨架构、异机或跨版本迁移可用 |
+  | SHA256SUMS | 对上述七文件核对内容完整性 | 不加密、不证明来源可信，也不是恢复验收报告 |
+
+  </ComparisonTable>
+
+  <ComparisonTable>
+
+  | 命令类别 | 状态影响 | 回正文核对 |
+  | --- | --- | --- |
+  | ps、有限 inspect、df、free、config -q | 只读；部分输出仍有地址或业务信息 | <a href={sitePath("/books/06-dify/10-troubleshooting/")}>第十章定位</a> |
+  | stop / start | 暂停/启动已有容器，保留数据；start 不加载新配置 | <a href={sitePath("/books/06-dify/12-maintenance-retirement/") + "#book06-12-pause"}>第十二章暂停</a> |
+  | up、create | 创建或重建对象；可能涉及镜像、初始化和后台任务 | <a href={sitePath("/books/06-dify/03-deploy-dify/")}>第三章</a>、<a href={sitePath("/books/06-dify/11-backup-restore-update/")}>第十一章</a> |
+  | down | 移除指定配置的容器与网络；选项改变删除范围 | <a href={sitePath("/books/06-dify/12-maintenance-retirement/") + "#book06-12-retire"}>第十二章退役</a> |
+
+  </ComparisonTable>
+
+  附录不提供“全部清理”命令。共享实例、外部卷或不认识的目录先查归属；读者应知道将失去哪些数据，
+  再按正文的专用实例分支处理。默认不运行全局 prune，不以空白重装替代恢复。
+</section>
+
+<section className="book-section" id="book06-appendix-errors">
+  ## 错误地图：从最早缺失的证据查起
+
+  <ComparisonTable>
+
+  | 现象 | 第一处应查的证据 | 返回章节 |
+  | --- | --- | --- |
+  | 电脑 localhost 拒绝连接 | SSH 转发是否存活、8088 是否占用、VPS 回环是否正常 | <a href={sitePath("/books/06-dify/03-deploy-dify/")}>第三章</a> |
+  | Access 循环登录、域名打不开 | 允许身份、会话、route、内部/外部地址和实际接口 | <a href={sitePath("/books/06-dify/09-protected-https/")}>第九章</a> |
+  | 网页壳有但列表/登录报错 | api 与相关接口，不能只看 HTML 状态 | <a href={sitePath("/books/06-dify/10-troubleshooting/") + "#book06-10-entry"}>第十章入口分层</a> |
+  | 文档一直排队 | worker、Redis、存储空间与文档终态 | <a href={sitePath("/books/06-dify/10-troubleshooting/") + "#book06-10-tasks"}>第十章后台任务</a> |
+  | 同词命中、换说法漏检 | 经济索引关键词与实际片段；不要掩盖 E02 失败 | <a href={sitePath("/books/06-dify/06-build-knowledge-base/")}>第六章</a> |
+  | 空结果仍调模型、来源不符 | 条件类型、旧连线、Context 和 chunks | <a href={sitePath("/books/06-dify/07-grounded-workflow/")}>第七章</a> |
+  | 401/402/429/500/503 或超时 | 提供方原始类别、插件日志和实际用量；不盲目重试 | <a href={sitePath("/books/06-dify/10-troubleshooting/") + "#book06-10-model"}>第十章模型层</a> |
+  | 恢复后出现安装页或空工作区 | 是否误用新卷、目录、项目、秘密或镜像 | <a href={sitePath("/books/06-dify/11-backup-restore-update/")}>第十一章</a> |
+  | 网站关闭仍有费用 | 在途请求、另一副本、专用 key、实例及附加账单 | <a href={sitePath("/books/06-dify/12-maintenance-retirement/")}>第十二章</a> |
+
+  </ComparisonTable>
+
+  找到对应页后，先做只读检查，再改最小的一项。模型错误未确认计费前不重复发送，存储错误不删数据重建。
+  错误提示中的地址、key、Cookie 和文件内容留在受控本地，不能原样发出。
+</section>
+
+<section className="book-section" id="book06-appendix-alternatives">
+  ## 备选路线：需求改变时，重新算数据、权限与费用
+
+  <ComparisonTable>
+
+  | 路线 | 解决什么需求 | 新增责任与切换前证据 |
+  | --- | --- | --- |
+  | Dify Cloud | 希望由平台管理基础服务 | 核对账户方案、额度、数据处理与退出/导出能力；不假设自托管卷和 .env 能直接搬过去 |
+  | Chatflow | 需要多轮追问 | 加入会话上下文，每条消息可能再次触发流程；重做输入、费用、历史资料与回答节点测试 |
+  | High Quality ＋ Embedding | 关键词无法满足语义改写 | 增加资料/查询向量化、提供方、索引费用与向量恢复；不是调大 Top K 就变成语义检索 |
+  | Rerank | 候选排序需要改善 | 候选再次送到重排服务，增加数据接触面和用量；不能凭排序分数判事实正确 |
+  | 本地模型 | 希望减少远程生成路径 | 独立计算、内存/GPU、模型许可和网络隔离；不能承诺无需外网或总成本更低 |
+  | 仅 SSH 本地访问 | 暂不满足 Access 或域名条件 | 可继续本地学习，HTTPS 与手机外网明确未覆盖，不宣称完整主线通过 |
+
+  </ComparisonTable>
+
+  官方说明 High Quality 建立后不能直接切回 Economical（经济模式）。需要比较时，先保留原始 TXT、
+  当前库和评估证据，另建明确预算的试验方案，不在唯一练习库上点击升级来尝试。
+  [索引方式](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/setting-indexing-methods) ·
+  [Workflow 与 Chatflow](https://docs.dify.ai/en/self-host/use-dify/build/workflow-chatflow)
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>当前主线</strong><small>Dify → 远程模型；问题和片段可能外发</small></div>
+    <div className="flow-node"><strong>本地模型对照</strong><small>Dify → 受控模型服务；另需计算与认证</small></div>
+  </FlowDiagram>
+
+  这张图仅比较生成路径，两个方框不是同一流程里同时运行的节点。本地模型不自动消除插件下载、遥测、
+  更新与其他外联，也不意味着可以公开模型端口。附录不安装模型、不下载权重、不添加第二套 Compose。
+
+  <CodeBlock label="切换任何路线前，先完成这张变更卡" code={changeCard} />
+
+  能写出具体失败样本、新增责任和恢复方法，才有条件讨论切换。只是看到新按钮或新版本时，继续保留现有主线。
+</section>

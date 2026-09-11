@@ -116,6 +116,16 @@ describe("系列书籍注册表", () => {
     expect(isSearchEligible(book, "sources")).toBe(true);
     expect(isPrintEligible(book, "sources")).toBe(true);
   });
+
+  it("草稿书籍和正式书籍中的草稿章节均不计入完成率", () => {
+    const book = getReadableBooks()[0];
+    expect(book).toBeDefined();
+    if (!book) return;
+    expect(isCompletionEligible(book, "chapter", true)).toBe(false);
+    expect(isCompletionEligible({ ...book, status: "drafting" }, "chapter")).toBe(false);
+    expect(isCompletionEligible({ ...book, status: "planned" }, "chapter")).toBe(false);
+    expect(isCompletionEligible(book, "chapter", false)).toBe(true);
+  });
 });
 
 describe("部署路径", () => {

@@ -1,0 +1,142 @@
+---
+book: "06-dify"
+order: 1
+slug: "01-from-chat-to-workflow"
+title: "从聊天到工作流：一个 AI 应用怎样完成任务"
+shortTitle: "从聊天到工作流"
+description: "用虚构活动问答认识节点、变量、模型与知识库，先画出一次任务的路径，再决定要部署什么。"
+chapterType: "chapter"
+chapterNumber: 1
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import DifyWorkflowMap from "../../../components/books/06-dify/DifyWorkflowMap.astro";
+
+<LearningGoals audience="用过 AI 对话，但第一次接触图形工作流的读者" duration="约 15—20 分钟；本章不调用模型" outcome="能说清一次问题经过哪些步骤，以及应用在哪些情况下必须停止" />
+
+<Callout type="info" title="本章只画路径">
+  当前为写作草稿，资料校订于 2026-09-11。本章不用注册新账号、租服务器或付费。
+  后续命令尚未经过第六册外部实机验证；图和字段是教学仿真。
+</Callout>
+
+<section className="book-section" id="book06-01-task">
+  ## 第一步：把“帮我回答”换成一件可以检查的任务
+
+  打开电脑上的记事本或纸笔，写下：我的应用只解释虚构活动的报名、时间安排和取消规则。
+  输入是一个问题，输出是回答和可核对的资料片段。它不接受真正报名，不发送邮件，也不更改名单。
+  先写范围，是为了判断回答有没有越界，而不是让工具替你决定业务规则。
+
+  第五册的对话入口让你直接与模型交流。Dify 则把处理步骤放到同一个应用中，你可以规定先收什么输入、
+  在哪里找资料、什么时候允许生成文字。Dify 是应用平台，大语言模型是生成文字的服务，两者各有账户、版本和费用。
+
+  <MockWindow title="虚构活动助手的任务卡：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="谁使用">本人；单次提问；只用合成资料</MockField>
+      <MockField label="输入示例">报名什么时候截止？</MockField>
+      <MockField label="可检查的目标">回答与报名规则原文一致，并显示候选片段</MockField>
+      <MockField label="不做的动作">不替人报名、付款、取消或发通知</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>不用打开软件，也能说明应用的输入和输出。
+  <strong>失败判断：</strong>只写“做一个万能助手”，没有可核对资料或允许动作；先缩小任务范围。
+</section>
+
+<section className="book-section" id="book06-01-nodes">
+  ## 第二步：先认识最短的三个节点
+
+  工作流（Workflow）是一组按连接关系执行的步骤。画布上的方框叫节点；连线表示先后依赖，
+  不表示文字会自动填进所有字段。第五章会创建下面这条最短流程。
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>① User Input</strong><small>收集 question</small></div>
+    <div className="flow-node"><strong>② LLM</strong><small>读取变量，生成 text</small></div>
+    <div className="flow-node"><strong>③ Output</strong><small>把 text 作为 answer 返回</small></div>
+  </FlowDiagram>
+
+  User Input 是用户输入节点，LLM 是大语言模型节点，Output 是结果输出节点。
+  变量像贴了名字的格子：`question` 格子装这次问题，`text` 格子装模型生成的文字，`answer`
+  是我们给最后结果字段起的名字。一次新运行会产生本次数据，不能把上一次调试的缓存当作本次输入。
+
+  在纸上把“报名什么时候截止？”写进 question 格子，再画箭头到 LLM。即使连了线，你仍要在 LLM
+  消息里通过变量选择器选中 question。直接敲 `question` 这个单词，模型收到的可能只是单词本身。
+
+  <strong>成功状态：</strong>能区分连线和变量绑定，知道最后返回哪一个字段。
+  <strong>失败判断：</strong>把 Output 当模型，或者认为输入框里的文字会自动成为提示词；先按上图重新走一遍。
+  [官方输入节点](https://docs.dify.ai/en/self-host/use-dify/nodes/user-input) ·
+  [官方输出节点](https://docs.dify.ai/en/self-host/use-dify/nodes/output)
+</section>
+
+<section className="book-section" id="book06-01-types">
+  ## 第三步：选单次工作流，先不做多轮聊天
+
+  <ComparisonTable>
+
+  | 名称 | 一次使用像什么 | 本书的处理 |
+  | --- | --- | --- |
+  | Workflow | 填一次表单，执行一条流程，得到一次结果 | 唯一完整主线；每次独立提供问题 |
+  | Chatflow | 在同一会话里继续追问，需要处理聊天上下文 | 只解释差异，不把它的内置 query 或 Answer 节点照搬过来 |
+  | Agent | 模型动态选择要调用的工具和行动步骤 | 第一版不使用，避免增加不明确的外部动作与调用次数 |
+
+  </ComparisonTable>
+
+  比如第二次输入“那可以晚一天吗”，独立 Workflow 不应假定“那”指上一轮的报名截止日。
+  练习时把问题写完整：“报名截止后可以补报名吗？”这样可以直接对照原文，也便于逐次核对费用。
+  [Workflow 与 Chatflow](https://docs.dify.ai/en/self-host/use-dify/build/workflow-chatflow)
+
+  <strong>成功状态：</strong>任务卡写明“单次输入、单次输出”。<strong>失败判断：</strong>目标已经变成持续聊天、
+  定时抓取或替人操作其他系统；先停止扩展，避免在同一本入门教程里悄悄更换路线。
+</section>
+
+<section className="book-section" id="book06-01-knowledge">
+  ## 第四步：让模型先拿到资料，再回答
+
+  知识库是供查找的资料集合。检索是从中找相关片段；分段是把文字切成小块；索引是帮助查找的结构。
+  第六章会建立三份合成 TXT（纯文本）资料，第七章再把检索接到模型前面。
+
+  <DifyWorkflowMap />
+
+  例如原文写“报名截止于活动前 2 天”。检索先找出这段，再交给模型表达为回答。这种先找资料、
+  后生成的办法称为检索增强生成（RAG），不是训练模型，也不会把规则永久刻进远程模型的知识。
+
+  经济索引用关键词查找。它可能找到“报名截止”，却对换一种中文说法不敏感；检索到有关活动的段落，
+  也不意味着段落包含交通补贴金额。我们因此保留两种不同结果：没有片段时直接给固定提示；有片段但
+  依据不足时要求模型说明无法确认，并由人核对。流畅的语言不能证明事实正确。
+
+  <strong>成功状态：</strong>能解释来源栏为什么要显示实际片段。<strong>失败判断：</strong>把上传成功、检索有结果、
+  答案正确当成同一件事，或者让模型自由编来源链接；回到原文逐项核对。
+  [官方检索节点](https://docs.dify.ai/en/self-host/use-dify/nodes/knowledge-retrieval)
+</section>
+
+<section className="book-section" id="book06-01-boundaries">
+  ## 第五步：在图上标出数据和费用离开的地方
+
+  在刚才的纸面流程上，给 LLM 节点加一行“问题和候选片段可能发给远程提供方”。API 是程序调用服务
+  的接口，API key 是准许使用并可能扣费的凭证；真实 key 只放在受控设置中，不写进提示词或合成资料。
+  自托管 Dify 仍会有远程模型通信，本地数据库、日志和备份也可能保存输入与结果。
+
+  再给运行按钮加一行“每次点击可能产生一次或多次提供方请求”。保存连接的验证、错误重试和额外模型
+  步骤都可能增加次数。token 是模型计量文字的单位，不能按每个汉字一个 token 算账。
+
+  本章纸面演练不会产生模型费用。后面看到设置里的批量运行、循环、工具或摘要自动生成，先保持关闭；
+  不因为功能按钮存在就假定它属于本练习。域名入口和永久清理会在后面单独解释。
+</section>
+
+<section className="book-section" id="book06-01-handoff">
+  ## 交给下一章的检查卡
+
+  - 我的任务是解释虚构活动资料，不执行外部业务动作。
+  - 我知道 Dify 平台与模型服务分别负责什么。
+  - 我能沿着 User Input、LLM、Output 说出变量在哪里传递。
+  - 我知道检索不等于训练，候选片段不等于正确答案。
+  - 我能指出问题和片段在哪里外发，哪些步骤可能收费。
+
+  下一章先规划服务器、端口、数据和账单。若还不能说明上述任一项，继续纸面演练即可，不需要靠付费调用理解概念。
+</section>

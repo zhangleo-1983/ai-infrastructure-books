@@ -1,0 +1,48 @@
+# Only for the separate book06-dify-restore project; never add to the source project.
+services:
+  nginx:
+    ports: !override
+      - "127.0.0.1:8089:80"
+  # Squid images declare these VOLUMEs even though the upstream Compose omits them.
+  # Explicit anonymous mounts prevent image content from populating restore targets.
+  ssrf_proxy:
+    volumes:
+      - type: volume
+        target: /var/log/squid
+        volume:
+          nocopy: true
+      - type: volume
+        target: /var/spool/squid
+        volume:
+          nocopy: true
+  agent_ssrf_proxy:
+    volumes:
+      - type: volume
+        target: /var/log/squid
+        volume:
+          nocopy: true
+      - type: volume
+        target: /var/spool/squid
+        volume:
+          nocopy: true
+  local_sandbox:
+    volumes:
+      - type: volume
+        source: dify_agent_local_sandbox_home
+        target: /home/dify
+        volume:
+          nocopy: true
+      - type: volume
+        source: dify_agent_local_sandbox_workspace
+        target: /workspace
+        volume:
+          nocopy: true
+networks:
+  default:
+    internal: true
+  ssrf_proxy_network:
+    internal: true
+  local_sandbox_proxy_network:
+    internal: true
+  agent_sandbox_network:
+    internal: true

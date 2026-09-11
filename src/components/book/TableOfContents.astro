@@ -18,6 +18,7 @@ interface Props {
 }
 
 const { book, items, currentSlug, headings = [] } = Astro.props;
+const isDraftPreview = book.status === "drafting" || items.every((item) => item.draft);
 const completionTotal = items.filter(
   (item) => item.completionEligible,
 ).length;
@@ -39,8 +40,8 @@ function itemLabel(item: BookTocItem): string {
 >
   <summary>
     <span>本册目录</span>
-    <small data-book-completion-summary aria-live="polite">
-      {completionTotal} 个学习章节
+    <small data-book-completion-summary={isDraftPreview ? undefined : true} aria-live="polite">
+      {isDraftPreview ? `${items.length} 篇样章` : `${completionTotal} 个学习章节`}
     </small>
   </summary>
   <nav aria-label={`${book.cover.navigationLabel}目录`}>

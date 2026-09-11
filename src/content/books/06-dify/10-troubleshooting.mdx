@@ -1,0 +1,247 @@
+---
+book: "06-dify"
+order: 10
+slug: "10-troubleshooting"
+title: "页面能开、流程却失败：分层排查"
+shortTitle: "分层排查故障"
+description: "按入口、服务、后台任务、插件、模型、检索和变量逐层找证据，用一次可恢复的接口停止演练理解网页与应用的区别。"
+chapterType: "chapter"
+chapterNumber: 10
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+
+export const statusCommands = `cd "$HOME/docker-labs/dify/docker"
+pwd
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a
+free -h
+df -h /
+df -i /`;
+export const localChecks = `curl -I --connect-timeout 5 http://127.0.0.1:8088/install
+sudo docker ps --filter label=com.docker.compose.project=book06-dify --format '{{.Names}} | {{.Ports}}'
+sudo ss -lntup`;
+export const recentLogs = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml logs --since 10m --tail 80 api worker plugin_daemon`;
+export const memoryCheck = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a -q api | xargs -r sudo docker inspect --format 'OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}}'`;
+export const pauseApi = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml stop api`;
+export const probeApi = `curl -sS --connect-timeout 5 --max-time 10 -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:8088/console/api/setup`;
+export const resumeApi = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml start api
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a`;
+export const incidentCard = `脱敏故障记录
+发生时间与环境：本地入口 / 受保护域名 / 恢复副本
+最后一次成功的操作：
+失败动作与原始错误类别（不含正文、凭证、地址）：
+最早失败层与证据：
+本次只修改的一项：
+恢复动作与恢复后的证据：
+模型请求、token、费用变化：
+未覆盖项与遗留状态：`;
+
+<LearningGoals audience="已有基线记录，遇到页面或工作流问题的读者" duration="约 25—40 分钟；复杂故障另计" outcome="能从最早失败的一层查起，保留数据，并用证据确认服务已恢复" />
+
+<Callout type="info" title="本章没有故障实机结果">
+  2026-09-11 操作草稿。本章先做只读定位，再给出仅适用于本人隔离实例的单项演练。
+  真实业务、未知归属或正在运行的请求不适用。一次只改变一件事，恢复后再考虑下一步，
+  不通过刷请求制造 429、不删除数据库或知识库来“重新开始”。
+</Callout>
+
+<section className="book-section" id="book06-10-triage">
+  ## 第一步：保存现场，找最早失败的位置
+
+  先停止点击运行，把错误发生时间、应用版本、所做动作和是否已经产生模型请求写入本地记录。
+  关闭网页不一定取消后台任务，失败提示也不代表没有扣费；提供方用量未明确前不要重试。
+  若是入口意外公开，按第九章先撤本次 route、保留 Access，再继续排查。
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>入口</strong><small>SSH / Access / Tunnel</small></div>
+    <div className="flow-node"><strong>平台服务</strong><small>nginx、api、worker、插件</small></div>
+    <div className="flow-node"><strong>本次流程</strong><small>模型、检索、变量、输出</small></div>
+  </FlowDiagram>
+
+  打开第八章的基线记录，对比“最后一次正常”和“现在失败”之间改了什么。
+  例如检索有结果却没有 answer，先查后面的节点；不要从重新租 VPS 开始。
+  本次运行没有到达模型，就没有理由先更换模型 key。
+
+  <CodeBlock label="只把脱敏结论写进记录；原始日志留本地" code={incidentCard} />
+
+  <strong>成功状态：</strong>能说清失败动作和最早缺失的证据。
+  <strong>失败判断：</strong>一边改端口、一边换模型、同时重传资料；先停下，列明已经做过的变化，恢复可识别基线。
+</section>
+
+<section className="book-section" id="book06-10-entry">
+  ## 第二步：分清网页入口失败，还是流程执行失败
+
+  在本人 VPS 的 SSH 管理终端运行以下只读命令。第一项只看本地入口响应，后两项核对端口，
+  不把真实进程、IP 或地址原样发到聊天。
+
+  <CodeBlock label="VPS：本地入口与端口" code={localChecks} />
+
+  <ComparisonTable>
+
+  | 现象 | 先查哪里 | 正确下一步 |
+  | --- | --- | --- |
+  | VPS 回环入口也连接拒绝 | nginx、容器状态、端口是否仍为 8088 | 先查本机，不改 DNS 或 Access |
+  | VPS 可用，电脑 localhost 不可用 | SSH 转发窗口、电脑端口占用、第一册 SSH 参数 | 按第三章重建已核对转发，不开放公网端口 |
+  | 本地可用，域名显示 Access 登录或拒绝 | 当前邮箱、会话与全主机名策略 | 第九章本人正向与无会话负向分开核对；不要增加匿名 Bypass |
+  | 受保护域名出现 502 等网关错误 | route 目标、connector 与源站 | 先查正确的回环地址；不同层可能包装不同状态码，不靠一个数字定根因 |
+  | 页面外壳有，登录/列表失败 | 浏览器实际接口、api 和 URL/CORS | 网页静态内容不是接口健康证明 |
+  | 登录、知识库列表都正常，运行才失败 | 本次 Tracing 中最早失败节点 | 从该节点向前找输入，不重装整栈 |
+
+  </ComparisonTable>
+
+  若需要看浏览器请求，在自己的电脑打开开发者工具的 Network（网络）页，清空列表，再做一次明确的
+  只读页面操作，查看失败请求的类型和状态；不要导出带 Cookie、请求正文和秘密 URL 的完整网络记录。
+  内部文件请求绕到 Access 时应修正内部 URL，不给文件或 API 增加匿名例外。
+
+  <strong>成功状态：</strong>可以区分电脑转发、公开入口、平台接口和工作流四种位置。
+  <strong>失败判断：</strong>只用“页面能打开”判整套应用正常，或为排错关掉认证；先回到对应层。
+</section>
+
+<section className="book-section" id="book06-10-services">
+  ## 第三步：查看服务、空间与有限日志
+
+  在 VPS 回到第三章的同一目录，先确认 pwd，再读状态和资源。
+  `df -i` 查看 inode，即文件系统可登记文件的名额；空间还有剩余但名额用完，也可能无法写入。
+
+  <CodeBlock label="VPS：本项目状态、内存、空间与文件数量余量" code={statusCommands} />
+
+  init_permissions 正常退出 0 是一次性任务完成；常驻服务 Restarting、unhealthy、缺失或非预期退出才需要定位。
+  磁盘满时不执行全局 prune，不删除 volumes；先确认是本项目日志、数据还是已有备份占用，再安排精确处理。
+  第十二章会列维护与退役责任，本章不借故障处置删除未核对对象。
+
+  如 api 异常退出，可只读检查是否出现 OOMKilled（因内存耗尽被终止）。下面只取容器状态字段，
+  不输出完整 inspect 的环境变量。输出 false 也不能排除应用内部内存异常，需要结合时间和日志。
+
+  <CodeBlock label="VPS：只检查 api 的退出状态" code={memoryCheck} />
+
+  需要日志时只取与失败时刻相近的少量内容：
+
+  <CodeBlock label="VPS：最近 10 分钟、每服务最多 80 行；只在受控终端查看" code={recentLogs} />
+
+  --tail 限制行数，--since 限制时间，二者都不会自动脱敏。
+  如果错误来自 nginx 或 db_postgres，把命令末尾服务列表换成实际出错服务，不一次导出所有日志。
+  看认证失败、连接失败、迁移错误等类别；分享时手工移除 key、邮箱、请求、路径和资料正文。
+
+  <strong>成功状态：</strong>资源与最早异常服务有对应证据。
+  <strong>失败判断：</strong>数据库认证错误却反复生成 .env，或给目录 chmod 777；停止修改，核对配套秘密、旧数据与权限。
+  [官方 Docker 故障说明](https://docs.dify.ai/en/self-host/deploy/troubleshooting/docker-issues)
+</section>
+
+<section className="book-section" id="book06-10-tasks">
+  ## 第四步：上传成功，却一直不能检索
+
+  上传只是文件进入系统，worker 才负责部分后台处理。先在 Knowledge 的文档列表看启用与处理状态，
+  再打开片段确认内容存在，最后单独做经济检索测试，不用完整生成流程给索引故障“试错”。
+
+  <ComparisonTable>
+
+  | 证据 | 可能涉及的层 | 先做什么 |
+  | --- | --- | --- |
+  | 文件显示等待处理，worker 不正常 | 后台任务或 Redis 队列连接 | 核对 worker、redis、数据库状态与配套密码 |
+  | 上传报错或文件打不开 | 文件存储、空间、权限、内部文件 URL | 检查本地挂载和服务端路径；不是先换模型 |
+  | 文档停用或没有片段 | 文档状态、分段设置 | 按第六、八章启用或修正分段，确认实际原文 |
+  | 同词能找回，改写找不到 | 经济索引的关键词局限 | 保留 E02 失败，检查关键词；不偷偷升级收费索引 |
+  | 检索测试正常，Workflow 查不到 | 节点选择了别的库、Query Text 未绑定 | 检查本次 question 标签、知识库与节点检索设置 |
+
+  </ComparisonTable>
+
+  不直接清空 Redis 队列，也不重复上传同名文件。恢复后台服务后，先等原任务出现明确终态；
+  只有确认失败且不存在同一任务继续执行时，才考虑该文档的重试入口，并记录新增工作。
+  [官方文档状态管理](https://docs.dify.ai/en/self-host/use-dify/knowledge/manage-knowledge/maintain-knowledge-documents)
+</section>
+
+<section className="book-section" id="book06-10-model">
+  ## 第五步：插件与模型错误分开处理
+
+  先确认 Integrations 中仍是已核对的插件版本，再看第四章的连接记录。
+  插件服务启动失败、签名错误和模型提供方拒绝请求是三件不同的事；平台可能把提供方错误包装后显示，
+  因此不要仅凭界面一句“模型失败”判断 key 一定错误。
+
+  <ComparisonTable>
+
+  | 错误或症状 | 核对内容 | 本书停止边界 |
+  | --- | --- | --- |
+  | 插件安装/签名失败 | 来源、版本、plugin_daemon、可用网络与存储 | 不关闭签名，不换未知包 |
+  | 401、凭证验证失败 | key 是否已撤销、提供方与基础地址是否正确 | 不打印 key，不反复点保存验证 |
+  | 402 或余额不足提示 | 提供方实际余额与已批准预算 | 不自动充值；先核账 |
+  | 模型名不存在、参数不支持 | Flash 新旧名、插件预定义项、非思考开关 | 回第四章查当前官方事实；不把 UI 改名当参数兼容 |
+  | 429 或限流 | 已有请求、并发、账户限制与等待策略 | 不刷请求验证限流，不批量重试 |
+  | 500/503、超时 | 提供方服务、网络、插件日志、远程请求是否仍运行 | 先等待终态与账单；不默认失败免费 |
+
+  </ComparisonTable>
+
+  状态码以实际提供方响应为准，并非所有 Dify 错误都按这张表显示。
+  [DeepSeek 官方错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes) ·
+  [Dify 节点错误类型](https://docs.dify.ai/en/self-host/use-dify/debug/error-type)
+
+  连接验证成功也不能证明节点参数或费用限制正确；更换 key 后可能需要重新验证，仍要计费核对。
+  不把真实 key 放入终端 curl 命令来排错，也不把请求转到不明中转服务。
+</section>
+
+<section className="book-section" id="book06-10-variables">
+  ## 第六步：资料存在，但答案或来源不对
+
+  打开本次运行的 Tracing，从 User Input 向右读：question 是否为本题；检索 result 是否包含完整规则；
+  条件是否检查数组；Context 是否真正出现在提示词；来源模板 chunks 是否绑定本次 result；
+  Output 是否分别返回 notice 或 answer、references。
+
+  <MockWindow title="按数据流定位：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="看到字面量 question">检查是否通过变量选择器插入标签</MockField>
+      <MockField label="有 result，模型却说没有资料">检查 Context 字段与 System 中的标签两处</MockField>
+      <MockField label="答案有，来源没有">检查 chunks、模板 output 与 references 的绑定</MockField>
+      <MockField label="空结果仍触发模型">检查旧旁路、条件类型与并行连线</MockField>
+    </div>
+  </MockWindow>
+
+  可以用第七章的单节点测试检查条件或模板，不必重新运行 LLM。
+  手工注入的数据只证明这个节点的行为，测试后恢复缓存，不能冒充完整运行。
+  若正确片段已经进入模型而回答仍编造，记录生成错误，先收紧提示词再按第八章固定题复查。
+  候选片段不能支持答案时，增加来源栏或把 Top K 调大都不能自动修好事实。
+</section>
+
+<section className="book-section" id="book06-10-drill">
+  ## 第七步：可选演练，只暂停 api，再启动回来
+
+  这一步会暂时中断本次 Dify 接口。只有本人隔离实例、没有在途运行和索引任务、基线正常、
+  已安排停机窗口且持有 SSH 管理连接时才做。存在公开 route 时先按第九章撤下本次 route，保留 Access；
+  不停止共用 connector。没有满足前提就仅阅读，记录演练未覆盖。
+
+  在 VPS 原项目目录先执行下面的只读探测，记录 /console/api/setup 的状态码；它只读取初始化状态，
+  不提交安装、不运行 Workflow，也不显示响应正文。基线应是成功响应，非预期状态先排查，不注入新故障。
+
+  <CodeBlock label="VPS：接口状态探测，仅显示 HTTP 状态码" code={probeApi} />
+
+  然后只停止 api：
+
+  <CodeBlock label="VPS：只暂停本项目的 api；保留容器与数据" code={pauseApi} />
+
+  再做同一探测，预期接口不再成功，常见为 nginx 返回 502；记录实际结果，不把示例状态码填成实测。
+  浏览器可能仍显示缓存的页面外壳，不能据此说服务没停。不要在故障期间点运行或上传文件。
+
+  立即用下面命令启动同一容器，再看状态。start 复用已有容器，不加载新 .env、不拉新镜像；
+  这是恢复暂停，不是更新配置。
+
+  <CodeBlock label="VPS：恢复同一 api 容器并查看服务状态" code={resumeApi} />
+
+  等 api 稳定后重做只读探测，再通过 SSH 转发打开已有应用与知识库，确认与演练前一致。
+  这证明接口恢复，不自动证明模型能生成；若需要生成验收，另按预算执行第八章一个固定题。
+  start 失败时保留现场，先查日志与依赖，不删容器重建。公开 route 如需恢复，必须重新核对原 Access 保护与目标。
+</section>
+
+<section className="book-section" id="book06-10-handoff">
+  ## 完成后：写下恢复了什么，哪些仍未覆盖
+
+  把故障层、唯一变更、恢复命令和恢复后的证据补进记录卡。数据、应用版本、文档启用状态、
+  模型请求与费用都要能说明；不要只写“重启后好了”。本章没有安排清空磁盘、破坏数据库或高频请求的演练。
+
+  如果无法回到基线，保持公开入口撤下，保留数据，记录当前停机影响；不要把无数据的重新安装称作恢复。
+  下一章先建立完整停写备份和同版本隔离恢复，再讨论能否更新软件。
+</section>

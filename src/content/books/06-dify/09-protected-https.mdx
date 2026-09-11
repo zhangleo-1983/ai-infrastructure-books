@@ -1,0 +1,293 @@
+---
+book: "06-dify"
+order: 9
+slug: "09-protected-https"
+title: "先限制访问，再用域名打开应用"
+shortTitle: "建立受保护的域名入口"
+description: "先给整个主机名建立 Access 身份白名单，再连接 Tunnel，逐项核对本人、未授权浏览器和手机的完整访问路径。"
+chapterType: "chapter"
+chapterNumber: 9
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const enterProject = `cd "$HOME/docker-labs/dify/docker"
+pwd
+test -f docker-compose.yaml && test -f compose.book06.yaml && test -f .env && echo "所需文件存在"`;
+export const editConfig = `umask 077
+cp -i .env .env.before-https
+chmod 600 .env .env.before-https
+nano .env`;
+export const urlSettings = `CONSOLE_API_URL=https://dify.example.com
+CONSOLE_WEB_URL=https://dify.example.com
+SERVICE_API_URL=https://dify.example.com
+APP_API_URL=https://dify.example.com
+APP_WEB_URL=https://dify.example.com
+FILES_URL=https://dify.example.com
+SERVER_CONSOLE_API_URL=http://api:5001
+INTERNAL_FILES_URL=http://api:5001
+NEXT_PUBLIC_SOCKET_URL=wss://dify.example.com
+WEB_API_CORS_ALLOW_ORIGINS=https://dify.example.com
+CONSOLE_CORS_ALLOW_ORIGINS=https://dify.example.com`;
+export const validateConfig = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml config -q`;
+export const applyConfig = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml up -d
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps`;
+export const rollbackConfig = `cp -i .env.before-https .env
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml config -q
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml up -d`;
+
+<LearningGoals audience="已有可用本地 Dify、专用 Tunnel 与可管理域名的读者" duration="约 30—45 分钟；不含认证、DNS 等待与排错" outcome="本人能用 HTTPS 打开应用，未授权者被挡在入口外，失败时能先撤下路由再排查" />
+
+<Callout type="info" title="样章边界与版本">
+  本章是 2026-09-11 校订的操作草稿。部署、模型与评估已取得本册实机证据；
+  Access 全主机名白名单、源站 JWT 校验及匿名 GET/POST 拒绝已验证，本人登录和手机链路仍待完成。
+  下面的部署路径和项目名与第 3 章一致；与自己的交接卡不一致时不能直接运行。
+</Callout>
+
+<section className="book-section" id="book06-09-boundary">
+  ## 先分清三个入口保护
+
+  HTTPS 加密传输，Cloudflare Tunnel 把请求送到服务器，Cloudflare Access 检查访问者身份。
+  身份检查通过后，Dify 管理界面仍要求管理员登录。Dify 内的 Publish（发布）保存可运行版本，
+  不替你建立 Cloudflare 的访问规则。
+
+  Dify 的 web app（面向使用者的应用网页）默认公开；控制台密码不能证明所有应用、接口和文件都受保护。
+  我们给整个独立主机名加 Access，先确认规则存在，再把它连接到源站。源站就是实际运行 Dify 的服务器。
+  [Dify 应用访问说明](https://docs.dify.ai/en/self-host/use-dify/publish/webapp/web-app-settings)
+
+  <MockWindow title="一条请求要经过哪里：教学仿真">
+    <ol>
+      <li>电脑或手机访问 <code>https://dify.example.com</code>。</li>
+      <li>Access 检查本人身份；不在允许名单的请求不能进入应用。</li>
+      <li>Tunnel 的 connector 验证 Access 凭证，再连接 VPS 回环入口。</li>
+      <li>Dify 返回控制台或应用页面；管理操作另需 Dify 管理员会话。</li>
+    </ol>
+  </MockWindow>
+
+  `dify.example.com` 是保留示例域名。真实域名、邮箱、IP、token 和资源标识只在本人受控界面使用，
+  不粘贴到聊天、Git 仓库或教学截图。Cloudflare 会处理经过入口的请求，自托管不代表没有第三方参与。
+</section>
+
+<section className="book-section" id="book06-09-ready">
+  ## 第一步：先核对已有资源和退回入口
+
+  <ComparisonTable>
+
+  | 必须已经具备 | 核对方法 | 不满足时停在哪里 |
+  | --- | --- | --- |
+  | 本地 Dify 可用且管理员已建立 | 电脑经 SSH 转发能登录并读取既有测试记录 | 回第 3—4 章；不能公开未初始化实例 |
+  | 端口收紧已经验证 | 交接卡记录仅 Nginx 绑定 `127.0.0.1:8088`，含 IPv6 与插件调试端口检查 | 发现任意非预期公网映射，先修复第 3 章配置 |
+  | 专用 Tunnel 与健康 connector | 控制台显示本次通道正常；还没有公开 route | 旧对象已删除时重新规划，不能复用旧 token |
+  | connector 在同一 VPS 主机运行 | 使用第四册的主机服务方式，能访问本机回环入口 | 容器里的 `127.0.0.1` 指向该容器，不能直接套用本章地址 |
+  | 域名可管理、子域名未占用 | DNS 中没有同名冲突记录；不改根域名归属 | 有业务记录则停，不覆盖或删除未知用途记录 |
+  | Access 资格、身份与费用确认 | 账户方案和本人邮箱能使用；核对当前限制 | 要求新付费方案时停止，不自动升级 |
+  | 原应用版本经过第 8 章检查 | 有可核对的样本、费用、受控 DSL 与本地发布版本记录 | 不把未经核验的应用变成可访问入口 |
+
+  </ComparisonTable>
+
+  Tunnel、connector、route 分别是通道对象、维持连接的程序、把主机名送到服务的规则。
+  如需复习，打开<a href={sitePath("/books/04-cloudflare/07-create-tunnel/")}>第四册：创建 Tunnel</a>，
+  只准备无公开 route 的专用通道；本章完成 Access 前不要继续发布应用步骤。
+
+  保留当前 SSH 管理连接和本地转发窗口。它们用于域名配置失败后的管理，不代表可以跳过 Access
+  对公开主机名的验证。<strong>成功状态：</strong>每项都有当前证据。<strong>失败判断：</strong>拿旧实验记录充当现状，或没有退回方法。
+</section>
+
+<section className="book-section" id="book06-09-access">
+  ## 第二步：先创建全主机名的 Access 应用
+
+  在自己的电脑登录 Cloudflare 控制台，进入 Zero Trust（访问安全管理区）。若这是首次使用，先核对
+  方案与费用；本章不授权订阅。这里使用本人邮箱的一次性验证码登录，验证码代表一次身份确认，不是 Dify 密码。
+
+  进入 Integrations → Identity providers（身份提供方），检查是否已有 One-time PIN。
+  没有时选择 Add new identity provider → One-time PIN，完成保存。当前新建组织不一定自动加入该方式，
+  不能因为旧教程有这个按钮就假定已配置。
+  [官方一次性验证码设置](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/)
+
+  进入 Access controls → Applications，选择 Create new application → Self-hosted and private，
+  再选 Add public hostname。名称填一个自己能识别的名称，例如“本人 Dify 练习”。Domain 选自己的
+  已生效域名，Subdomain 填预定子域名。Path（路径）留空，保护整个主机名，不能只填控制台路径。
+
+  在 Access policies 新建策略，Action 选 Allow（允许），Include（包含条件）的选择项用 Emails，
+  只填自己的完整邮箱。不要选 Everyone（所有人）、整个邮箱域名，也不要建立 Bypass（跳过验证）规则。
+  若出现继承的策略，逐项确认没有扩大允许范围，然后把这条策略附到本应用。
+
+  身份方式仅启用刚核对的 One-time PIN；Session Duration（身份会话有效期）本练习选 30 分钟，
+  这是教学选择，不是平台默认。2026-09-11 实机界面的应用与策略时长菜单均没有 1 小时选项；
+  若策略另设会话时长，它会覆盖应用时长，因此两处都核对为 30 分钟。保存后重新打开应用，逐项核对主机名、空路径、Allow 邮箱和登录方式。
+
+  <MockWindow title="Access 应用保存后：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="公开主机名">dify.example.com</MockField>
+      <MockField label="Path">留空：覆盖整个主机名</MockField>
+      <MockField label="策略">Allow → Include → Emails → &lt;OWNER_EMAIL&gt;</MockField>
+      <MockField label="其他放行规则">无 Everyone、无 Bypass、无路径例外</MockField>
+      <MockField label="身份方式">One-time PIN；本人受控邮箱</MockField>
+      <MockField label="当前状态">保护规则已保存；尚未连接公开 route</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>保护对象与将要创建的 route 主机名完全一致，保存后规则仍可见。
+  <strong>失败判断：</strong>域名选错、邮箱范围过大、Path 只覆盖部分页面，或保存失败；不要进入路由步骤。
+  此时还没有通向源站的 route，规则存在不等于实际拒绝链路已通过。
+  [官方 Access 接入顺序与默认拒绝规则](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)
+</section>
+
+<section className="book-section" id="book06-09-urls">
+  ## 第三步：告诉 Dify 哪些地址给浏览器，哪些留在内部
+
+  在 VPS 的 SSH 终端逐行运行下面的只读定位命令。本书约定第 3 章项目名为 `book06-dify`，
+  使用官方 `docker-compose.yaml` 和独立的 `compose.book06.yaml` 差异文件。后者负责替换端口映射。
+  文件不存在就停止，不能自己建空文件骗过检查。
+
+  <CodeBlock label="VPS：先定位已经部署的项目" code={enterProject} />
+
+  `pwd` 应指向交接卡记录的 docker 目录，最后应显示“所需文件存在”。若 cd 报错，不执行后续行。
+  路径、项目名或文件名与实际部署不同，先按第 3 章交接卡核对；不能用一个新项目名启动第二套服务。
+
+  接着保存一份受限权限的环境文件副本，再用 nano（终端文字编辑器）打开 `.env`。环境文件含秘密，
+  备份也属于秘密；只在服务器受控目录保留，不上传。若同名备份已存在，`cp -i` 会询问是否覆盖；
+  输入 n 停止本组操作，先核对已有副本是否是本次变更前版本，不覆盖未知恢复点。
+
+  <CodeBlock label="VPS：本地备份后编辑；出现覆盖提示时先停" code={editConfig} />
+
+  在 nano 中按 Ctrl+W 搜索变量名，逐项修改已有行；确认没有该变量才在文件末尾新增。以下示例中
+  每一处 `dify.example.com` 都替换为同一个本人主机名，不带额外路径；不要整段追加造成重复变量。
+  其他密码、秘密、端口与服务设置保持原值。
+
+  <CodeBlock label=".env：同一公开主机名与内部服务地址的配置示意" code={urlSettings} />
+
+  前六项分别用于控制台、应用、服务接口和文件的公开地址。`wss` 是加密的 WebSocket 连接，供需要
+  持续双向连接的界面功能使用；不能在 HTTPS 页面里继续指向 `ws://localhost`。
+  `api` 是 Compose 网络中的服务名，内部两项保留 `http://api:5001`，不让服务间请求绕到 Access 登录页。
+  这里的内部 HTTP 不要求把 5001 端口发布到主机。最后两项同步限制浏览器允许的来源：
+  第 3 章只允许 localhost，此处改为同一个 HTTPS 主机名，否则浏览器请求可能被拒绝；不要改为星号。
+  [官方环境变量说明](https://docs.dify.ai/en/self-host/deploy/configuration/environments) ·
+  [1.17.1 环境模板](https://raw.githubusercontent.com/langgenius/dify/1.17.1/docker/.env.example)
+
+  按 Ctrl+O，回车确认原文件名，再按 Ctrl+X 退出。先做配置语法检查：
+
+  <CodeBlock label="VPS：仅检查，不打印展开后的秘密配置" code={validateConfig} />
+
+  正常结束且没有错误才继续。`-q` 表示安静检查；它不证明端口或权限已经安全。报错时回 nano 修正，
+  不把完整 `.env` 或无 `-q` 的配置输出贴到聊天。然后重建需要更新环境的容器，并查看状态：
+
+  <CodeBlock label="VPS：应用环境变更；保留与原部署相同的项目和差异文件" code={applyConfig} />
+
+  这会影响本次专用应用的可用性；等所需常驻服务恢复，初始化任务正常结束，再按第 3 章复核全部端口。
+  `restart` 不等于重新加载 Compose 环境配置。<strong>成功状态：</strong>配置生效且仍只有预期回环入口。
+  <strong>失败判断：</strong>出现公网映射、服务循环重启或数据库错误；不创建 route，按本章末尾退回。
+  [Docker Compose up 行为](https://docs.docker.com/reference/cli/docker/compose/up/)
+</section>
+
+<section className="book-section" id="book06-09-route">
+  ## 第四步：保护规则就绪后，才连接路由
+
+  回到 Cloudflare 的专用 Tunnel 设置，进入 Published application routes（已发布应用路由）并添加
+  一条路由。主机名必须与 Access 完全相同；Path 留空；Service 类型选 HTTP，URL 填 `127.0.0.1:8088`。
+  不填 VPS 公网 IP，也不使用指向其他业务的旧通道。
+
+  展开 Additional application settings，在 Access 设置中启用 Protect with Access。
+  这会让 connector 校验 JWT（一种签名的访问凭证），再将请求送到 Dify。Team name 使用本 Zero Trust
+  组织的团队名称；AUD 使用刚创建的 Access 应用的 Application Audience 标识。
+  在 Access 应用详情的基本信息中读取 Audience；团队名称从本组织设置读取，二者只在受控界面填写，
+  不写成 Dify 用户名或 Tunnel ID。若界面提供应用选择器，选择刚才的 Access 应用并复核对应关系。
+  [官方源站 Access 校验配置](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/)
+
+  <MockWindow title="保存 route 前最后核对：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="主机名 / Path">dify.example.com / 留空</MockField>
+      <MockField label="源站服务">HTTP → 127.0.0.1:8088</MockField>
+      <MockField label="Protect with Access">启用；对应本次 Access 应用</MockField>
+      <MockField label="Team / AUD">仅在受控界面填写；此处不记录真实值</MockField>
+    </div>
+  </MockWindow>
+
+  核对后保存。控制台若提示同名 DNS 已存在，先停，不覆盖记录。若没有找到源站身份校验设置，
+  或无法确认 AUD 对应哪个应用，也先不保存，不把“以后再补”当成发布步骤。
+
+  <strong>成功状态：</strong>专用 route 可见、connector 正常、Access 校验启用，DNS 指向该通道。
+  <strong>失败判断：</strong>任何主机名不一致或策略范围不明；撤下本次 route，保留 Access 再排查。
+</section>
+
+<section className="book-section" id="book06-09-verify">
+  ## 第五步：先证明陌生会话进不去，再验证本人
+
+  在电脑新建一个无痕窗口，确保它没有本应用的 Access 身份会话，打开完整 HTTPS 主机名。
+  应先看到 Access 登录，而不是 Dify 应用内容。仅弹出 Dify 管理员登录页也不算 Access 保护通过。
+
+  再用本人另一个不在允许列表中的受控测试邮箱尝试登录，不借用他人邮箱。未允许身份应无法得到
+  可用的应用会话。一次性验证码登录可能仍显示“已发送”，但不给不允许的地址发信；不能仅以没收到邮件
+  断定保护成立，也不要反复点发送。没有第二个受控身份时，将“未允许身份测试”明确记为未覆盖。
+
+  然后换一个干净窗口，用允许邮箱取得验证码并登录；不要记录验证码。通过 Access 后再按需登录 Dify。
+  在 Dify 中打开已检查的 Workflow，确认版本再点击 Publish；取用界面给出的应用地址，仅在本人浏览器保存。
+  检查该地址仍是同一个 HTTPS 主机名，然后打开 web app。应用链接不是密码，不公开传播。
+
+  <ComparisonTable>
+
+  | 必须检查的入口或动作 | 无会话 / 未允许身份 | 允许的本人身份 |
+  | --- | --- | --- |
+  | 主机名首页与控制台 | Access 拦截，不能直接到控制台内容 | Access 后可正常登录 Dify |
+  | web app 的实际地址 | 不能读到应用内容或发起有效运行 | 可看到本次发布版本的输入界面 |
+  | 应用实际请求的 API 与文件路径 | 不返回应用数据或文件，不能有匿名旁路 | 正常完成应用所需请求 |
+  | 一次合成问题的完整响应 | 不执行未授权调用 | 有答案与来源，执行记录和用量相符 |
+
+  </ComparisonTable>
+
+  API 是应用请求数据的程序接口。在电脑浏览器按 F12，打开 Network（网络请求）面板，刷新应用，
+  从本次请求查看主机名、路径、状态与响应类型。真实请求可能含凭证和资料，只在本地查看，不导出 HAR
+  （完整网络记录包），不复制请求头、Cookie 或带签名参数的链接到报告。Cookie 是浏览器保存会话的资料。
+
+  取本次使用的普通应用/API路径，在没有会话的新窗口核对是否仍被 Access 拦截；不要带入已登录 Cookie。
+  文件只用合成测试资料并在受控环境核验。不能拿不存在的路径返回 404 当作保护成功，也不能拿首页跳转
+  代替 API 运行请求检查。需要重放非 GET 请求时留给正式实机验证步骤，不让新手复制含秘密的整段请求命令；
+  本样章尚未完成这类验证，不能因此宣称全路径验收通过。
+
+  允许身份下请求若返回 HTML 登录页而非预期数据，先分清会话过期、URL 指向错误还是内部取文件绕了公网。
+  CORS 是浏览器对跨来源请求的限制；不要为消除报错放开所有来源，也不建立文件或 API 的匿名例外。
+  SSE 是服务器持续送来响应的方式，WebSocket 是双向持续连接；按实际使用情况核对是否完成，未触发的能力记为未覆盖。
+</section>
+
+<section className="book-section" id="book06-09-mobile">
+  ## 第六步：手机离开电脑转发后还能用吗
+
+  在自己的手机关闭 Wi-Fi，使用蜂窝网络，在新浏览器会话打开同一 HTTPS 地址。确认先进入 Access，
+  再用允许身份登录。不能把电脑上的 `localhost` 地址发给手机；它在手机上表示手机自己。
+
+  只提交一个预先批准的合成问题，等完整结果返回，核对 answer 与 references 是否可读；再回电脑核对
+  本次执行和模型用量。手机成功不能替代未授权身份测试，两项要分别记。
+  如果超时，不重复点击运行；先查看是否已经产生后台请求和费用。
+
+  <strong>成功状态：</strong>蜂窝网络上的新会话先验证身份，完整结果可读且用量可追溯。
+  <strong>失败判断：</strong>电脑能用而手机不能用、重定向循环、空白输出或混合 HTTP 内容；停在入口排错，不扩开公网端口。
+</section>
+
+<section className="book-section" id="book06-09-stop">
+  ## 失败时先撤路由，再修应用
+
+  如果未授权会话能读应用或调用接口，立即在专用 Tunnel 中移除本次公开 route，并检查对应 DNS 记录
+  是否还指向该通道；只处理本次明确归属的记录，保留 Access 应用和规则。重新用无会话窗口确认公网入口已不可用。
+  不要先删除 Access，让仍存在的 route 失去保护。
+
+  如需退回本次 URL 变更，在保留的 SSH 终端确认仍在原项目目录、`.env.before-https` 确是本次修改前
+  副本，再逐行执行以下命令。复制提示覆盖 `.env` 时，只有确认上述条件才输入 y；配置检查失败就停止，
+  不继续 up。这只恢复环境配置，不删除数据库、卷或模型凭证。
+
+  <CodeBlock label="VPS：确认恢复点后退回 URL 配置" code={rollbackConfig} />
+
+  通过原 SSH 本地转发重新检查控制台和既有结果。若仍异常，保留数据，记录失败在哪一层；不使用删卷重装。
+  如果怀疑真实凭证泄露，按其提供方流程撤销并核对用量，不能仅靠撤域名解决。
+
+  最后记录 Access 范围、route 归属、允许与拒绝结果、电脑与手机结果、实际版本和待覆盖项目，
+  只保留脱敏结论。关闭 route 不停止 VPS、模型后台任务或域名续费；暂时停用和永久清理在第 12 章分别说明。
+  本章样章验收完成也不会自动启动真实部署或把本书加入正式搜索。
+</section>

@@ -1,0 +1,204 @@
+---
+book: "06-dify"
+order: 0
+slug: "start"
+title: "开始之前：先确认资料、服务器与费用"
+shortTitle: "开始之前"
+description: "先分清 Dify、模型与知识库，核对前册资源是否仍存在，再准备合成资料、访问边界与费用停止方法。"
+chapterType: "introduction"
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import DifyWorkflowMap from "../../../components/books/06-dify/DifyWorkflowMap.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const resourceCheck = `nproc
+free -h
+df -h /
+sudo docker version
+sudo docker compose version`;
+
+<LearningGoals audience="会按前册步骤管理服务器，但第一次接触 Dify 和工作流的读者" duration="约 15—25 分钟用于准备核对；不含购买、审核和部署" outcome="能说明应用怎样用资料回答、资源从哪里来、哪些数据可以输入，以及费用在哪里停止" />
+
+<Callout type="info" title="样章审阅说明">
+  本册“开始之前”、第 1—12 章、附录与资料来源共 15 个内容单元已写成草稿。当前用于整册内容审阅，还不是经过实机验收的完整部署教程。官方资料校订于 2026-09-11，Dify 外部实机尚未验证。
+</Callout>
+
+<section className="book-section" id="book06-start-result">
+  ## 这次要做成什么
+
+  第五册让你拥有自己的 AI 对话入口。这一册要把“每次重新解释要求”变成一套可以反复运行的处理步骤。
+  我们使用 Dify：一个用图形界面组织模型、资料和处理步骤的应用平台。Dify 本身不是大语言模型；
+  大语言模型是根据输入生成文字的服务，本书让它在远程提供方运行，不要求 VPS 自己运行大模型。
+
+  贯穿案例叫“虚构活动常见问题助手”。它只读取三份作者自编的文字资料，回答报名、活动安排和取消规则。
+  例如，资料写“报名截止于活动前 2 天”，你问“报名什么时候截止”，应用应给出有依据的回答。
+  资料没有交通补贴规则时，它应该承认不知道，不能替虚构主办方编出承诺。
+
+  <DifyWorkflowMap />
+
+  工作流（Workflow）是按顺序执行的步骤；每个方框是一个节点。变量是节点之间传递的数据，例如问题
+  `question`。知识库是供查找的资料集合，检索就是从中寻找相关片段。先检索再把片段交给模型，称为
+  检索增强生成（RAG）；上传资料并不等于重新训练模型。
+
+  本书先让一次输入得到一次结果，再加入资料和条件分支。它不是多轮聊天，也不替你自动发邮件、付款
+  或修改外部系统。成功状态是“结果能核对、费用能解释、服务能恢复和停用”，不只是出现一段流畅文字。
+</section>
+
+<section className="book-section" id="book06-start-handoff">
+  ## 第一步：确认前册能力和资源还在
+
+  在自己的电脑上，打开前册的交接卡和服务商控制台，只核对资源状态，不点击新建或销毁。
+  VPS 是租用的远程服务器；SSH 是加密的远程管理连接；Docker Compose 用一组配置管理多个容器。
+  这些名词可以不熟练，但必须能完成下面的核对。
+
+  <ComparisonTable>
+
+  | 需要确认 | 缺少时返回的位置 | 返回前册要做到什么 |
+  | --- | --- | --- |
+  | 服务器存在且能登录 | <a href={sitePath("/books/01-first-vps/12-first-login-and-handoff/")}>第一册：首次登录与交接</a> | 通过本人 SSH 账户登录；确认当前计费对象 |
+  | Docker 与 Compose 可用 | <a href={sitePath("/books/03-docker/03-install-docker/")}>第三册：安装 Docker</a> | 两个版本命令均成功，不使用不明安装脚本 |
+  | 能区分端口、数据与项目 | <a href={sitePath("/books/03-docker/12-handoff/")}>第三册：项目交接</a> | 知道哪些容器与数据属于哪个项目 |
+  | 域名归属和入口可管理 | <a href={sitePath("/books/04-cloudflare/12-maintenance-handoff/")}>第四册：维护与交接</a> | 能管理 DNS 与 Tunnel，知道停止入口的方法 |
+  | 模型账户与费用可核对 | <a href={sitePath("/books/05-open-webui/06-connect-model-provider/")}>第五册：接入模型</a> | 能辨认提供方、模型 ID、凭证与账单；不要复制 Open WebUI 的配置到 Dify |
+
+  </ComparisonTable>
+
+  如果旧 VPS、Tunnel 或模型 key 已经清理，旧交接卡只能证明你做过练习，不能证明资源今天仍在。
+  Tunnel 是 Cloudflare 到源站的连接通道，connector 是服务器上维持连接的程序，route 是把某个
+  主机名送往指定服务的路由规则。它们是不同对象，不能用旧 token 重新冒充已删除的对象。
+
+  服务器已销毁时，先按第一册评估新资源和费用；Docker 缺失时再回第三册；域名还在但 Tunnel 已删除时，
+  后续按第四册方法准备专用通道。不要为了补缺项立刻新建第二套未知费用资源。第五册的实验资源已清理，
+  第六册校订会重新盘点；你自己的资产也应逐项确认，而不是照抄历史地址。
+
+  <strong>成功状态：</strong>能指出哪些资源真实存在、由谁管理、怎样停止。<strong>失败判断：</strong>状态、归属或账单说不清；
+  此时先停在准备阶段，不运行依赖该资源的命令。
+</section>
+
+<section className="book-section" id="book06-start-capacity">
+  ## 第二步：只读检查资源，不急着安装
+
+  只有已经能安全登录 VPS 的读者才执行以下命令。打开 SSH 终端，逐行输入，每行按回车，等输出后再下一行。
+  `sudo` 表示以管理员权限执行，可能要求输入本人的系统密码；密码输入时通常不显示字符，不要把密码发给别人。
+
+  <CodeBlock label="在 VPS 的 SSH 终端：只读资源检查" code={resourceCheck} />
+
+  <ComparisonTable>
+
+  | 命令 | 在看什么 | 成功与失败的判断 |
+  | --- | --- | --- |
+  | `nproc` | 当前可用的逻辑处理器数量 | 能得到数字；它不是独占 CPU 性能保证 |
+  | `free -h` | 内存总量与 available（可用量） | 可用量不能持续接近零；不把 total 全当 Dify 可用 |
+  | `df -h /` | 根文件系统的可用磁盘与使用率 | 留出镜像、数据、更新与备份空间；逼近满盘时停 |
+  | `docker version` | 客户端与服务器端版本 | 两部分可读；无法连接服务时回第三册处理 |
+  | `docker compose version` | Compose 版本 | 官方当前要求至少 2.24.0；本书若采用特定合并能力还需更高版本 |
+
+  </ComparisonTable>
+
+  2026-09-11 初核的官方最低要求是 2 核 CPU、4 GiB 内存。GiB 是内存容量单位。
+  本书建议先按 4 vCPU、8 GiB 内存、80 GB 磁盘评估教学预算，给多服务与备份留余量；这组建议未经
+  Dify 实机测量，不是最低配置、流畅保证或购买指令。
+  [官方部署要求](https://docs.dify.ai/en/self-host/deploy/quick-start/docker-compose)
+
+  Dify 会运行多个协作服务，包括保存结构化数据的 PostgreSQL、协助处理缓存与队列的 Redis、
+  执行后台任务的 worker。经济索引只改变资料查找方式，不代表可以随意删除官方服务栈中的某个容器。
+  第 2—3 章会逐项解释端口、数据和启动结果；不能把第五册的小型单应用实例直接视为本册合格机器。
+
+  <Callout type="warning" title="资源不足先核算费用">
+    扩容、快照和额外磁盘可能增加持续费用。记录瓶颈后先确认价格、计费期限和撤销方法；不要为了通过这一页自动升级套餐。
+  </Callout>
+</section>
+
+<section className="book-section" id="book06-start-model-data">
+  ## 第三步：准备资料与模型，不准备真实秘密样本
+
+  第一版只使用三份合成 TXT（纯文本）资料。可以在电脑记事本或纯文本编辑器查看内容；它们不包含真实
+  客户、订单、账户或内部文件。第 6 章会教你上传与分段，不在本页上传资料。
+
+  模型 API 是程序调用模型的接口，API key 是允许扣费调用的凭证，模型 ID 是精确的模型名称。
+  优先评估 DeepSeek 的一个文本模型，但 Dify 集成能否正确处理当前模型与参数仍待实机核验。
+  模型提供方集成是一段额外安装的程序，来源、版本与权限都要核对，不能把 Marketplace 上架等同于官方发布。
+
+  <MockWindow title="第六册准备卡：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="资料范围">三份合成 TXT；不含个人或组织秘密</MockField>
+      <MockField label="应用范围">单工作区；仅本人使用；手动运行</MockField>
+      <MockField label="模型基础地址"><code>&lt;MODEL_API_BASE_URL&gt;</code></MockField>
+      <MockField label="模型名称"><code>&lt;MODEL_ID&gt;</code></MockField>
+      <MockField label="凭证">只记受控保存位置；不把 key 填入交接卡</MockField>
+      <MockField label="费用">当前价格、请求次数、停止线和撤销入口</MockField>
+    </div>
+  </MockWindow>
+
+  自托管应用仍可能把问题和检索出的片段发给模型提供方；运行日志、浏览器、数据库和备份也可能保存它们。
+  “没有上传整份文件给模型”不等于“片段没有外发”。token（词元）是模型计量输入输出的单位，不能按一个汉字
+  一个 token 估算费用。首次保存模型连接可能验证凭证，节点重试也可能增加请求，账单应以实际用量为准。
+  [模型提供方说明](https://docs.dify.ai/en/self-host/use-dify/workspace/model-providers)
+
+  <strong>成功状态：</strong>知道数据会经过谁、key 如何单独撤销。<strong>失败判断：</strong>准备上传敏感资料、只有管理主密钥，
+  或不知道费用怎样限制；先停，不靠一次“试试看”验证风险。
+</section>
+
+<section className="book-section" id="book06-start-costs">
+  ## 第四步：分开记录四笔账
+
+  <ComparisonTable>
+
+  | 费用 | 先核对什么 | 停止边界 |
+  | --- | --- | --- |
+  | VPS 与附加资源 | 单价、币种、税费、时长、磁盘与备份 | 停容器或关机不等于停止全部计费；按服务商规则确认销毁与附加项 |
+  | 域名 | 到期日、自动续费、负责人 | 关闭应用不取消续费；根域名是否保留单独决定 |
+  | Cloudflare | DNS/Tunnel 与 Access 各自方案、资格和用量 | 不满足已确认范围就停，不自动启用付费产品 |
+  | 模型 | 输入输出价格、思考用量、验证与重试、账单延迟 | 按次核对；关闭页面不能当作服务端任务已取消 |
+
+  </ComparisonTable>
+
+  经济索引依靠关键词查资料，不需要为这一步配置 Embedding（把文字转换为数值向量的模型）；
+  但生成回答和服务器本身仍可能收费，改写问题也可能因关键词不同找不到原文。
+  [索引方式与限制](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/setting-indexing-methods)
+
+  本书实机计划中的小额停止线只是待批准的操作预算，不能替你设置账户硬封顶。没有技术限额时，必须
+  逐次执行、限制输入输出、关闭额外任务和重试，账单尚未可核对就不再发下一次。若仍无法控制可接受的
+  最坏支出，停在费用准备处。
+</section>
+
+<section className="book-section" id="book06-start-access">
+  ## 第五步：先理解谁能打开应用
+
+  Dify 控制台登录保护管理员的编辑和配置操作；发布的 web app（给使用者打开的应用网页）有另一套
+  访问范围。当前官方说明 web app 默认公开，因此一个难猜的链接不等于身份验证。
+  [官方应用访问说明](https://docs.dify.ai/en/self-host/use-dify/publish/webapp/web-app-settings)
+
+  第 9 章会在单独的示例主机名 `dify.example.com` 前加 Cloudflare Access 身份检查，再连接 Tunnel。
+  Access 决定谁可以进入；Tunnel 连接服务器；HTTPS 加密浏览器到入口的传输。三者不互相替代。
+  本书示例域名不可直接照抄，真实域名、IP、邮箱、资源 ID 和凭证不进入公开聊天或仓库。
+
+  当前先认识三种动作：在 Dify 内发布应用版本、把服务连接到域名、本书上线到正式站点。
+  它们各有独立验证和确认；点了第一个按钮不意味着后两件事都已安全完成。
+</section>
+
+<section className="book-section" id="book06-start-stop">
+  ## 准备完成后，先保留这张核对表
+
+  - 我能确认服务器与域名的当前状态，而不是只拿着旧实验记录。
+  - 我理解 Dify、远程模型、知识库与工作流分别负责什么。
+  - 我只用合成资料，能说明问题与片段可能外发。
+  - 我知道模型与基础设施费用分别在哪核对、怎样停止。
+  - 我会先控制应用访问，再建立域名入口；不直接开放内部服务端口。
+  - 我知道备份要覆盖数据库、文件、索引、插件存储与所需秘密；导出应用定义不等于整机备份。
+
+  截至 2026-09-11，Dify 候选基线是 `1.17.1`；既有 Weaviate 数据升级有专门步骤，新部署与升级不能混写。
+  本册不教去除 Dify 标识、不建立多租户代运营服务；许可附加条件要以所选版本完整原文为准。
+  [版本说明](https://github.com/langgenius/dify/releases/tag/1.17.1) · [许可原文](https://raw.githubusercontent.com/langgenius/dify/1.17.1/LICENSE)
+
+  任一项解释不清都可以继续阅读，但不要进入真实资源操作。遵守所在地法律、服务条款和组织安全制度。
+  样章阅读完成不代表任何实机闸门已经通过，也不产生正式章节完成记录。
+</section>

@@ -1,0 +1,310 @@
+---
+book: "06-dify"
+order: 12
+slug: "12-maintenance-retirement"
+title: "日常维护、停用与费用清理"
+shortTitle: "维护、停用与清理"
+description: "把巡检、日志保留、单应用停用、整套暂停与永久退役分开，盘点恢复副本和凭证，让资料与费用有明确的交接责任。"
+chapterType: "chapter"
+chapterNumber: 12
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const baseline = `cd "$HOME/docker-labs/dify/docker"
+pwd
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml config -q
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a
+sudo docker ps --filter label=com.docker.compose.project=book06-dify --format '{{.Names}} | {{.Ports}}'
+free -h
+df -h /
+df -i /`;
+export const stopStack = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml stop --timeout 120
+sudo docker ps --filter label=com.docker.compose.project=book06-dify --format '{{.Names}}'`;
+export const startStack = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml start
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a`;
+export const inventory = `sudo docker ps -a --filter label=com.docker.compose.project=book06-dify --format '{{.Names}} | {{.Status}}'
+sudo docker ps -a --filter label=com.docker.compose.project=book06-dify-restore --format '{{.Names}} | {{.Status}}'
+sudo docker volume ls --filter label=com.docker.compose.project=book06-dify
+sudo docker volume ls --filter label=com.docker.compose.project=book06-dify-restore
+sudo docker network ls --filter label=com.docker.compose.project=book06-dify
+sudo docker network ls --filter label=com.docker.compose.project=book06-dify-restore`;
+export const removeRestoreContainers = `cd "$HOME/docker-labs/dify-restore/docker"
+pwd
+sudo docker compose -p book06-dify-restore -f docker-compose.yaml -f compose.book06.yaml -f compose.images.yaml -f compose.restore.yaml down --timeout 120`;
+export const removeOriginalContainers = `cd "$HOME/docker-labs/dify/docker"
+pwd
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml down --timeout 120`;
+export const stopConnector = `sudo systemctl stop cloudflared
+sudo systemctl disable cloudflared
+sudo systemctl show cloudflared --property=ActiveState --property=SubState --property=UnitFileState`;
+export const handoff = `第六册脱敏交接卡（不要填真实地址、邮箱、ID 或秘密）
+状态与时间：运行 / 单应用停用 / 全栈暂停 / 永久退役 / 未覆盖
+版本：Dify、Compose、模型插件；实际镜像清单的受控保存位置
+原项目：book06-dify；回环 8088
+恢复项目：未创建 / 已停止保留 / 已清理；回环 8089
+应用：原应用 / 导入检查副本；草稿与发布版本；E01—E06 记录位置
+资料：三份 TXT、段号、启用状态；禁止记录真实业务资料
+入口：Access、route、DNS、connector、Tunnel 各自状态与归属
+凭证：种类、保管责任、撤销状态；不填值
+备份：日期、七文件核对结果、外部副本、恢复范围、保留期限
+费用：VPS/附加项、域名、Cloudflare、模型；截止时间与核账责任
+未覆盖项、失败与下一步：
+交接复核日期：`;
+
+<LearningGoals audience="准备保留练习，或者结束本次隔离实验的读者" duration="约 35—50 分钟；备份、退役和账单结算另计" outcome="知道什么时候只停应用，什么时候撤销凭证，以及哪些数据和账单需要分别确认" />
+
+<Callout type="info" title="维护与退役草稿">
+  校订于 2026-09-11。本册没有执行真实退役，也没有替读者确认任何待删除对象。
+  本章先建立记录，再按所选分支操作；阅读和复制记录卡不产生购买、撤销或删除授权。
+</Callout>
+
+<section className="book-section" id="book06-12-baseline">
+  ## 第一步：记录现在的状态，不把阅读完成当作部署完成
+
+  在自己的电脑打开第八章评估记录、第九章入口记录、第十一章恢复记录，把有证据的项目写入交接卡。
+  没部署过就写“未部署”；恢复环境只做过断网读写，就写“同版本离线读写，模型生成未覆盖”。
+  维护基线是最近一次确认正常的状态，包含日期与版本，不是一组永远有效的默认值。
+
+  在 VPS 的 SSH 管理终端逐行运行下面的只读检查。第一行失败就停止，pwd 必须是第三章原项目目录。
+  config -q 只检查配置是否能解析，不输出展开后的秘密，也不证明所有端口正确。
+
+  <CodeBlock label="VPS 原项目：状态、端口和资源基线" code={baseline} />
+
+  对照第三章：常驻服务应保持正常，init_permissions 退出 0 可以是正常初始化结果；
+  主机只发布 nginx 的回环 8088，不应多出数据库或插件调试端口。
+  再经已验证的入口查看原应用、三份资料与已发布版本，不例行运行模型来证明网页健康。
+
+  <strong>成功状态：</strong>状态、版本、端口、数据与费用都能对应最近一次记录。
+  <strong>失败判断：</strong>出现陌生成员、未计划更新、意外公网端口或持续未知用量；转第十章定位，停止新的运行。
+</section>
+
+<section className="book-section" id="book06-12-cadence">
+  ## 第二步：给资料、日志和备份安排保留期限
+
+  教学实例运行期间，每次练习前后看模型用量和后台任务；长期保留时，至少每周核对磁盘、服务与备份，
+  每月核对账单、成员、插件版本及域名到期时间。这个节奏是作者建议，临近费用或磁盘停止线时应提前检查。
+  一次只改一项；涉及更新先回第十一章，不把巡检变成自动拉取最新镜像。
+
+  <ComparisonTable>
+
+  | 对象 | 在哪里核对 | 保留与清理原则 |
+  | --- | --- | --- |
+  | 工作流运行记录 | Dify 原应用的 Logs / 运行历史 | 保留评估所需的脱敏结论；原问题、候选片段和输出可能仍在数据库 |
+  | 容器日志 | 第十章有限 logs 命令、VPS 磁盘 | 每次只看相关服务与时间段；行数限制不等于内容已脱敏 |
+  | TXT 与知识库 | 本地文件、Knowledge 文档及片段 | 停用文档只改变可用状态，不删除历史回答、下载或备份 |
+  | DSL 与导入副本 | 受控下载目录、Studio | 标明日期和“仅检查”用途；原始 DSL 不公开，副本也可能连接同一知识库 |
+  | 原目录与恢复目录 | 第十一章两套项目目录、四个 Agent 卷及八个代理匿名卷 | 恢复副本停止后仍占磁盘、含配置秘密；给它单独的保留期限 |
+  | 七文件备份与其他副本 | VPS 备份目录、电脑、快照或同步存储 | 标明唯一可用恢复点和到期日；删除前先确认是否仍需恢复 |
+
+  </ComparisonTable>
+
+  在本地记录每类材料的用途、保管人、预计删除日期和最近复核日期。不需要长期保留的实验，优先在约定日期整套退役。
+  本书不假设 Dify 自动按某个天数清除所有记录；界面没有已核对的清理功能时，不直接改数据库表或清空 Redis。
+  若要长期服务，需要另行验证日志轮转、容量上限和备份保留策略；`--tail 80` 只限制这次显示，不限制存储增长。
+
+  <strong>成功状态：</strong>每份副本都有用途和到期责任，空间能容纳运行与恢复。
+  <strong>失败判断：</strong>唯一备份即将随 VPS 删除，或恢复副本无人负责；先补记录和受控副本，再继续。
+</section>
+
+<section className="book-section" id="book06-12-app">
+  ## 第三步：只停一个应用，先关它的入口
+
+  只想暂停“虚构活动常见问题助手”时，不应停止整套 Dify 或撤销被其他应用使用的模型连接。
+  在 Studio 打开已核对的原应用，进入发布/访问入口管理区，找到内置 Web App 卡片及其启用开关。
+  固定 1.17.1 源码有独立的 Web App 启用状态；实际导航与中文名称须以本机版本核对，找不到对应卡片就先停，
+  不把“重新生成访问链接”“删除应用”当暂停按钮。
+  [固定版本入口卡片](https://raw.githubusercontent.com/langgenius/dify/1.17.1/web/app/components/app/access-point/built-in-access-points/web-app-card.tsx)
+
+  先确认没有在途运行，记录开关原状态，再关闭 Web App，等待保存完成并刷新确认。
+  用原来的应用链接重新加载页面，预期不能再使用该网页入口；只做页面访问，不提交测试问题。
+  原应用仍应在 Studio，画布和资料连接保留。
+
+  <MockWindow title="单应用暂停要检查的三件事：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="网页入口">关闭后刷新，旧链接不能继续进入可用应用</MockField>
+      <MockField label="应用定义">仍在 Studio；没有删除画布、日志或知识库</MockField>
+      <MockField label="其他调用">调试、API、后台任务分别核对，不能由网页开关推定</MockField>
+      <MockField label="恢复条件">确认费用与访问保护，再重新启用原入口</MockField>
+    </div>
+  </MockWindow>
+
+  Web App 开关不等于关闭服务 API，也不禁止管理员从画布调试；已经开始的远程请求可能继续计费。
+  本册没有创建 Dify 服务 API key、外部调用者或定时任务。实际存在这些扩展时，先盘点并逐一停止，
+  不能把本节的网页检查写成“所有调用已停”。需要立即停止整个教学实例时，使用下一节。
+
+  第八章的“导入检查－虚构活动”如果不再需要，在 Studio 先打开它核对描述和画布，再返回该卡片菜单，
+  选择 Delete（删除），看清确认对象后完成删除。原应用必须仍在；不要删除被原应用引用的知识库。
+  删除应用是永久动作，DSL 不含运行日志，也不能恢复所有历史。
+  [官方应用管理](https://docs.dify.ai/en/self-host/use-dify/workspace/app-management)
+
+  <strong>成功状态：</strong>暂停范围明确且可恢复，或者只删除已确认不再保留的检查副本。
+  <strong>失败判断：</strong>状态刷新后又开启、旧入口仍可用、误选原应用；保持外部入口撤下，保留数据并查原因。
+</section>
+
+<section className="book-section" id="book06-12-pause">
+  ## 第四步：整套暂停，保留数据和 Access
+
+  在第九章的 Cloudflare Tunnel 详情中找到本次主机名对应的 published application route，核对目标仍是回环 8088。
+  需要临时下线时先移除这一条 route，并在 DNS 页面确认对应教学记录的实际状态；若自动记录未移除，
+  核对名称、类型与目标后只移除该条。不要删根 zone、nameserver 或 DNSSEC，也不要先删除 Access 应用。
+  随后确认公开入口已无法到达 Dify；旧 DNS 缓存可能存在，不能只凭自己电脑的一次结果判定所有网络已更新。
+
+  正常维护先等运行和索引任务结束，再在原项目目录停止全栈。恢复副本若仍运行，按第十一章的 d6r 定义另行 stop，
+  不把原项目停止当作恢复副本也已停止。
+
+  <CodeBlock label="VPS 原项目：暂停全栈，不删除容器或数据" code={stopStack} />
+
+  第二条命令应无运行容器输出。回环 8088 应不再提供应用；用第十章本机检查确认。
+  异常强制退出不是正常备份条件，要按第十一章处理后才能制作一致归档。
+  [Docker stop](https://docs.docker.com/reference/cli/docker/compose/stop/)
+
+  如出现未知调用或凭证泄漏，优先在提供方撤销专用 key，并尽快停止相关实例，不必为了等正常任务而放任费用增长。
+  这种紧急停止与正常停写备份不同，要记录中断影响。撤销 key 不会退回已经发生的费用，也未必立即终止正在生成的请求。
+
+  临时暂停后 VPS、快照、备份、域名和其他订阅仍须核账。要恢复时先确认异常已排除、配置未变、恢复副本仍停着，
+  再启动原有容器；下面的 start 不读取新的 .env。如果已经改了配置或删除容器，应返回第三、九或十一章的对应流程。
+
+  <CodeBlock label="VPS 原项目：恢复已有容器并检查状态" code={startStack} />
+
+  从已验证的入口检查数据与版本。若当前配置仍是 HTTPS，不能把 localhost 页面打不开直接判成数据损坏；
+  SSH 本地回退应按第九章恢复已保存的本地地址配置，再验证。重新建立 route 前必须先确认全主机名 Access 与源站校验。
+  单纯暂停不需要补发模型请求；如要复测生成，按第八章另计一次预算。
+</section>
+
+<section className="book-section" id="book06-12-secrets">
+  ## 第五步：分清凭证，撤销时不要改错对象
+
+  <ComparisonTable>
+
+  | 凭证 | 作用与位置 | 撤销/变更后要验证什么 |
+  | --- | --- | --- |
+  | 模型提供方 API key | 提供方控制台管理，Dify 模型连接使用 | 本次专用 key 已撤销或删除，旧调用来源停止；不新建请求来“试扣费” |
+  | Dify 管理员密码/会话 | Dify 管理入口 | 修改与退出会话属于账户操作，不会撤销模型 key 或 Cloudflare 身份 |
+  | Access 会话 | 主机名前的身份检查 | 删除不应继续允许的身份规则后，再撤销本应用已有会话；仅撤会话仍可能重新登录 |
+  | Tunnel token | connector 接入专用 Tunnel | 属于连接凭证，不是 Dify 密码；撤销/删除通道前确认没有其他 route 或 connector |
+  | .env 内部秘密 | 应用签名、服务之间认证及数据解密相关材料 | 需要配套变更和完整恢复方案；不能重跑 prepare-env.py 当“轮换所有密码” |
+  | 备份里的历史凭证 | 归档和恢复副本也持有秘密 | 撤销提供方 key 后旧备份中的值仍是敏感材料；不得用旧备份重新启用已退役凭证 |
+
+  </ComparisonTable>
+
+  模型 key 在提供方控制台的 API keys 页面处理：用受控记录辨认本次专用条目，核对用途，选择撤销/删除并确认。
+  回到列表确认状态，记下时间和最终用量；不要把完整 key 复制出来对比。不能辨认或与其他业务共用时先停，
+  应重新规划共用方迁移，不能为结束本书练习一并撤销它们。
+
+  Access 的应用级会话撤销入口在 Access controls → Applications → 本次应用 → Configure → Revoke existing tokens。
+  先核对策略中的身份范围；会话撤销不会自动移除 Allow 规则。不要为本次实验执行账户全部用户的全局撤销。
+  [Cloudflare 会话管理](https://developers.cloudflare.com/cloudflare-one/access-controls/access-settings/session-management/)
+
+  定期轮换不是把每个秘密改成同一个新值。普通模型 key 更换按第四章重新核对连接、验证费用与节点参数；
+  内部数据库密码和加密材料另需经过验证的变更步骤。本册没有完成内部秘密轮换演练，不能给出“随便改完重启”的方法。
+</section>
+
+<section className="book-section" id="book06-12-retire">
+  ## 第六步：永久退役前，把每个对象列全
+
+  永久退役意味着不再通过原数据恢复这次实例。先决定保留哪些受控材料、到何时、谁负责，
+  核对第十一章 VPS 外副本确实可读；若连最后一份备份也要删除，要明确接受无法恢复。
+  在 VPS 运行下面的只读盘点；清单有陌生项目、卷或外部挂载就停止，不扩大清理范围。
+
+  <CodeBlock label="VPS：分别盘点原项目与恢复项目" code={inventory} />
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>撤入口</strong><small>route / 教学 DNS；Access 保留</small></div>
+    <div className="flow-node"><strong>停调用</strong><small>撤专用 key，停两套实例</small></div>
+    <div className="flow-node"><strong>清数据</strong><small>对象逐项确认，副本单列</small></div>
+    <div className="flow-node"><strong>清资源</strong><small>专用 Tunnel / VPS / 附加账单</small></div>
+  </FlowDiagram>
+
+  本节适用于第二章要求的专用教学 VPS，且没有其他业务；共用主机只读盘点，不能套用销毁分支。
+  先按前两节撤入口、停止调用与实例，再移除已经停止且不再保留的容器。以下 down 不带 -v 或 --rmi，
+  只处理对应配置中的容器和网络，不会完成数据清理。恢复项目从未建立就跳过第一块，不能为了清理先 create。
+
+  <CodeBlock label="仅已存在的恢复项目：移除其容器与网络，数据暂留" code={removeRestoreContainers} />
+  <CodeBlock label="原项目：移除其容器与网络，数据暂留" code={removeOriginalContainers} />
+
+  每一块先确认 cd 成功和 pwd 正确，再执行最后一行；出错停止，不省略配置文件凑命令。
+  重做盘点，预期这两个项目没有容器；若网络仍被占用，先查占用者，不加 --remove-orphans 或强制删除。
+  named volume 是 Docker 独立管理的数据卷，bind mount 是宿主机目录挂载；两者都不能靠普通 down 清空。
+  [Docker down 的范围](https://docs.docker.com/reference/cli/docker/compose/down/)
+
+  <ComparisonTable>
+
+  | 必须逐项处理的剩余对象 | 本书位置或归属 | 退役前怎样判断已处理 |
+  | --- | --- | --- |
+  | 原项目目录及内部数据 | $HOME/docker-labs/dify，含 .env、volumes、HTTPS 前副本 | 随专用 VPS 销毁；若保留主机，需另行精确文件/挂载清单，当前不算清理完成 |
+  | 恢复项目目录 | $HOME/docker-labs/dify-restore | 包含恢复数据与秘密，不能只删除 compose.restore.yaml |
+  | 四个 Agent 卷 | 两项目各自的 home/workspace 卷，未建副本则只有原两卷 | 普通 down 后仍在；随专用实例磁盘处理，附加持久磁盘另核 |
+  | 两项目的代理匿名卷 | 每项目两个 Squid 代理各有日志、缓存卷，共八个；未建副本则四个 | 按第十一章实际挂载映射核对；匿名不等于临时，普通 down 后也不能遗漏 |
+  | VPS 备份与镜像包 | $HOME/book06-backups 下本次日期目录 | 和运行数据不同；留存/销毁决定逐包记录 |
+  | 电脑的下载、DSL、TXT、备份 | 本人受控保存位置及同步副本 | 需要保留的移入受控存储并登记期限；不要误删别册材料 |
+  | 云快照、自动备份、附加磁盘 | VPS 服务商各自资源列表 | 不假定实例销毁会连带删除或停止收费 |
+
+  </ComparisonTable>
+
+  本章采用“结束专用 VPS”的完整退役分支，不提供抹除共用主机目录的一行命令。
+  如果决定保留 VPS，只删除 Dify 数据，停在有明确剩余清单的状态，另做逐路径方案；不能填写“数据已清空”。
+</section>
+
+<section className="book-section" id="book06-12-billing">
+  ## 第七步：最后处理通道、计算资源和四笔账
+
+  在 Cloudflare Tunnel 详情确认没有本次 route，也没有其他应用依赖。只对本次独立 connector 所在主机，
+  停止并禁用 cloudflared。systemd 是 Linux 的服务管理器；下面只适用于第四册使用的同名系统服务，
+  不是容器或其他方式安装的 connector。先核对它确实只服务本次专用 Tunnel，再执行：
+
+  <CodeBlock label="仅本次专用 VPS：停止 connector 并取消自动启动" code={stopConnector} />
+
+  预期 ActiveState=inactive、UnitFileState=disabled。unit 不存在或状态异常时停在核对安装方式，
+  不临时装一份服务来完成清理。在控制台确认 connector 不再连接，再删除专用 Tunnel。
+  遇到仍有活动连接的提示先查连接来源，不强制移除未知连接。最后才删除不再服务任何入口的本次 Access 应用。
+  <a href={sitePath("/books/04-cloudflare/12-maintenance-handoff/")}>返回第四册的通道维护与交接</a>。
+
+  打开 VPS 服务商控制台，核对实例标签、地区和账单归属，确认本次 VPS 外的保留资料已经核验、
+  该机器没有其他业务，再选择 Destroy / Delete Instance 等永久销毁入口。
+  读清确认页是否包含磁盘、快照或备份，核对对象后完成确认。只有关机、停止容器或 SSH 断开都不算销毁。
+  返回实例列表确认实例不存在，再分别查看附加磁盘、快照、自动备份和保留地址列表，按本次清单处理并复核账单。
+  不认识的收费项只记录和核实，不能为清零把整个账户资源都删除。
+  <a href={sitePath("/books/01-first-vps/09-order-and-billing/")}>第一册：费用与销毁边界</a>。
+
+  在自己的电脑把本次不保留的原始 DSL、归档和下载从精确目录删除，再检查废纸篓/回收站及已知同步副本。
+  需要清除的云端历史版本按存储服务的保留机制处理；普通删除不等于存储介质已物理擦除，不能承诺不可恢复。
+  只保留脱敏结果和已明确继续保管的资料，记录它们的位置指针与期限，不在交接卡附带原始秘密。
+
+  <ComparisonTable>
+
+  | 账单 | 退役证据 | 仍需负责的事项 |
+  | --- | --- | --- |
+  | VPS 与附加存储 | 实例不存在；本次附加项已删除或明确留存 | 最终结算、税费、保留快照/磁盘可能继续收费 |
+  | 模型 | 专用 key 已撤销；最终请求与用量核对 | 不承诺退款或取消其他订阅；账单延迟时写待结算 |
+  | Cloudflare | 本次 route、DNS、connector、Tunnel、Access 均有状态 | 删除资源不等于取消账户级付费方案；只处理已确认本次产品 |
+  | 域名 | 根域名、zone 与 DNSSEC 默认保留 | 自动续费、到期提醒、其他主机名仍由原负责人管理 |
+
+  </ComparisonTable>
+
+  <strong>成功状态：</strong>每项都有“已删除、明确保留、待核实”以及时间，账单无无法解释的持续来源。
+  <strong>失败判断：</strong>只看网站打不开就声称零费用，或仍有未知对象；保持待核实，不填写最终清理通过。
+</section>
+
+<section className="book-section" id="book06-12-handoff">
+  ## 最后：留下下一次看得懂的交接
+
+  <CodeBlock label="复制到自己的本地记录；所有未知项照实保留" code={handoff} />
+
+  逐行阅读这张卡，删除真实 IP、域名、邮箱、资源 ID、请求正文和凭证。记录保管责任和受控位置的指针，
+  秘密通过本人授权的秘密存储管理，不附在文档中。扫描没命中不代表安全，原始日志和备份不要随卡分享。
+
+  你应能解释一次问题如何经过输入、检索、分支、模型和输出，怎样确认资料不足，怎样核对费用和恢复范围。
+  如果准备改成多人业务、Chatflow、Embedding 或自动化，先查附录的代价与新增验收条件；本次练习的权限与预算不会自动扩大。
+  <a href={sitePath("/books/06-dify/appendix/")}>继续查阅附录</a>，再用
+  <a href={sitePath("/books/06-dify/sources/")}>资料来源与版本记录</a>区分已有依据和待实测项。
+</section>

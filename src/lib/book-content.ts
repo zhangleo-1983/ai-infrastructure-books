@@ -2,6 +2,7 @@ import type {
   BookDefinition,
   ChapterType,
 } from "../data/books";
+import { isReadableBook } from "../data/books";
 
 export interface BookChapterMetadata {
   book: string;
@@ -63,10 +64,12 @@ export function includesChapterType(
 export function isCompletionEligible(
   book: BookDefinition,
   chapterType: ChapterType,
+  draft = false,
 ): boolean {
-  return includesChapterType(
-    book.completion.eligibleChapterTypes,
-    chapterType,
+  return (
+    !draft &&
+    isReadableBook(book) &&
+    includesChapterType(book.completion.eligibleChapterTypes, chapterType)
   );
 }
 
@@ -96,7 +99,7 @@ export function toBookTocItems(
 ): BookTocItem[] {
   return sortBookChapters(entries).map(({ data }) => ({
     ...data,
-    completionEligible: isCompletionEligible(book, data.chapterType),
+    completionEligible: isCompletionEligible(book, data.chapterType, data.draft),
   }));
 }
 

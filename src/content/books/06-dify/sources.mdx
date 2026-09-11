@@ -1,0 +1,169 @@
+---
+book: "06-dify"
+order: 14
+slug: "sources"
+title: "资料来源与版本校订记录"
+shortTitle: "资料来源"
+description: "按部署、模型、工作流、知识库、访问与恢复列出官方依据，说明教学取舍、固定版本差异和仍待实机验证的范围。"
+chapterType: "sources"
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import { sitePath } from "../../../lib/site-path";
+
+<section className="book-section" id="book06-sources-status">
+  ## 怎样理解“有依据”
+
+  事实校订日期：**2026-09-11**。本册采用官方文档和固定版本源码核对技术事实，社区经验不能单独决定读者要执行的命令。
+  官方文档也会滚动更新：某页今天描述的新功能，不自动适用于旧版本或当前账户。
+  链接能打开只说明可访问，不能证明教程已经在真实服务器运行成功。
+
+  <Callout type="info" title="全册内容已写成，实机验证尚未执行">
+    “开始之前”、第 1—12 章、附录与本页共 15 个内容单元均为 draft。
+    注册表仍是 drafting / 0.0.0，开发预览用于审阅，不进入正式搜索、完成率与正式打印。
+    本册没有实际 Dify 部署、模型请求、Cloudflare 变更、故障注入、恢复或退役证据。
+  </Callout>
+
+  <ComparisonTable>
+
+  | 依据类型 | 本册如何使用 | 不能推导什么 |
+  | --- | --- | --- |
+  | 固定 1.17.1 源码与发布说明 | 对照服务、字段、数据路径、入口开关与升级限制 | 不等于所有基础镜像与插件包已冻结或已安装 |
+  | 滚动官方文档 | 解释概念、操作入口与产品边界，注明校订日期 | 不等于当前部署 UI、账户方案或模型参数一定一致 |
+  | 作者教学选择 | 单用户、合成资料、一次运行、保守的权限与费用安排 | 不是平台默认、性能保证或服务商硬限额 |
+  | 本地书籍与静态配置检查 | 检查页面、复制、链接、布局、打印和配置约束 | 不替代真实容器、网络、数据恢复或计费验证 |
+  | 实机结果 | 后续按每项预期/实际记录通过、失败、未覆盖 | 当前没有结果，不填写示例成功或借用前册结果 |
+
+  </ComparisonTable>
+
+  三份活动 TXT、评估题、提示词、记录卡及配置差异由作者为本书编写；不是 Dify 官方示例。
+  软件界面均为 HTML/CSS 教学仿真，不是真实截图，不保证像素或菜单位置与实机相同。
+</section>
+
+<section className="book-section" id="book06-sources-deploy">
+  ## 部署、服务与固定版本
+
+  - [Dify 1.17.1 发布说明](https://github.com/langgenius/dify/releases/tag/1.17.1)：版本变更与既有 Weaviate 数据升级提醒。
+  - [固定版本 Compose](https://raw.githubusercontent.com/langgenius/dify/1.17.1/docker/docker-compose.yaml)：服务、profile、端口、挂载和镜像配置。
+  - [固定环境模板](https://raw.githubusercontent.com/langgenius/dify/1.17.1/docker/.env.example)：URL、服务认证、插件及其他环境字段。
+  - [官方 Compose 部署](https://docs.dify.ai/en/self-host/deploy/quick-start/docker-compose)：资源要求、启动方法与部署前提。
+  - [环境变量说明](https://docs.dify.ai/en/self-host/deploy/configuration/environments)：字段含义；具体默认值同时对照固定模板。
+  - [Docker 多文件合并](https://docs.docker.com/reference/compose-file/merge/)：列表合并与 !override；本书需要支持它的 Compose 版本。
+  - [固定初始化接口](https://raw.githubusercontent.com/langgenius/dify/1.17.1/api/controllers/console/setup.py)：首次安装状态与初始化处理；本书保持无公网入口。
+  - [Dify 固定许可原文](https://raw.githubusercontent.com/langgenius/dify/1.17.1/LICENSE)：以完整条款为准，保留品牌，不把附加条件省略成另一种许可。
+
+  第二、三章选择 Ubuntu 24.04 amd64、官方 Compose、weaviate/postgresql/collaboration 组合，
+  用差异文件将入口限制到回环 8088 并清除插件调试发布端口。16 个服务是这个候选组合的静态结果，
+  不是 Dify 各版本的固定数量。建议按 4 vCPU、8 GiB、80 GB 评估资源余量，属于未经实机测量的作者规划。
+  基础镜像中的滚动标签与最终插件身份仍待冻结；不能只凭 1.17.1 标签声称完全可复现。
+</section>
+
+<section className="book-section" id="book06-sources-model">
+  ## 模型、插件、数据与用量
+
+  - [Dify 集成管理](https://docs.dify.ai/en/self-host/use-dify/workspace/plugins)：安装、调试与更新策略；Marketplace 上架不等同于官方发布。
+  - [模型提供方](https://docs.dify.ai/en/self-host/use-dify/workspace/model-providers)：连接和不同模型能力；保存凭证可能产生验证请求。
+  - [DeepSeek 当前模型与价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)：执行前重新核对账户可用模型、输入输出价格与计量规则。
+  - [DeepSeek 思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/)：思考开关与参数；不显示思考文字不代表没有思考用量。
+  - [词元与用量](https://api-docs.deepseek.com/quick_start/token_usage/)：token 与字符并非固定一比一，以实际返回和账单核对。
+  - [DeepSeek 错误代码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes)：认证、余额、限流与服务异常分类，不保证 Dify 按原文展示。
+  - [官方插件 manifest](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/manifest.yaml)、[提供方实现](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/provider/deepseek.py)、[模型参数](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/models/llm/deepseek-v4-flash.yaml)：本次阅读的 main 快照，不是已安装插件包的证明。
+
+  本次资料初核区分提供方推荐的 deepseek-flash 与插件预定义的 deepseek-v4-flash，
+  第四章记录其对应说明与当前兼容性缺口。真正运行前还需核验安装包版本、实际模型请求、非思考参数和用量。
+  主线只有一个远程文本模型，输入 200 字符、输出 256 tokens 是练习选择，不涵盖插件连接验证或隐含重试。
+  不在本文固定价格数字，也不把作者预算提案描述为已启用的硬封顶。
+</section>
+
+<section className="book-section" id="book06-sources-workflow">
+  ## 工作流、检索、评估与发布
+
+  - [Workflow 与 Chatflow](https://docs.dify.ai/en/self-host/use-dify/build/workflow-chatflow)：一次任务与多轮交互的区别。
+  - [User Input](https://docs.dify.ai/en/self-host/use-dify/nodes/user-input)、[Output](https://docs.dify.ai/en/self-host/use-dify/nodes/output)：本书自定义 question 与明确输出字段。
+  - [文本导入](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/import-text-data/readme)、[分段与清洗](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/chunking-and-cleaning-text)：从文件到可检索片段的步骤。
+  - [索引与检索设置](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/setting-indexing-methods)、[检索测试](https://docs.dify.ai/en/self-host/use-dify/knowledge/test-retrieval)：经济模式、关键词局限及测试与保存范围。
+  - [Knowledge Retrieval](https://docs.dify.ai/en/self-host/use-dify/nodes/knowledge-retrieval)、[If-Else](https://docs.dify.ai/en/self-host/use-dify/nodes/ifelse)、[Template](https://docs.dify.ai/en/self-host/use-dify/nodes/template)：检索片段、空分支和来源文字。
+  - [节点单测](https://docs.dify.ai/en/self-host/use-dify/debug/step-run)、[运行历史](https://docs.dify.ai/en/self-host/use-dify/debug/history-and-logs)：缓存与本次完整运行分开取证。
+  - [文档状态维护](https://docs.dify.ai/en/self-host/use-dify/knowledge/manage-knowledge/maintain-knowledge-documents)：停用、启用和实际文档状态。
+  - [应用与 DSL 管理](https://docs.dify.ai/en/self-host/use-dify/workspace/app-management)、[版本管理](https://docs.dify.ai/en/self-host/use-dify/build/version-control)：定义导入导出与草稿/发布版本，不是完整数据快照。
+  - [Workflow web app](https://docs.dify.ai/en/self-host/use-dify/publish/webapp/workflow-webapp)、[Web App 设置](https://docs.dify.ai/en/self-host/use-dify/publish/webapp/web-app-settings)：运行入口、批量能力和默认公开边界；本书只单次使用。
+  - [固定版本 LLM 测试](https://raw.githubusercontent.com/langgenius/dify/1.17.1/api/tests/unit_tests/core/workflow/nodes/llm/test_node.py)：包含带 content/metadata 的知识片段数组；不把错误文档中“只支持字符串”的概述套用到所有 Context。
+  - [固定版本 Web App 卡片](https://raw.githubusercontent.com/langgenius/dify/1.17.1/web/app/components/app/access-point/built-in-access-points/web-app-card.tsx)：独立启用状态；关闭网页入口不等于关闭全部执行途径。
+
+  本书采用 General 分段、经济索引、三份合成 TXT，不启用 Embedding、Rerank、Q&A 自动生成或摘要索引。
+  E01—E06 中资料外问题可能找到无关候选，不能冒充真正空检索；模拟空数组只证明条件节点行为。
+  有候选、带来源、回答流畅分别是不同观察，均不能单独证明答案正确。
+  需要检查的完整规则在<a href={sitePath("/books/06-dify/08-evaluate-and-export/")}>第八章评估表</a>。
+</section>
+
+<section className="book-section" id="book06-sources-access">
+  ## Access、Tunnel 与维护入口
+
+  - [自托管 Access 应用](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)：先建立身份保护，再建立外部 route。
+  - [Access 策略](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/)：允许范围、规则与策略含义。
+  - [邮箱一次性验证码](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/)：身份方式与收信边界。
+  - [Tunnel 源站参数](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/)：源站 Access 校验设置。
+  - [Access 会话管理](https://developers.cloudflare.com/cloudflare-one/access-controls/access-settings/session-management/)：应用级撤销与身份规则不同，撤会话不自动禁止重新认证。
+  - [Cloudflare Zero Trust 方案](https://www.cloudflare.com/plans/zero-trust-services/)：当时的方案说明，执行前还要核对账户实际资格和已启用产品。
+
+  本书使用独立主机名、单用户身份范围、先 Access 后 route；这些安排不能代替无会话与未允许身份的负向验证。
+  退役先撤 route 和教学 DNS，保持 Access，最后才处理不再有入口依赖的专用保护与通道。
+  根域名、nameserver、DNSSEC 和其他业务不随实验清理；域名续费责任仍保留。
+  实际 Tunnel 与 VPS 操作承接前册的归属核对，而非继承前册已经删除的实验对象。
+</section>
+
+<section className="book-section" id="book06-sources-recovery">
+  ## 排错、备份、恢复与清理
+
+  - [Dify Docker 排错](https://docs.dify.ai/en/self-host/deploy/troubleshooting/docker-issues)、[节点错误类型](https://docs.dify.ai/en/self-host/use-dify/debug/error-type)：用于定位线索，不照搬清数据或放宽认证的方法。
+  - [Dify 存储与迁移](https://docs.dify.ai/en/self-host/deploy/troubleshooting/storage-and-migration)、[Weaviate 升级路径](https://docs.dify.ai/en/self-host/deploy/troubleshooting/weaviate-server-migration-path)：完整存储归属与既有数据升级限制。
+  - [PostgreSQL 15 文件备份](https://www.postgresql.org/docs/15/backup-file.html)：普通文件级备份的停机/一致性前提。
+  - [Docker 数据卷](https://docs.docker.com/engine/storage/volumes/)、[Compose 网络](https://docs.docker.com/reference/compose-file/networks/)：named volume 与 internal 网络的含义。
+  - [镜像 save](https://docs.docker.com/reference/cli/docker/image/save/)、[镜像 load](https://docs.docker.com/reference/cli/docker/image/load/)：实际镜像包留存与加载。
+  - [Compose create](https://docs.docker.com/reference/cli/docker/compose/create/)、[up](https://docs.docker.com/reference/cli/docker/compose/up/)、[stop](https://docs.docker.com/reference/cli/docker/compose/stop/)、[down](https://docs.docker.com/reference/cli/docker/compose/down/)：创建、启动、暂停和移除的范围不同。
+
+  第十一章选择同 VPS、独立目录/项目/卷、回环 8089 和内部网络做同版本恢复；没有设计异机灾难恢复或直接跨版本降级。
+  内部网络仍需检查实际成员、宿主机代理与外联，静态检查只是启动前的一道核对。
+  同版本离线页面和读写通过，也不能证明远程凭证解密、真实模型生成或插件在线更新能力。
+  第十二章退役按专用教学 VPS 分支收尾，普通 down 后残留的目录与卷仍在清单中。
+</section>
+
+<section className="book-section" id="book06-sources-revisions">
+  ## 版本记录与尚未覆盖的验收
+
+  <ComparisonTable>
+
+  | 写作阶段 | 本次形成的材料 | 证据边界 |
+  | --- | --- | --- |
+  | P1 策划 | 书名、15 单元、主线与事实清单 | 作者方案与官方资料初核 |
+  | P2 三篇样章 | 开始之前、第 7、9 章，工作流图 | 本地样章；Owner 已验收 |
+  | P3 第一批 | 第 1—6 章、三份 TXT、准备与配置脚本 | 静态配置和书籍页面检查；Owner 已验收 |
+  | P4 第二批 | 第 8、10—11 章、隔离恢复配置与检查器 | 评估、排错与恢复草稿；Owner 已验收 |
+  | P5 本批 | 第 12 章、附录、本页和全册衔接 | 完整写作草稿，等待本批审阅；不是 RC |
+
+  </ComparisonTable>
+
+  下列 G1—G8 是后续实机检查类别，当前全部未执行；本页不是可执行 runbook，也不授予外部操作权限。
+
+  <ComparisonTable>
+
+  | 检查类别 | 仍需取得的独立证据 |
+  | --- | --- |
+  | G1 资源 | 新的隔离 VPS、准确费用、SSH、官方 Docker、专用无 route Tunnel |
+  | G2 部署 | 版本/实际镜像、端口、挂载、初始化与常驻状态、资源余量 |
+  | G3 管理 | 唯一管理员、权限、会话和重建持久 |
+  | G4 模型与资料 | 插件身份与参数、真实请求/账单、中文索引、输入边界、六类评估和真实空分支 |
+  | G5 受保护入口 | 全路径允许/拒绝、源站隔离、电脑与手机、CORS/流式/文件 |
+  | G6 故障 | 一次一项注入、最早失败层、数据与费用状态、恢复基线 |
+  | G7 恢复 | 停写一致性、外部副本、离线启动与读写、队列和外连约束；未覆盖范围保留 |
+  | G8 退役 | 入口、凭证、两套实例、数据与副本、Tunnel、VPS、附加项与最终账单 |
+
+  </ComparisonTable>
+
+  全部草稿确认后，才为本册单独建立实机步骤和空白结果台账；不得把上表直接填成通过。
+  任何版本、插件、提供方或数据路线改变，都要重新审阅相关来源、测试题、预算与恢复方案。
+  本地书籍检查可以证明内容可阅读、可复制和可打印，外部技术链路仍需逐项证据。
+</section>

@@ -1,0 +1,173 @@
+---
+book: "06-dify"
+order: 6
+slug: "06-build-knowledge-base"
+title: "准备三份资料，建立能检查来源的知识库"
+shortTitle: "建立知识库"
+description: "用三份合成 TXT 练习手工导入、通用分段和经济索引，先检查候选片段，再把知识库交给工作流。"
+chapterType: "chapter"
+chapterNumber: 6
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import registration from "../../book-assets/06-dify/01-registration.txt?raw";
+import schedule from "../../book-assets/06-dify/02-schedule.txt?raw";
+import cancellation from "../../book-assets/06-dify/03-cancellation.txt?raw";
+
+<LearningGoals audience="已保存最小 Workflow 的读者" duration="约 25—35 分钟；文档处理等待另计" outcome="建立只含三份合成资料的知识库，逐段检查并记录检索结果" />
+
+<Callout type="info" title="先检查找到了什么，再要求模型回答">
+  本章为 2026-09-11 草稿；Dify 1.17.1 实测已完成三份资料索引，但活动时间原题出现漏检。只在本人工作区导入下列合成资料，
+  不上传真实文档。本章采用经济索引，不配置 Embedding、Rerank、自动问答或摘要模型；
+  第五章的工作流保持原样，第七章才连接知识库。
+</Callout>
+
+<section className="book-section" id="book06-06-files">
+  ## 第一步：在自己的电脑保存三份纯文本
+
+  知识库是由你指定的资料集合，不会自动代表互联网事实。先在电脑新建文件夹“Dify 合成练习资料”，
+  把下面三个代码框分别保存成 TXT（只保留文字的纯文本）文件。文件名、段号和空行一并保留，
+  方便后面查明片段从哪里来；不要把三个代码框合并成一个文件。
+
+  Windows 使用记事本：新建文件，点代码框“复制”，粘贴，再“另存为”。文件名填对应的完整名称，
+  保存类型选“所有文件”，编码选 UTF-8。UTF-8 是一套能保存中文的文字编码规则。
+  在资源管理器打开“查看 → 显示 → 文件扩展名”，核对不是 .txt.txt。
+
+  macOS 使用“文本编辑”：新建文稿后先选“格式 → 制作纯文本”，再粘贴和保存。
+  如保存窗口提供纯文本编码，选 UTF-8；不要保存为带字体格式的 RTF。
+  在 Finder 的“显示简介”中检查名称与扩展名，确认结尾是 .txt，而不是 .txt.rtf。
+  不用 Word、PDF 或截图代替；这里只需要最容易检查的文字。
+
+  <CodeBlock label="保存为 01-registration.txt：报名规则" language="text" code={registration} />
+  <CodeBlock label="保存为 02-schedule.txt：活动安排" language="text" code={schedule} />
+  <CodeBlock label="保存为 03-cancellation.txt：取消说明" language="text" code={cancellation} />
+
+  三份合计不足 6,000 字符。2030 年日期、活动名称和阅读室均为合成练习，不对应真实活动。
+  R01、S01、C01 等是作者手工写的段号，不是 Dify 自动生成的引用编号。
+
+  <strong>成功状态：</strong>重新打开三个文件，中文正常、各有教学声明、三段规则之间留空行，文件名准确。
+  <strong>失败判断：</strong>乱码、段落丢失、内容包含 Markdown 代码围栏，或出现真实资料；先修本地文件，不上传试错。
+</section>
+
+<section className="book-section" id="book06-06-import">
+  ## 第二步：创建可直接使用的知识库
+
+  经 SSH 转发打开 Dify，确认工作区名称和所有者。进入 Knowledge（知识库），选择创建知识库；
+  如出现多种创建方式，选 Create a ready-to-use knowledge base（创建可直接使用的知识库），
+  数据来源选 Import from file（从文件导入）。不选网站同步、Notion 或知识流水线模板。
+  知识流水线可以加入提取插件和模型步骤，本次手工导入不需要这些额外环节。
+
+  上传刚才的三个 TXT。点击继续前，逐个核对文件名和数量，没有真实文件才进入分段设置。
+  如只能一次选一个，在同一个知识库中按相同设置添加剩余文件，不要误建三个不同知识库。
+  知识库命名为“虚构活动规则－练习版 1”，描述写“仅三份合成 TXT；不执行报名或取消”。
+  如果名称在后续页面填写，就在那里填写，不为寻找同名按钮改变创建路线。
+  [官方创建示例](https://dify.ai/blog/create-knowledge-in-dify-for-beginners) ·
+  [官方本地文件导入](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/import-text-data/readme)
+
+  <strong>成功状态：</strong>待处理列表只有三份预期资料，进入分段与索引设置。
+  <strong>失败判断：</strong>出现陌生数据源授权、付费模型选择或自动生成步骤；先返回核对路线，不能一路接受默认设置。
+</section>
+
+<section className="book-section" id="book06-06-chunks">
+  ## 第三步：按段落切开，并检查每一块是否完整
+
+  Chunk（片段）是检索时单独取出的文字块。一整本资料通常太长，系统先把它切开；切得不合适，
+  条件和结论就可能分离。本练习在 Chunk Mode 选 General（通用），不选 Parent-child（父子分段）。
+  分段模式创建后不能直接切换，因此现在就要选对。
+
+  使用自定义分段设置：分隔符填字面量 <code>{String.raw`\n\n`}</code>，
+  表示按空行划分；最大分段长度填 500 个字符，重叠长度填 1。
+  重叠是把相邻片段的一部分重复保存。2026-09-11 的 Dify 1.17.1 实测中，界面会把原稿要求的 0
+  自动调整为最小值 1，保存后的处理规则也是 1；因此本轮使用 1，并逐段核对规则完整性。
+  这些数值是教学选择，不是通用最优值，也不是模型 token 预算。
+
+  关闭自动 Q&A（把段落改写成问答）、自动摘要及其他模型增强；不启用会删除本次空行边界的额外清洗。
+  点击预览或预览分段，依次查看三个文件。每条带段号的规则应完整留在一块中；声明可能单独成块，
+  短段也可能被组合，不能靠“恰好几块”判断正确。
+  [官方分段与清洗](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/chunking-and-cleaning-text)
+
+  <MockWindow title="知识库设置：教学仿真，字段位置以当前版本为准">
+    <div className="mock-form-grid">
+      <MockField label="分段模式">General / 通用</MockField>
+      <MockField label="分隔符">{String.raw`\n\n`}（两个换行）</MockField>
+      <MockField label="最大长度 / 重叠">500 字符 / 1 字符</MockField>
+      <MockField label="模型增强">自动问答、摘要关闭</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>R01 的人数、截止与提前满额条件没有分离；S01 有完整时间与时区；C01 保留人工核对限制。
+  <strong>失败判断：</strong>段号和规则分开、中文乱码、条件被清洗掉；返回修正本地文件或分段设置，再预览，不靠模型补回丢失文字。
+</section>
+
+<section className="book-section" id="book06-06-index">
+  ## 第四步：选择经济索引，并保存实际检索设置
+
+  Index（索引）是便于查找资料的组织方式。在 Indexing Method 选择 Economical（经济模式）。
+  Dify 为片段提取关键词并建立查找关系；它不把本次片段转换成需要 Embedding 模型的语义向量。
+  官方说明经济模式每个片段使用 10 个关键词，因此它可能漏掉同义改写，不能把它当作理解全部中文含义的搜索。
+
+  检索设置中将 Top K 设为 3，意思是最多返回三个候选片段；它不保证返回三条，也不保证相关。
+  经济模式只有有限的检索配置，本书不添加相似度阈值、向量搜索或 Rerank（用另一个模型重新排序）。
+  如果当前界面强制要求选择 Embedding 或 Rerank，先核对是否误选了 High Quality（高质量索引）或父子模式。
+  已建高质量索引不能直接切回经济模式；本次只有合成资料，可重新建立正确的练习知识库，停止使用建错的那份，
+  核对是否已产生索引费用并清理误上传记录，不反复转换。
+  [官方索引与检索设置](https://docs.dify.ai/en/self-host/use-dify/knowledge/create-knowledge/setting-indexing-methods)
+
+  在创建页面点 Save & Process（保存并处理，中文按钮可能不同）。等待三个文件都显示处理完成且启用。
+  打开知识库设置，确认经济模式和 Top K 3 已保存；后面检索测试面板的临时参数不代替这里的配置。
+  不在等待时再点多次提交或重复上传。
+
+  <strong>成功状态：</strong>一个知识库、三个可用文档，打开片段能读到 R01—R03、S01—S03、C01—C03 的完整规则。
+  <strong>失败判断：</strong>排队长期不动、文档失败或停用；记录脱敏状态，先查第三章的后台服务、磁盘与工作进程，
+  不换付费索引来掩盖部署故障。
+</section>
+
+<section className="book-section" id="book06-06-retrieval">
+  ## 第五步：先测查找，不让模型替你评判结果
+
+  在这个知识库侧栏打开 Retrieval Testing（检索测试），它用于查看找回的片段。
+  再确认测试参数 Top K 为 3，依次输入下表问题；每次等结果出现后，直接阅读原文、文件名和段号。
+  当前仅经济检索且没有模型增强时，这一步不需要生成答案；服务器与存储仍可能持续计费。
+
+  <ComparisonTable>
+
+  | 合成问题 | 人工应找到的证据 | 记录方式 |
+  | --- | --- | --- |
+  | 报名截止是什么时候？ | 01-registration.txt 的 R01：活动前 2 天；满额可能提前停止 | 写实际返回文件、段号和是否完整，不只写“命中” |
+  | 活动几点开始、几点结束？ | 02-schedule.txt 的 S01：北京时间 14:00 至 16:00 | 不能把 13:45 签到当成正式开始 |
+  | 活动当天可以取消吗？ | 03-cancellation.txt 的 C01：需要人工核对，助手不执行取消 | 检查限制条件没有丢失 |
+  | 交通补贴每人是多少钱？ | 资料没有金额；R03、S03 仅说明未提供规则 | 可能返回相关片段；有片段不等于有答案 |
+
+  </ComparisonTable>
+
+  若前三题找不到预期内容，依次检查：选中的知识库、文档启用状态、片段文字、中文关键词和保存的 Top K。
+  可以用原文中的关键词做对照检索，记录原问题与对照问题的差异；不把改题后的命中充作原题通过。
+  检索没有达到预期时，先保留失败证据，本章不临时升级索引或加入新模型。
+
+  “交通补贴”在资料里出现过，可能找回说明“没有说明”的片段。因此资料外问题不一定得到空数组。
+  第七章会分别处理“完全没找到片段”和“找到了片段但证据不足”，两者不能混为一谈。
+  测试记录也可能保存提问内容，本章始终使用合成问题。
+  [官方检索测试](https://docs.dify.ai/en/self-host/use-dify/knowledge/test-retrieval)
+</section>
+
+<section className="book-section" id="book06-06-handoff">
+  ## 第六步：把可检查的资料交给第七章
+
+  保存一张本地交接卡：知识库名称、资料版本、三个文件名、通用分段、分隔符、500/1、经济索引、Top K 3，
+  再附四题的实际检索记录和未通过项。检索测试中临时改过的设置只影响测试会话，
+  回到知识库设置确认真实配置，再退出。不要把本地卡中的真实实例标识或登录信息贴到公开仓库。
+
+  第五章的三节点草稿应仍然保存；本章没有把资料偷偷加进提示词，也没有重新调用模型。
+  到第七章连接检索节点后，要再次检查节点自己的检索设置与本章一致。
+  即使本章三题都找到了正确片段，仍不能宣称助手答对、拒答可靠或发布安全；这些证据需要分别验证。
+
+  <strong>成功状态：</strong>你能打开原文件和实际片段，解释各题有没有依据，并指出尚未通过的题目。
+  <strong>失败判断：</strong>只保留模型评价、只记命中数量或尚有文档失败；先补证据，不继续付费生成测试。
+</section>

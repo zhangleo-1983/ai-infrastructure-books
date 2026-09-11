@@ -1,0 +1,269 @@
+---
+book: "06-dify"
+order: 3
+slug: "03-deploy-dify"
+title: "用官方 Compose 启动 Dify"
+shortTitle: "启动 Dify 服务栈"
+description: "保留官方 1.17.1 配置，为全新环境生成配套秘密、替换发布端口，只在 SSH 转发下打开初始化入口。"
+chapterType: "chapter"
+chapterNumber: 3
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import prepareEnv from "../../book-assets/06-dify/prepare-env.py?raw";
+import portOverride from "../../book-assets/06-dify/compose.book06.yaml?raw";
+import checkConfig from "../../book-assets/06-dify/check-config.py?raw";
+
+export const prerequisites = `git --version
+python3 --version
+nano --version
+sudo docker compose version
+sudo docker ps -a --filter label=com.docker.compose.project=book06-dify --format '{{.Names}}'
+sudo docker volume ls --filter label=com.docker.compose.project=book06-dify --format '{{.Name}}'`;
+export const getSource = `mkdir -p "$HOME/docker-labs"
+cd "$HOME/docker-labs"
+git clone --depth 1 --branch 1.17.1 https://github.com/langgenius/dify.git dify
+cd dify/docker
+git describe --tags --exact-match
+git rev-parse HEAD`;
+export const installTools = `sudo apt update
+sudo apt install git python3 nano`;
+export const checkEffective = `set -o pipefail
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml config --format json | python3 check-config.py`;
+export const pullImages = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml pull`;
+export const imageRecord = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml config --images | sort -u | while IFS= read -r image_ref; do
+  sudo docker image inspect "$image_ref" --format '{{json .RepoTags}} {{json .RepoDigests}} {{.Os}}/{{.Architecture}}'
+done`;
+export const launch = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml up -d --pull never
+sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml ps -a`;
+export const ports = `sudo docker ps --filter label=com.docker.compose.project=book06-dify --format '{{.Names}} | {{.Ports}}'
+sudo ss -lntup
+curl -I http://127.0.0.1:8088/install`;
+export const tunnel = `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:8088:127.0.0.1:8088 <LAB_USER>@<LAB_IPV4>`;
+export const publicProbe = `curl -I --connect-timeout 5 http://<LAB_IPV4>:8088/
+curl -I --connect-timeout 5 'http://[<LAB_IPV6>]:8088/'`;
+export const stop = `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml stop`;
+
+<LearningGoals audience="已完成第 2 章部署卡，拥有全新隔离 Ubuntu VPS 的读者" duration="约 40—60 分钟；镜像下载和排错时间另计" outcome="所需服务启动且状态可解释，仅回环端口发布，通过 SSH 转发进入初始化页面" />
+
+<Callout type="warning" title="只适用于全新独立环境">
+  本章校订于 2026-09-11。已在本轮 Ubuntu 24.04 amd64 VPS 上完成官方 1.17.1 回环部署、
+  服务健康与源站端口隔离核验；全册模型、公开入口和备份恢复验收尚未完成。
+  下面操作会下载软件、创建容器和持久数据，可能增加服务器流量、磁盘和费用。必须先完成部署卡。
+  有旧 .env、运行数据、同名项目或任何业务数据时停止；本章不是升级或密码重置方法。
+  官方新下载的源码已带有 volumes 目录中的五份配置文件；脚本会核对其路径与内容摘要，
+  仅允许这些未修改的随附配置。多出数据、缺少文件或配置改变都会停止，不能删除目录来绕过检查。
+</Callout>
+
+<section className="book-section" id="book06-03-source">
+  ## 第一步：获取固定版本，保留官方原文件
+
+  在 VPS 的 SSH 终端逐行输入以下命令。Git 用于取得版本化文件，Python 运行本章的本地准备脚本，
+  nano 是终端文字编辑器。任一命令报错就停，不把后面的命令整组继续执行。
+
+  <CodeBlock label="VPS：工具与同名项目检查" code={prerequisites} />
+
+  前四项应显示版本，Compose 至少 2.24.4；后两项应无结果，表示没有本项目标记的既有容器和卷。
+  空结果不是全盘无数据证明，还要核对部署卡及目标目录。如果缺少前三项工具，在已核对的 Ubuntu 官方
+  软件源下执行下面两行：第一行刷新软件清单，第二行安装工具。安装确认界面先看新增软件和空间需求，
+  符合预期才确认；报错就停。安装后重新运行上面的版本检查。工具齐全则跳过。
+
+  <CodeBlock label="仅在缺少工具时：VPS 安装 Git、Python 与 nano" code={installTools} />
+
+  Docker 与 Compose 仍按第三册的官方来源安装，不混装同名软件包或不明脚本。
+
+  <CodeBlock label="VPS：逐行获取 Dify 1.17.1；目录已存在就停" code={getSource} />
+
+  clone 是下载版本库；`--depth 1` 限制历史下载量，`--branch 1.17.1` 指定标签。
+  如果 dify 目录已存在，clone 会拒绝；此时不要进入旧目录接着做，也不要删除它重来。
+  Git 提示 detached HEAD 表示当前定位在具体版本，不是这一步失败。
+
+  最后两行应给出 `1.17.1` 和对应提交标识。将版本与提交记在本地部署卡，这些公开软件标识不是资产凭证。
+  官方版本有后续安全问题时先停下来核对，不擅自改成 latest。当前版本对旧 Weaviate 数据有分阶段升级要求，
+  新建与升级不能混写。
+  [官方部署说明](https://docs.dify.ai/en/self-host/deploy/quick-start/docker-compose) ·
+  [1.17.1 发布说明](https://github.com/langgenius/dify/releases/tag/1.17.1)
+</section>
+
+<section className="book-section" id="book06-03-secrets">
+  ## 第二步：在服务器内部生成秘密，不显示或复制密码
+
+  `.env.example` 是官方示例，里面有可公开查到的默认凭证；不能照用这些值启动自己的服务。
+  `.env` 才是本项目读取的环境文件。官方 envs 目录还放着可选模板，本书不创建额外的 envs 覆盖文件，
+  全部初始修改集中在 `.env`，避免同一个字段散落多处。
+
+  本步骤的脚本只读取当前目录的 `.env.example`，生成配套随机秘密，再以仅本人可读写的 600 权限创建
+  `.env`；它不联网、不启动服务、不索取模型 key，也不打印秘密。发现旧环境或字段缺失就拒绝，防止
+  对运行过的数据库重新生成不匹配密码。它是本书公开的准备代码，不是 Dify 官方安装脚本。
+
+  在 VPS 运行 `nano prepare-env.py`，将下面完整代码粘贴进去。按 Ctrl+O 保存，回车确认文件名，再按 Ctrl+X 退出。
+  只保存本书可见代码，不另找“一键安装包”。
+
+  <CodeBlock label="prepare-env.py：完整本地准备代码" code={prepareEnv} printBreak={true} />
+
+  保存后运行 `python3 prepare-env.py`。成功应只显示创建完成和没有打印秘密的提示；再运行
+  `stat -c '%a %n' .env`，应显示 `600 .env`。不要用 cat 查看整个 `.env` 后复制到聊天。
+
+  <ComparisonTable>
+
+  | 脚本处理的配套关系 | 为什么必须一致 |
+  | --- | --- |
+  | REDIS_PASSWORD 与 CELERY_BROKER_URL 内的密码 | 应用和后台任务连接同一个 Redis；只改一边会认证失败 |
+  | WEAVIATE_API_KEY 与服务端允许的 key | 应用要用匹配凭证访问存储；同时关闭匿名访问 |
+  | CODE_EXECUTION_API_KEY 与 SANDBOX_API_KEY | 调用方和隔离执行服务要相互匹配 |
+  | 插件、Agent、数据库与 SECRET_KEY | 更换公开默认值；其中的加密秘密需随完整备份受控保留 |
+  | localhost:8088 与内部 api:5001 | 浏览器走 SSH 本地入口；服务间文件访问留在容器网络 |
+
+  </ComparisonTable>
+
+  <strong>成功状态：</strong>全新 `.env` 权限正确，原 `.env.example` 未改。
+  <strong>失败判断：</strong>显示 STOP、文件已存在、找不到字段或权限异常；不删文件绕过保护、不重复生成秘密，
+  回到版本和目录核对。恢复所需秘密只能进入本人受控备份，不进入 Git、截图或公开报告。
+  [官方环境变量](https://docs.dify.ai/en/self-host/deploy/configuration/environments)
+</section>
+
+<section className="book-section" id="book06-03-override">
+  ## 第三步：替换端口列表，不叠加一条新映射
+
+  确认仍在 `$HOME/docker-labs/dify/docker`。运行 `nano compose.book06.yaml`，粘贴以下内容，
+  按 Ctrl+O、回车、Ctrl+X 保存退出。YAML 用缩进表示结构，只用空格，不用 Tab。
+
+  <CodeBlock label="compose.book06.yaml：保留官方文件的端口差异" code={portOverride} />
+
+  nginx 的整张发布列表被替换成 `127.0.0.1:8088:80`：VPS 本机的 8088 转向 nginx 容器的 80。
+  plugin_daemon 的发布列表替换为空，关闭主机上的调试入口；服务之间仍可在 Compose 网络通信。
+  只删除这几行或只增加一个回环地址，可能保留默认的公网映射。
+  [官方 !override 合并规则](https://docs.docker.com/reference/compose-file/merge/)
+
+  <strong>成功状态：</strong>存在两份独立配置，官方 docker-compose.yaml 保持原样。
+  <strong>失败判断：</strong>文件名变成 `.yaml.txt`、缩进报错、编辑了官方原文件或 Compose 不识别标签；
+  先修正，不执行启动。第 9 章也会使用这两个相同文件和项目名。
+</section>
+
+<section className="book-section" id="book06-03-check">
+  ## 第四步：检查真正生效的配置
+
+  有效配置是 Compose 合并官方文件、差异文件和环境变量后实际使用的结果，不能只看我们写的几行。
+  完整结果含秘密，所以不直接显示。运行 `nano check-config.py`，粘贴以下检查代码并保存退出。
+
+  <CodeBlock label="check-config.py：只输出服务、端口与挂载摘要" code={checkConfig} printBreak={true} />
+
+  然后运行下面命令。管道符 `|` 把配置直接交给本地检查器，不保存或显示完整 JSON（结构化数据文本）。
+  `set -o pipefail` 让前面的命令失败时也能被发现。这组命令只解析，不拉取镜像、不启动容器。
+
+  <CodeBlock label="VPS：查看合并后的端口与挂载摘要" code={checkEffective} />
+
+  开头应显示 16 个已核对服务，以及唯一 `nginx 127.0.0.1:8088 → 80/tcp`。后面逐项列出
+  挂载来源与容器内位置，供本地核对；不要把其中真实主机路径原样发给别人。named volume 的实际名称
+  还要结合 Compose 项目标记核对，不能只按一个目录名做清理。
+
+  这个数量只针对 1.17.1 与本书 profile。检查器不是安全扫描器，不验证镜像内容、运行时监听、云防火墙
+  或业务正确性。成功只能证明这份合并配置符合本章已审阅的结构；任何 STOP 都先停，不改数字让检查通过。
+</section>
+
+<section className="book-section" id="book06-03-images">
+  ## 第五步：下载镜像，记下实际版本
+
+  镜像是容器启动用的程序包。核对磁盘和流量预算后，运行拉取命令并等它结束；下载失败、磁盘不足或
+  某个架构不可用时，不换来历不明的镜像站，也不反复重试到磁盘满。
+
+  <CodeBlock label="VPS：按已检查的默认组合下载镜像" code={pullImages} />
+
+  拉取全部成功后，运行下面的只读命令，逐个记录标签、摘要及系统架构。digest（摘要）标识具体镜像内容，
+  比可移动的 latest 标签更适合核对本次到底用了什么。输出中的镜像公开名称和摘要可记在版本卡，
+  不等于完整环境备份。
+
+  <CodeBlock label="VPS：登记本次实际镜像摘要与架构" code={imageRecord} />
+
+  应都有镜像摘要，且符合 Linux/amd64。官方应用镜像固定为 1.17.1，但 nginx、busybox、部分基础镜像
+  使用滚动标签；本阶段记录实际下载值，不声称整栈已永久锁定。之后不再随意 pull；正式实机与发布校订
+  会冻结已测摘要及更新方案。如果另一操作改变了本地标签，需要重新核对，不能把旧卡当作当前版本。
+  [固定版本服务清单](https://raw.githubusercontent.com/langgenius/dify/1.17.1/docker/docker-compose.yaml)
+</section>
+
+<section className="book-section" id="book06-03-start">
+  ## 第六步：启动，再按职责看状态
+
+  确认上面每一步都成功，执行启动命令。`--pull never` 要求使用刚核对的本地镜像；缺镜像就失败，
+  不在启动时悄悄拉取另一份。`-d` 表示让服务在后台运行，不表示它已经健康。
+
+  <CodeBlock label="VPS：启动本次专用项目并查看全部状态" code={launch} />
+
+  <MockWindow title="状态判读示例：教学仿真，不是实测输出">
+    <div className="mock-form-grid">
+      <MockField label="init_permissions">Exited (0)：一次性任务正常结束</MockField>
+      <MockField label="有 healthcheck 的常驻服务">由 starting 进入 healthy</MockField>
+      <MockField label="没有 healthcheck 的常驻服务">Running 只说明进程在，仍需后续功能检查</MockField>
+      <MockField label="应停下检查">Restarting、unhealthy、非预期 Exited 或缺服务</MockField>
+    </div>
+  </MockWindow>
+
+  初次启动可能等待数据库和初始化，不要连续重建。稍后重新运行同一条 `ps -a`，对照前面列出的服务。
+  异常时只看出错服务的本地日志，例如在同目录运行
+  `sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml logs --tail 50 api`。
+  将 api 换成实际出错的服务名；日志可能带秘密和输入内容，只摘录脱敏错误类型。
+
+  如果数据库报认证错误，优先核对旧数据是否混入、秘密是否配套，不删除 volume 重新开始。
+  如果 init_permissions 非零退出，先查目录权限；不要给整个项目 chmod 777。
+  <strong>成功状态：</strong>所需常驻服务稳定、初始化正常结束。<strong>失败判断：</strong>状态持续异常；停在这一层，
+  不靠公开域名试探服务是否修好了。
+</section>
+
+<section className="book-section" id="book06-03-access">
+  ## 第七步：只通过本地转发访问
+
+  在 VPS 执行以下核对。docker 的 Ports 一栏中，单独的 `5001/tcp` 是容器端口说明，
+  `0.0.0.0:5001->5001/tcp` 才表示主机发布；我们只接受 nginx 的回环 8088 映射。
+  同时查看 ss 和云防火墙。容器 NAT 不一定作为普通监听进程出现在 ss 中，所以不能只看最后一张表。
+
+  <CodeBlock label="VPS：运行时端口与本地 HTTP 检查" code={ports} />
+
+  本地 HTTP 返回正常页面或跳转才继续；连接拒绝或 5xx 错误先查入口与服务。HTTP 状态 200 表示请求成功，
+  3xx 表示跳转，5xx 表示服务处理失败；它们都不能证明管理员初始化或知识检索已完成。
+  若出现非预期公网映射，先停止本项目再检查配置，不去增加防火墙放行规则。
+
+  接着在自己的电脑打开另一个终端窗口（Windows 用 PowerShell，macOS 用终端），保持原 SSH 管理窗口。
+  下列命令里的两个占位符分别替换为本人 SSH 用户和 VPS 地址，尖括号一起删除；仅在受控终端填写真实值。
+  使用了自定义 SSH 端口或密钥路径的读者，把第一册已验证的 `-p`、`-i` 选项也带上，不重新分享密码。
+
+  <CodeBlock label="自己的电脑：建立 SSH 本地转发，保持窗口打开" code={tunnel} />
+
+  按提示核对主机身份并认证。成功时窗口可能没有新输出，表示转发仍在运行；报 address already in use
+  说明电脑本地 8088 被占用，先确认占用者，不强杀未知进程或只改一半地址。
+  在同一电脑浏览器打开 `http://localhost:8088/install`，应看到初始化入口。
+  这段 HTTP 只在本机与转发入口使用，远程链路由 SSH 加密；不是允许裸露公网 HTTP 的理由。
+
+  再把电脑切到手机蜂窝热点等第二网络，在电脑上另开终端，直接探测本人的公网地址；不要在 VPS 的 SSH
+  窗口里执行这项测试。把占位符替换为部署卡中的地址，尖括号删除；IPv6 网址外层方括号保留。
+  Windows PowerShell 将下列 curl 写成 curl.exe，避免调用同名的其他命令。实例没有公网 IPv6 时跳过第二行，
+  并记录“不适用”，不能填“IPv6 已验证”。
+
+  <CodeBlock label="第二网络的电脑：只探测本人实例的 8088" code={publicProbe} />
+
+  预期是无法连接或超时，不是任何 Dify 页面、跳转或登录结果；能收到本应用 HTTP 响应就先停止本项目并检查
+  映射与入口。网络本身故障也会超时，因此这项负向测试要和有效配置、运行时端口一起判断。
+  没有第二网络时注明公网负向验证未覆盖。切换网络可能断开 SSH，需要时恢复已核对的管理和转发连接。
+  真实地址只保留在本地记录；第 9 章前不建立 route、不发分享链接。
+</section>
+
+<section className="book-section" id="book06-03-handoff">
+  ## 失败停止与下一章交接
+
+  需要停止本次专用服务时，在 VPS 的同一目录运行：
+
+  <CodeBlock label="VPS：停止本次项目，保留数据" code={stop} />
+
+  这不销毁实例、不删数据，也不停止所有费用。停止 SSH 转发时在电脑转发窗口按 Ctrl+C；
+  它只关闭通道，不停止服务器。不要使用 down -v、全局 prune 或删目录作为首次排错手段。
+
+  下一章需要接收：版本与镜像卡、唯一回环入口、全部服务状态、受控 `.env`、数据归属清单，
+  以及能通过本地转发打开但尚未初始化的 Dify。若已经出现陌生管理员或既有应用，停止，不重置或覆盖。
+  只有确认全新归属，才继续创建自己的唯一管理员。
+</section>

@@ -1,0 +1,169 @@
+---
+book: "06-dify"
+order: 2
+slug: "02-plan-stack-and-costs"
+title: "规划 Dify 的服务、数据与账单"
+shortTitle: "规划服务与账单"
+description: "盘点全新隔离服务器、官方服务栈、回环端口和持久数据，为首次启动留下明确的费用与恢复边界。"
+chapterType: "chapter"
+chapterNumber: 2
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import { sitePath } from "../../../lib/site-path";
+
+export const machineCheck = `cat /etc/os-release
+uname -m
+nproc
+free -h
+df -h /
+sudo docker version
+sudo docker compose version
+sudo ss -lntup`;
+
+<LearningGoals audience="已完成准备卡，能通过 SSH 登录本人服务器的读者" duration="约 20—30 分钟；不含购买与服务商审核" outcome="形成明确的部署卡，知道服务、端口、数据与费用各自归谁管理" />
+
+<Callout type="info" title="先规划，后启动">
+  2026-09-11 写作草稿。官方最低配置与文件已初核，Dify 实机尚未验证。本章只读盘点；
+  不购买、扩容或重装服务器。第五册清理过的资源不能自动成为本册可用资产。
+</Callout>
+
+<section className="book-section" id="book06-02-machine">
+  ## 第一步：确认全新隔离环境，而不是找一台还能登录的机器
+
+  本书选择 Ubuntu 24.04 LTS 的 amd64 服务器。Ubuntu 是 Linux 系统的一种，LTS 表示长期支持版本，
+  amd64 在命令输出中通常显示 x86_64。VPS 是远程租用的服务器，SSH 是安全管理连接。
+  “隔离”指没有真实业务共用，所有本次数据、费用和清理对象都能单独识别，不只是换一个目录名。
+
+  打开服务商控制台核对实例仍存在、系统版本和计费对象，再在已确认主机身份的 SSH 终端逐行运行：
+
+  <CodeBlock label="VPS：只读核对系统、资源、Docker 与当前监听" code={machineCheck} />
+
+  `free -h` 看内存 available（可用量），`df -h /` 看根磁盘剩余空间，`ss -lntup` 查看监听端口。
+  端口像服务接收请求的编号；命令里出现的真实地址和进程信息只在本地查看，不原样发到聊天。
+  Docker 是运行容器的工具，容器是隔离的程序运行环境；Compose 用一个配置管理一组协作容器。
+
+  <strong>成功状态：</strong>系统和架构一致，Docker 客户端与服务端都可连接，资源有余量，8088 尚未被占用。
+  <strong>失败判断：</strong>ARM 架构、旧业务、满盘、内存不足、Docker 无服务端结果或端口用途不明；先停，
+  不结束未知进程。缺少安装能力时返回<a href={sitePath("/books/03-docker/03-install-docker/")}>第三册安装章</a>；
+  资源已删除时返回<a href={sitePath("/books/01-first-vps/03-needs-and-budget/")}>第一册需求与预算</a>重新评估。
+</section>
+
+<section className="book-section" id="book06-02-capacity">
+  ## 第二步：把最低要求和自己的预算分开
+
+  官方当前最低是 2 核 CPU、4 GiB 内存；CPU 执行计算，GiB 是容量单位。这个最低值不能保证低配机器
+  同时承担下载、解压、后台索引和备份时仍流畅。本书先按 4 vCPU、8 GiB 内存、80 GB 磁盘估算预算，
+  这是未实测的余量建议，不是购买指令。
+  [官方部署要求](https://docs.dify.ai/en/self-host/deploy/quick-start/docker-compose)
+
+  把 VPS、附加磁盘、快照或备份、流量、税费分别写入本地预算表。域名续费与 Cloudflare Access 的方案
+  再各占一行；模型另算，不混进服务器“月费”。每一行写币种、单价、计费周期、计划停止时间与操作入口。
+  没有实际报价就留“待核对”，不要把本书示例变成服务商价格承诺。
+
+  模型预算先设人工停发线和最多请求次数，覆盖连接验证、工作流测试与后续手机验证。没有提供方硬限额时，
+  人工停发只能减少风险，不能保证后台自动停止；账单延迟、重试或并发不明时不再继续调用。
+  本书作者的 G4 预算提案也不等于读者账户的授权或限额。
+
+  <strong>成功状态：</strong>能分别指出每类费用如何发生、在哪里核对、怎样停止。
+  <strong>失败判断：</strong>只知道“关网页”或“停容器”，说不清实例和附加资源是否继续计费；先完善预算卡。
+</section>
+
+<section className="book-section" id="book06-02-services">
+  ## 第三步：认识这组服务，不必先学数据库运维
+
+  候选部署基线为 Dify 1.17.1。服务栈是一起协作的多个服务，不是一只容器。
+  profile 是 Compose 选择一组可选服务的开关；本书固定 PostgreSQL、Weaviate 和 collaboration，
+  不开启其他数据库组合，也不擅自删掉未直接使用的底层服务。
+
+  <ComparisonTable>
+
+  | 服务或组合 | 它负责什么 | 首次检查重点 |
+  | --- | --- | --- |
+  | nginx、web、api | 入口转发、网页、应用接口 | 页面与接口能配合；仅 nginx 的主机端口开放给本机 |
+  | api_websocket | 工作流协作需要的持续连接 | 保留当前官方 profile；功能未实际触发不能说已验证 |
+  | worker、worker_beat | 后台任务与任务调度 | 正常常驻；页面能打开不代表索引任务完成 |
+  | db_postgres、redis | 数据库、缓存与任务队列 | 密码配套一致；不要公开数据库端口 |
+  | weaviate | 默认向量存储服务 | 保留依赖并收紧匿名访问；经济索引不意味着能随意删除服务 |
+  | plugin_daemon | 安装和运行模型等集成 | 检查持久数据；不发布调试端口 |
+  | sandbox、ssrf_proxy | 受限代码环境与受控外发代理 | 本书不使用 Code 节点；保留默认网络边界 |
+  | agent_backend、local_sandbox、agent_ssrf_proxy | 当前官方 Agent 后端及其隔离环境 | 不启用 Agent 业务；仍替换默认内部凭证、盘点数据 |
+  | init_permissions | 首次调整存储目录权限的一次性任务 | 成功退出正常；不能把所有 Exited 都判为故障 |
+
+  </ComparisonTable>
+
+  上表按本版默认组合初核为 16 个服务定义，其中有一次性任务；不是跨版本通用容器总数。
+  后续检查以实际启用服务与状态为准。SSRF 是服务被诱导向不应访问的地址发请求的风险；
+  不为了让未知工具联网而放开私有网段允许列表。
+  [固定版本 Compose](https://raw.githubusercontent.com/langgenius/dify/1.17.1/docker/docker-compose.yaml)
+</section>
+
+<section className="book-section" id="book06-02-network">
+  ## 第四步：只给本机一个入口
+
+  本书先把 nginx 映射到 VPS 的 `127.0.0.1:8088`。127.0.0.1 是当前机器自己的回环地址，
+  不能从你的电脑直接用这个地址访问远程 VPS。第三章会通过 SSH 把电脑的 localhost:8088 转发过去。
+  localhost 是本机名字；在电脑、VPS 和容器里分别指各自环境，不能混用。
+
+  官方 Compose 默认的网页端口和插件调试端口需要通过差异文件替换。追加一条回环映射不保证旧映射消失；
+  本书用 `!override` 替换整个端口列表，所以 Compose 至少需要 2.24.4。版本不足先按官方途径更新，
+  不删去这个标记试图让配置“能跑”。
+  [Docker 合并规则](https://docs.docker.com/reference/compose-file/merge/)
+
+  这一阶段没有公开域名 route，云防火墙仍只保留自己已核验的管理入口，不新增 Dify 的入站规则。
+  Docker 端口发布与主机防火墙行为有关，不能只看“防火墙已开”判断应用不公开；第三章会核对有效映射
+  和运行中的全部容器端口，公网 IPv4 与 IPv6 的负向验证另记证据。
+
+  <strong>成功状态：</strong>部署卡写清唯一入口与访问主体。<strong>失败判断：</strong>打算把数据库、插件或应用
+  接口直接开放公网，或用旧业务 Tunnel 随意转发；停止，先确认隔离边界。
+</section>
+
+<section className="book-section" id="book06-02-data">
+  ## 第五步：容器以外的数据也要有归属
+
+  bind mount 是把主机目录映射进容器；named volume 是由 Docker 管理、用名称标识的数据存储。
+  容器可以重建，这些数据通常继续存在，所以重新启动不能修复所有数据问题，删除容器也不等于清理完账单。
+
+  <ComparisonTable>
+
+  | 要记录的对象 | 本书初始位置或用途 | 为什么不能漏 |
+  | --- | --- | --- |
+  | `.env` 与可选 envs 配置 | 项目 docker 目录；凭证和环境参数 | 丢失或重新生成加密秘密，可能无法读取原有凭证 |
+  | `volumes/db/data` | PostgreSQL 数据，含插件相关数据库 | 应用、账户等状态不在网页镜像里 |
+  | `volumes/app/storage`、`volumes/plugin_daemon` | 文件与集成数据 | 只导出应用定义不能恢复它们 |
+  | `volumes/weaviate`、`volumes/redis/data` | 索引、缓存/队列相关数据 | 恢复要考虑一致性，不能运行中随意复制部分文件 |
+  | sandbox 目录与两个 Agent named volume | 依赖、配置及隔离环境数据 | 即使主线不用 Agent，也须盘点实际创建对象 |
+  | 官方 nginx/代理模板、差异配置、版本记录 | 服务间路由、端口、可复建配置 | 要知道哪份原文件配哪份修改，不混用历史版本 |
+
+  </ComparisonTable>
+
+  这里先登记范围，完整停写备份与隔离恢复留在第 11 章。DSL 是描述应用配置的可导出文本，
+  它不包含整套数据库、资料、插件和秘密，不能把“已导出 DSL”填成“已完成服务器备份”。
+</section>
+
+<section className="book-section" id="book06-02-card">
+  ## 第六步：带着部署卡进入下一章
+
+  <MockWindow title="第六册部署卡：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="目标">全新隔离 Ubuntu 24.04 / x86_64；资源与费用已核对</MockField>
+      <MockField label="版本">Dify 1.17.1 候选；实际镜像摘要待拉取后登记</MockField>
+      <MockField label="目录">$HOME/docker-labs/dify/docker</MockField>
+      <MockField label="Compose 项目名">book06-dify</MockField>
+      <MockField label="配置组合">docker-compose.yaml ＋ compose.book06.yaml</MockField>
+      <MockField label="唯一主机入口">127.0.0.1:8088 → nginx:80</MockField>
+      <MockField label="范围">单工作区、本人；没有公开 route</MockField>
+      <MockField label="恢复与费用">数据归属、秘密保存位置、停发线与资源停止时间已登记</MockField>
+    </div>
+  </MockWindow>
+
+  本卡不放真实 IP、邮箱、密码或 key，只记受控保存位置。确认没有旧 `.env` 或既有 Dify 数据后，
+  下一章才准备全新部署。若有历史数据，停止使用新建流程，先走版本与恢复规划；不能为了重试清空数据目录。
+</section>

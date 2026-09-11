@@ -1,0 +1,162 @@
+---
+book: "06-dify"
+order: 4
+slug: "04-workspace-and-model"
+title: "创建工作区，接入第一个模型"
+shortTitle: "工作区与第一个模型"
+description: "先建立唯一管理员和受控集成权限，再区分模型提供方、插件、模型名称与费用，完成一次连接配置。"
+chapterType: "chapter"
+chapterNumber: 4
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import { sitePath } from "../../../lib/site-path";
+
+<LearningGoals audience="已在回环入口启动全新 Dify，并保留 SSH 转发的读者" duration="约 25—40 分钟；不含模型账户审核与账单等待" outcome="只有本人管理工作区，安装来源明确的模型集成，并能说明其凭证、模型与扣费边界" />
+
+<Callout type="info" title="账户与调用分开核对">
+  2026-09-11 校订草稿；已在本册 Dify 1.17.1 实机完成唯一管理员、权限、重建后登录和专用模型连接核验。
+  创建管理员与保存模型凭证是不同动作。保存连接可能验证凭证并产生模型请求，先完成费用核对再做。
+</Callout>
+
+<section className="book-section" id="book06-04-admin">
+  ## 第一步：在自己的转发入口建立唯一管理员
+
+  在自己的电脑确认 SSH 转发窗口仍开着，再打开 `http://localhost:8088/install`。
+  初始安装页会要求管理员邮箱、名称和密码。邮箱用本人可控制的地址，名称用能辨认的教学昵称；
+  密码使用密码管理器生成的独立强密码，满足页面要求，不与 SSH 或模型账户共用。
+
+  核对地址栏确实是自己的本地入口后提交一次，等页面转到登录或工作区，再按界面提示登录。
+  本书第三章没有设置 INIT_PASSWORD；如果页面要求额外初始化密码，先核对是否进入了别的实例，
+  不猜密码、不复制别人的初始密码，也不清空数据库绕过。
+
+  <MockWindow title="首次建立管理员：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="访问位置">电脑浏览器 → localhost:8088/install → SSH 转发</MockField>
+      <MockField label="邮箱 / 名称">本人受控邮箱 / 教学昵称；不记入公开交接卡</MockField>
+      <MockField label="密码">独立强密码；仅存于本人密码管理器</MockField>
+      <MockField label="成功以后">工作区可打开；再次访问 /install 不应允许重建管理员</MockField>
+    </div>
+  </MockWindow>
+
+  工作区（workspace）是 Dify 放应用、知识库、模型连接和成员的共同范围。这里先只保留本人。
+  在账户或工作区设置里打开 Members（成员），确认只有本人，角色为 Owner（所有者）；
+  不发送邀请，不添加普通用户。退出再登录一次，确认密码管理器中的记录可用，再关闭旧登录页。
+
+  <strong>成功状态：</strong>本人可以重新登录，成员归属明确，初始化不能被再次执行。
+  <strong>失败判断：</strong>一开始就有陌生管理员、应用或资料，或 /install 能再次接管；停止，回到第三章核对数据来源。
+  [官方首次初始化](https://docs.dify.ai/en/self-host/deploy/quick-start/docker-compose) ·
+  [固定版初始化边界](https://raw.githubusercontent.com/langgenius/dify/1.17.1/api/controllers/console/setup.py)
+</section>
+
+<section className="book-section" id="book06-04-permissions">
+  ## 第二步：先收紧集成安装、调试和自动更新
+
+  集成（integration）把 Dify 接到模型或其他服务，插件是运行这些能力的额外程序。
+  安装一次模型集成后，同一工作区的其他应用也可能使用它；这不是仅给某个输入框填写一个网址。
+
+  进入 Integrations（集成）页，在管理设置中找到安装管理权限和调试权限。安装/管理设为 Admins
+  （管理员范围），调试设为 No one（任何人都不允许）。在自动更新策略中，将模型类别设为 Off（关闭），
+  本书不靠后台升级更换已核对插件。其他未使用类别也保持不自动更新。
+
+  如果当前界面的入口名称略有变化，以对应的权限含义核对；找不到这三项就停在权限复核，不把 Everyone
+  当作等价选项。第三章已撤掉主机调试端口，但这不替代工作区权限；两层各自核对。
+
+  <strong>成功状态：</strong>保存后重新打开仍是管理员安装、无人调试、自动更新关闭；没有新增成员。
+  <strong>失败判断：</strong>无法管理权限、签名验证被关闭或有未知插件；先核对 Owner 角色和来源，不能关校验解决安装错误。
+  [官方集成权限与更新](https://docs.dify.ai/en/self-host/use-dify/workspace/plugins)
+</section>
+
+<section className="book-section" id="book06-04-provider">
+  ## 第三步：确认提供方、插件与模型是三个不同名字
+
+  本册优先使用 DeepSeek 的一个远程文本模型。模型提供方处理请求和扣费，Dify 插件负责把界面设置
+  转成请求，模型 ID 则决定具体请求哪个模型。安装插件不等于模型账户已有额度，也不证明参数兼容。
+
+  在 Integrations → Model Provider 中查找 DeepSeek。核对发布者和源码来源：本次初核的官方插件仓库
+  中，manifest 标记 author 为 langgenius、插件版本为 0.0.23。Marketplace 实际安装包仍需另外核对，
+  不把源码版本当成已安装版本。只安装来源可追溯、版本已核定的这一项；安装失败先检查网络、插件服务和签名。
+  不上传不明压缩包，不通过随机 GitHub 地址替代。
+  [官方插件 manifest](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/manifest.yaml)
+
+  <Callout type="warning" title="当前存在模型名称衔接差异">
+    2026-09-11，DeepSeek 文档推荐 deepseek-flash；初核的 Dify 插件仍预定义 deepseek-v4-flash，
+    且未声明自定义模型入口。DeepSeek 官方说明旧名称当前会转到 V4.1 Flash 并按 Flash 计费。
+    记录“界面选择名”和“提供方实际模型”两项，不把它们当作两个独立模型。
+    这条官方兼容说明仍不等于 Dify 插件已在本册实测通过。
+  </Callout>
+
+  先按当前核定插件的预定义 Flash 项评估，不手工篡改插件文件来添加模型名。若界面已经更新到新名称，
+  或只剩 Pro、Vision 等其他项，停下来重新核对插件版本和当前价格，不凭近似名称选模型。
+  此处的旧名称过渡仍使用官方声明的同一个 Flash 服务，没有改用另一提供方或付费路线。
+  [DeepSeek 模型与别名](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/) ·
+  [插件模型与凭证字段](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/provider/deepseek.yaml)
+</section>
+
+<section className="book-section" id="book06-04-cost">
+  ## 第四步：在保存凭证以前，先看账单与停止入口
+
+  在模型提供方控制台确认账户归属、当前价格、余额或额度限制，以及如何单独撤销本次 key。
+  API key 是可发起调用的秘密凭证；使用本册专用、可撤销的 key，不复用第五册已经撤销的值，也不把整个
+  管理账号密码填进 Dify。申请流程不熟悉时，先回<a href={sitePath("/books/05-open-webui/02-choose-model-provider/")}>第五册模型选择与账户准备</a>。
+
+  保存前记下当前用量和时间，并预留凭证验证请求。初核插件源码显示它用预定义 Flash 名称进行凭证校验；
+  这不受你稍后在某个 LLM 节点中设置的输出上限控制。验证具体请求、用量与费用须在实机 G4 核对，
+  不能先承诺“连接验证免费”或精确的最坏支出。
+  [插件凭证验证源码](https://github.com/langgenius/dify-official-plugins/blob/main/models/deepseek/provider/deepseek.py)
+
+  先确认本次可接受的请求次数、人工停发线与技术限额。额度或后台验证无法控制在可接受范围内时，
+  停在这一页，不充值、不用管理主密钥试刷。输入输出的 token 是模型计量单位，思考模式也可能增加用量；
+  每次验证、重试和后续问题均需计入同一张账，不只记录成功答案。
+</section>
+
+<section className="book-section" id="book06-04-connect">
+  ## 第五步：保存一次连接，再检查结果
+
+  回到 Dify 的 DeepSeek 卡片，选择 Setup（设置）。在 API Key 字段粘贴本次专用 key。
+  API Base URL 是接口基础地址，使用提供方官方的 OpenAI 格式地址，不填控制台网页、不加聊天网页路径，
+  也不把 API key 拼到网址上。当前插件允许基础地址留空采用其默认值；仍要核对它指向官方 DeepSeek，
+  不使用来历不明的中转地址。
+
+  如果看到“附加 Dify app_id 作为请求头”的选项，本练习保持 Disabled（禁用）；它与模型调用本身不是一回事。
+  app_id 是应用内部标识，没有必要为了练习额外发送。核对后点一次 Save（保存），等明确结果，不连点。
+
+  <MockWindow title="模型连接卡：教学仿真">
+    <div className="mock-form-grid">
+      <MockField label="提供方 / 插件">DeepSeek / 已核对的 langgenius 插件与版本</MockField>
+      <MockField label="API Key">本册专用 key；只在秘密字段使用</MockField>
+      <MockField label="API Base URL">&lt;MODEL_API_BASE_URL&gt;；官方接口基础地址</MockField>
+      <MockField label="模型名">记录实际预定义 Flash 名称及官方别名对应关系</MockField>
+      <MockField label="额外请求元数据">Disabled</MockField>
+      <MockField label="保存后">检查 Dify 验证结果与提供方本次用量</MockField>
+    </div>
+  </MockWindow>
+
+  <strong>成功状态：</strong>凭证验证成功，Flash 项可选，提供方用量变化可解释。
+  <strong>失败判断：</strong>401 常见于凭证错误，403 可能涉及权限，余额不足或模型名错误也可能被包装为插件错误；
+  以本次脱敏错误类别和提供方记录定位，不反复保存、不贴出 key 或完整响应头。
+  [官方模型提供方设置](https://docs.dify.ai/en/self-host/use-dify/workspace/model-providers)
+</section>
+
+<section className="book-section" id="book06-04-handoff">
+  ## 第六步：把可用连接交给下一章
+
+  下一章在 LLM 节点显式选择这个模型，不依赖工作区默认模型猜测。Embedding（向量模型）、Rerank
+  （重排模型）、语音和其他默认任务都不在本练习中配置；看到插件权限清单含某项能力，不代表你必须开启它。
+
+  在交接卡只记：插件来源/版本、界面模型名、官方实际模型、key 的受控保存位置、验证次数、用量和停止方法。
+  不记 key 本身。模型列表中有多个预定义项，不等于本章建立了服务器端单模型强制白名单；本书的“单模型”
+  先通过显式节点选择、本人单工作区和不用其他应用落实，不能把它写成提供方限制。
+
+  暂时禁用连接与在提供方永久撤销 key 不同。删除某个自定义模型或卸载插件，也不必然清除保存过的凭证；
+  需要停用时分别核对 Dify 凭证管理与提供方撤销记录，仍有后台任务时核对最终用量。
+
+  完成后应能重新登录、说明唯一成员和权限、指出已核对模型与用量。任一项不清楚就停；
+  下一章只创建最小 Workflow，不急着发布 web app 或把域名接到外网。
+</section>

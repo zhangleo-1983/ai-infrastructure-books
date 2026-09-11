@@ -1,0 +1,419 @@
+---
+book: "06-dify"
+order: 11
+slug: "11-backup-restore-update"
+title: "备份整套数据，再谈更新与恢复"
+shortTitle: "备份、恢复与更新"
+description: "盘点目录、数据库、秘密和 named volume，制作停写备份及外部副本，在独立目录、卷和内部网络中核对同版本恢复。"
+chapterType: "chapter"
+chapterNumber: 11
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import restoreOverride from "../../book-assets/06-dify/compose.restore.yaml?raw";
+import restoreChecker from "../../book-assets/06-dify/check-restore-config.py?raw";
+import proxyVolumeHelper from "../../book-assets/06-dify/proxy-volumes.py?raw";
+
+export const sourceShell = `cd "$HOME/docker-labs/dify/docker"
+pwd
+d6() { sudo docker compose -p book06-dify -f docker-compose.yaml -f compose.book06.yaml "$@"; }
+set -o pipefail
+d6 ps -a
+d6 ps -a -q | xargs -r sudo docker inspect --format '{{.Name}} {{range .Mounts}}{{.Type}} {{.Name}} {{.Source}} -> {{.Destination}}; {{end}}'`;
+export const backupFolder = `umask 077
+mkdir -p "$HOME/book06-backups"
+book06_backup="$HOME/book06-backups/$(date +%Y%m%d-%H%M%S)"
+mkdir "$book06_backup"
+chmod 700 "$book06_backup"
+df -h /
+sudo du -sh "$HOME/docker-labs/dify/docker"
+sudo docker system df`;
+export const imageFreeze = `d6 ps -a -q | xargs -r sudo docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}} {{.Image}}' > "$book06_backup/image-map.txt"
+wc -l "$book06_backup/image-map.txt"
+awk 'BEGIN {print "services:"} {print "  " $1 ":"; print "    image: " $2}' "$book06_backup/image-map.txt" > "$book06_backup/compose.images.yaml"
+awk '{print $2}' "$book06_backup/image-map.txt" | sort -u | xargs sudo docker image save -o "$book06_backup/images.tar"
+book06_helper_image=$(awk '$1 == "init_permissions" {print $2}' "$book06_backup/image-map.txt")
+git describe --tags --exact-match > "$book06_backup/version.txt"
+git rev-parse HEAD >> "$book06_backup/version.txt"`;
+export const volumeNames = `book06_home_volume=book06-dify_dify_agent_local_sandbox_home
+book06_workspace_volume=book06-dify_dify_agent_local_sandbox_workspace
+sudo docker volume inspect "$book06_home_volume" "$book06_workspace_volume" --format '{{.Name}} project={{index .Labels "com.docker.compose.project"}} volume={{index .Labels "com.docker.compose.volume"}}'`;
+export const stopSource = `d6 stop --timeout 120
+d6 ps -a
+sudo docker ps --filter label=com.docker.compose.project=book06-dify --format '{{.Names}}'
+d6 logs --tail 30 db_postgres weaviate redis`;
+export const archiveDirectory = `sudo tar --numeric-owner --acls --xattrs -czpf "$book06_backup/docker.tar.gz" -C "$HOME/docker-labs/dify" docker`;
+export const archiveHome = String.raw`sudo docker volume inspect "$book06_home_volume" >/dev/null && sudo docker run --rm --pull never --network none --read-only --user 0:0 --entrypoint /bin/tar \
+  --mount "type=volume,source=$book06_home_volume,target=/from,readonly,volume-nocopy" \
+  --mount "type=bind,source=$book06_backup,target=/backup" \
+  "$book06_helper_image" -cpf /backup/agent-home.tar -C /from .`;
+export const archiveWorkspace = String.raw`sudo docker volume inspect "$book06_workspace_volume" >/dev/null && sudo docker run --rm --pull never --network none --read-only --user 0:0 --entrypoint /bin/tar \
+  --mount "type=volume,source=$book06_workspace_volume,target=/from,readonly,volume-nocopy" \
+  --mount "type=bind,source=$book06_backup,target=/backup" \
+  "$book06_helper_image" -cpf /backup/agent-workspace.tar -C /from .`;
+export const proxyBackup = `sudo python3 proxy-volumes.py backup "$book06_backup"`;
+export const proxyRestore = `sudo python3 proxy-volumes.py restore "$book06_backup"`;
+export const checksum = `sudo chown "$(id -u):$(id -g)" "$book06_backup"/*.tar "$book06_backup"/*.tar.gz "$book06_backup/proxy-volumes.json"
+chmod 600 "$book06_backup"/*
+cd "$book06_backup"
+sha256sum docker.tar.gz agent-home.tar agent-workspace.tar images.tar compose.images.yaml image-map.txt version.txt proxy-volumes.json ssrf_proxy-log.tar ssrf_proxy-spool.tar agent_ssrf_proxy-log.tar agent_ssrf_proxy-spool.tar > SHA256SUMS
+sha256sum -c SHA256SUMS`;
+export const downloadBackup = `scp -r <LAB_USER>@<LAB_IPV4>:<BACKUP_ABSOLUTE_PATH> .`;
+export const restoreFolder = `mkdir "$HOME/docker-labs/dify-restore"
+sudo tar --numeric-owner --acls --xattrs -xzpf "$book06_backup/docker.tar.gz" -C "$HOME/docker-labs/dify-restore"
+cd "$HOME/docker-labs/dify-restore/docker"
+cp "$book06_backup/compose.images.yaml" compose.images.yaml
+chmod 600 .env compose.images.yaml
+nano .env`;
+export const restoreUrls = `CONSOLE_API_URL=http://localhost:8089
+CONSOLE_WEB_URL=http://localhost:8089
+SERVICE_API_URL=http://localhost:8089
+APP_API_URL=http://localhost:8089
+APP_WEB_URL=http://localhost:8089
+FILES_URL=http://localhost:8089
+SERVER_CONSOLE_API_URL=http://api:5001
+INTERNAL_FILES_URL=http://api:5001
+NEXT_PUBLIC_SOCKET_URL=ws://localhost:8089
+WEB_API_CORS_ALLOW_ORIGINS=http://localhost:8089
+CONSOLE_CORS_ALLOW_ORIGINS=http://localhost:8089`;
+export const restoreConfig = `d6r() { sudo docker compose -p book06-dify-restore -f docker-compose.yaml -f compose.book06.yaml -f compose.images.yaml -f compose.restore.yaml "$@"; }
+set -o pipefail
+d6r config --format json | python3 check-restore-config.py
+sudo docker ps -a --filter label=com.docker.compose.project=book06-dify-restore --format '{{.Names}}'
+sudo docker volume ls --filter label=com.docker.compose.project=book06-dify-restore --format '{{.Name}}'`;
+export const restoreCreate = `d6r create --no-build --pull never
+sudo docker ps --filter label=com.docker.compose.project=book06-dify-restore --format '{{.Names}}'
+sudo docker volume inspect book06-dify-restore_dify_agent_local_sandbox_home book06-dify-restore_dify_agent_local_sandbox_workspace --format '{{.Name}} project={{index .Labels "com.docker.compose.project"}}'`;
+export const restoreHome = String.raw`sudo docker volume inspect book06-dify-restore_dify_agent_local_sandbox_home >/dev/null && sudo docker run --rm --pull never --network none --read-only --user 0:0 --entrypoint /bin/sh \
+  --mount "type=volume,source=book06-dify-restore_dify_agent_local_sandbox_home,target=/to,volume-nocopy" \
+  --mount "type=bind,source=$book06_backup,target=/backup,readonly" \
+  "$book06_helper_image" -c 'test -z "$(ls -A /to)" && tar -xpf /backup/agent-home.tar -C /to'`;
+export const restoreWorkspace = String.raw`sudo docker volume inspect book06-dify-restore_dify_agent_local_sandbox_workspace >/dev/null && sudo docker run --rm --pull never --network none --read-only --user 0:0 --entrypoint /bin/sh \
+  --mount "type=volume,source=book06-dify-restore_dify_agent_local_sandbox_workspace,target=/to,volume-nocopy" \
+  --mount "type=bind,source=$book06_backup,target=/backup,readonly" \
+  "$book06_helper_image" -c 'test -z "$(ls -A /to)" && tar -xpf /backup/agent-workspace.tar -C /to'`;
+export const restoreStart = `d6r up -d --no-build --pull never
+d6r ps -a
+sudo docker ps --filter label=com.docker.compose.project=book06-dify-restore --format '{{.Names}} | {{.Ports}}'
+sudo docker network ls --filter label=com.docker.compose.project=book06-dify-restore --format '{{.ID}}' | xargs -r sudo docker network inspect --format '{{.Name}} internal={{.Internal}}'`;
+export const restoreTunnel = `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:8089:127.0.0.1:8089 <LAB_USER>@<LAB_IPV4>`;
+export const restoreNetworks = `d6r ps -a -q | xargs -r sudo docker inspect --format '{{.Name}} {{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}'`;
+export const outboundProbe = `d6r exec -T api python -c 'import socket
+try:
+    connection = socket.create_connection(("example.com", 443), timeout=5)
+except OSError:
+    print("No outbound connection; also verify actual network flags and membership")
+else:
+    connection.close()
+    raise SystemExit("STOP: outbound TCP is reachable; stop the restore project")'`;
+export const resumeSource = `d6r stop --timeout 120
+cd "$HOME/docker-labs/dify/docker"
+d6 up -d --pull never
+d6 ps -a`;
+
+<LearningGoals audience="原环境稳定、已有评估与资源卡的读者" duration="约 60—90 分钟；打包、传输与排错另计" outcome="得到可校验的停写备份与外部副本，并能区分同版本恢复证据和未验证的更新路径" />
+
+<Callout type="warning" title="恢复命令仍是草稿；先核对完整条件">
+  2026-09-11 校订，尚未执行 Dify 备份或恢复。本章只适用于第三章的全新 Ubuntu 24.04 / amd64、
+  1.17.1 默认组合和本册合成数据；不适用于外部数据库、对象存储、共享卷或真实业务。
+  操作需要停机和额外磁盘。本轮写作只校验命令语法与配置结构，没有创建备份资源或调用模型。
+</Callout>
+
+<section className="book-section" id="book06-11-scope">
+  ## 第一步：把恢复目标写在备份之前
+
+  备份是保存一份过去状态；恢复是用它重新得到可用状态。文件打包成功并不证明恢复成功。
+  本章先保持同一版本和架构，在同一隔离 VPS 的新目录、新 Compose 项目与新数据卷恢复，
+  原项目停机保留。这是一次恢复演练，不模拟 VPS 整机丢失；异机灾难恢复仍需另外验证。
+
+  <ComparisonTable>
+
+  | 必须带走 | 本章如何覆盖 | 遗漏会怎样 |
+  | --- | --- | --- |
+  | PostgreSQL 整个数据目录 | 停止服务后归档 docker/volumes/db/data；包含应用及插件相关数据库 | 只有应用定义，管理员与历史状态不完整 |
+  | 文件、索引、Redis 与插件存储 | 归档整个 docker 目录内的实际持久挂载 | 文档、索引、插件或队列状态不一致 |
+  | `.env`、内部秘密、文件加密材料、配置模板 | 连同 docker 目录受控保存；恢复时不重新生成秘密 | 旧凭证或数据可能不能读取 |
+  | 两个 Agent named volume | 分别归档 home 和 workspace | 它们在 Docker 管理范围内，不在项目文件夹里 |
+  | 两个 Squid 代理的四个匿名卷 | 按服务与挂载路径归档日志、缓存，并保存卷映射清单 | 镜像会自动创建，单看 Compose 文件容易遗漏 |
+  | 实际镜像与对应配置 | 从现有容器记录 image ID，保存镜像包与覆盖文件 | 滚动标签再次拉取可能变成另一版本 |
+  | 合成原文、DSL、评估卡与来源版本 | 第六、八章的本地资料另存并标明对应备份时间 | 只能启动，无法判断应用有没有恢复正确 |
+
+  </ComparisonTable>
+
+  数据库文件级备份要求数据库停止，或采用专门的一致性备份机制；不能运行中复制一部分目录。
+  本书选择停写和完整冷备份，不在入门主线里引入另一套在线备份工具。
+  [PostgreSQL 文件级备份](https://www.postgresql.org/docs/15/backup-file.html) ·
+  [Dify 存储与恢复范围](https://docs.dify.ai/en/self-host/deploy/troubleshooting/storage-and-migration)
+
+  在本地卡写清维护窗口、原项目和恢复项目归属、备份存放位置、持有人与保留期限。
+  备份含秘密，压缩和文件权限不等于加密；电脑目的位置应是本人已核对的加密存储，不能公共同步分享。
+</section>
+
+<section className="book-section" id="book06-11-inventory">
+  ## 第二步：盘点实际挂载，准备同一终端里的工作变量
+
+  以下服务器命令都在 VPS 的同一个 Bash 终端逐段执行。每段结束先读结果，任何错误都停止后续步骤。
+  d6 是给原项目的固定 Compose 命令起的临时函数名，末尾的参数会传给 Compose；关闭终端后它就消失。
+  本章不把这些函数写进系统配置。若中途断线，先重新定位项目和本次路径，再恢复变量，不能从中间盲接。
+
+  <CodeBlock label="VPS：定义原项目命令，并只读查看实际挂载" code={sourceShell} />
+
+  逐行与第二、三章清单对照：所有 bind 路径应在本项目 docker 目录内；卷包括下述两个 Agent 卷，
+  以及 ssrf_proxy、agent_ssrf_proxy 各自在 /var/log/squid 和 /var/spool/squid 的两个匿名卷，共六个。
+  匿名卷由 Docker 自动命名；2026-09-11 实机盘点发现 Squid 镜像声明了这些路径，原稿只数 Compose
+  中两个显式卷会遗漏。发现其他外部目录、数据库、共享卷或不明存储就停，本章归档范围不再适用。
+  查看结果只留本地，不输出完整 inspect 的凭证和环境配置。
+
+  <CodeBlock label="VPS：确认两个已存在卷的名称和项目标签" code={volumeNames} />
+
+  两项必须存在且 project 都为 book06-dify，volume 标签与各自逻辑名对应。不要把查不到的卷当作空卷，
+  更不要让备份容器自动创建同名空卷来凑成功。
+
+  将下列辅助程序完整保存为当前 docker 目录的 proxy-volumes.py。它按实际容器的服务名和挂载路径
+  定位四个代理卷；原项目必须全部停止，恢复时则必须是独立项目中的四个新空卷。
+  它不会备份数据库或两个 Agent 卷，也不会创建缺失卷、拉取镜像或覆盖已有归档。
+
+  <CodeBlock label="保存为 proxy-volumes.py：四个代理卷的归档与恢复" language="python" code={proxyVolumeHelper} printBreak />
+
+  <CodeBlock label="VPS：在项目外新建受控备份目录并检查空间" code={backupFolder} />
+
+  mkdir 不带 -p 的那行若报已存在，先检查，不覆盖旧备份。目录位置在 docker-labs 之外，
+  因此归档不会把正在增长的备份装进自己。需要为目录包、六个卷包、镜像包和恢复副本都预留空间；
+  镜像包通常很大，不能只按 TXT 大小估计。余量不足时先停止规划，不在此自动购买磁盘。
+</section>
+
+<section className="book-section" id="book06-11-images">
+  ## 第三步：保存当前真正使用的镜像
+
+  返回原项目 docker 目录，保持上一步变量。本节从已经创建的容器取得 image ID，
+  它是本机镜像内容标识；与仓库的 RepoDigest 记录相互补充，不是新的软件发布版本。
+  不使用此时再次 pull 得到的滚动标签来代表原环境。
+
+  <CodeBlock label="VPS：记录实际镜像、生成恢复覆盖文件并保存镜像包" code={imageFreeze} />
+
+  wc 应显示 16 行，对照第三章逐项确认服务名无重复、没有缺项，各 image ID 非空且以 sha256: 开头。
+  数量正确不是完整性证明；新生成的 compose.images.yaml 必须每个服务对应原容器的实际镜像。
+  images.tar 保存这些镜像，helper 变量选的是本版 init_permissions 使用的 BusyBox 镜像，
+  后面只运行其中的 tar 打包工具，不执行原初始化动作，也不下载新工具镜像。
+
+  version.txt 应记录 1.17.1 和原源码提交；文件缺失、save 失败或空间不足都先停。
+  此覆盖文件只用于后面的恢复项目，不回写第三章原配置。
+  [Docker 镜像保存](https://docs.docker.com/reference/cli/docker/image/save/)
+</section>
+
+<section className="book-section" id="book06-11-stop">
+  ## 第四步：停止写入，再打包同一时点的数据
+
+  在 Dify 确认没有进行中的运行、索引、插件安装和计划任务，暂停自己的操作。
+  本书没有外部触发和其他用户，仍需检查前面有没有遗留任务。
+  如已有第九章的公开 route，先撤本次 route、保留 Access；保留 SSH 管理通道，不关闭云主机。
+
+  <CodeBlock label="VPS：正常停止全项目，确认没有继续运行的容器" code={stopSource} />
+
+  stop 最多等待 120 秒再强制终止，超时强杀不是干净停机。
+  常驻服务应停止，第三行没有结果，数据库等日志显示正常关闭；任何非预期 137、关闭错误或仍运行项
+  都不能直接归档为一致备份。先查原因、在原项目恢复稳定后重新安排停写，不删文件绕过。
+  停机后直到本批归档完成，不再启动任何写入这些数据的服务。
+
+  <CodeBlock label="VPS：完整归档 docker 目录，保留属主、权限与扩展属性" code={archiveDirectory} />
+
+  tar 把目录保存成一个包，gzip 压缩减小体积；这不加密数据。下两段用断网的临时工具容器读取
+  已存在的卷，只把包写入备份目录。原卷只读，临时容器结束后删除，原卷不会删除。
+
+  <CodeBlock label="VPS：备份 Agent home 卷" code={archiveHome} />
+  <CodeBlock label="VPS：备份 Agent workspace 卷" code={archiveWorkspace} />
+
+  任一包报权限、文件变化、读取失败或写满磁盘都停止；不要把部分包继续拿去恢复。
+  本书只对 Linux 本地默认卷做此操作；特殊文件、额外卷驱动或外部挂载需要另定备份方案。
+  [Docker 卷备份与恢复](https://docs.docker.com/engine/storage/volumes/)
+</section>
+
+<section className="book-section" id="book06-11-copy">
+  ## 第五步：校验文件，并保留 VPS 外的副本
+
+  将刚生成的归档文件交给当前维护用户，权限收紧为 600，再生成 SHA-256 校验清单。
+  SHA-256 是由文件内容计算的指纹，用来发现传输损坏；它不验证数据库逻辑正确，也不提供文件加密。
+
+  <CodeBlock label="VPS：全部服务停止后，归档四个代理卷并保存映射" code={proxyBackup} />
+
+  确认程序报告四个卷归档完成。proxy-volumes.json 记录每个原卷、服务、容器路径及对应包名；
+  将它与四个代理卷包一起纳入校验。总计十二份材料，另加 SHA256SUMS，不能只下载原稿七份。
+
+  <CodeBlock label="VPS：调整本次归档文件权限并核对十二份材料" code={checksum} />
+
+  十二项都应显示 OK；这时才有一组候选恢复材料。不要手工修改校验清单让失败消失。
+  将当前备份目录的完整路径仅记在本地卡，保持该终端，后面仍要用到 book06_backup。
+
+  在自己的电脑打开另一个终端，先进入已确认的加密备份文件夹，再使用下面命令。
+  占位符分别换成本人 SSH 用户、VPS 地址和刚才的绝对路径，删除尖括号。
+  自定义 SSH 端口在 scp 中用大写 -P，密钥仍用 -i；沿用第一册已经核对的连接方式。
+
+  <CodeBlock label="自己的电脑：通过 SSH 下载整个本次备份文件夹" code={downloadBackup} />
+
+  进入下载后的时间戳文件夹。macOS 可运行 <code>shasum -a 256 -c SHA256SUMS</code>；
+  Windows PowerShell 用 <code>Get-FileHash -Algorithm SHA256 .\docker.tar.gz</code> 计算文件指纹，
+  对十二个文件逐个重复，将 Hash 与 SHA256SUMS 对应行逐字核对，不只看文件名或大小。
+  失败就重新检查传输，不删除 VPS 上的原包，也不继续恢复。
+
+  这份外部副本与本地 DSL、三份 TXT、评估卡一同受控保留。不要把含秘密归档传到聊天或公开网盘。
+  云主机仍计费，源服务仍停机；下一节演练用同机副本，外部副本负责证明资料已离开原 VPS。
+</section>
+
+<section className="book-section" id="book06-11-isolate">
+  ## 第六步：先建立恢复隔离，再启动任何服务
+
+  这次恢复项目固定为 book06-dify-restore，目录为 $HOME/docker-labs/dify-restore/docker，
+  入口为回环 8089。原项目继续停止，原目录和六个原卷都保留，不允许把恢复包覆盖回原目录。
+  确认本机没有同名恢复项目、目录或卷，8089 未被占用；不确定就停，不清理未知对象。
+
+  回到保留的 VPS 终端，先在备份目录再次执行 <code>sha256sum -c SHA256SUMS</code>。
+  同机演练使用刚才保存的相同 image ID；没有在此期间 prune 或 pull。
+  若原镜像已缺失，在确认本次镜像包指纹后用
+  <code>sudo docker image load -i "$book06_backup/images.tar"</code> 恢复包内镜像；不从 latest 替代。
+  [Docker 镜像载入](https://docs.docker.com/reference/cli/docker/image/load/)
+
+  <CodeBlock label="VPS：只解包到全新恢复目录，并编辑恢复副本的 .env" code={restoreFolder} />
+
+  mkdir 若显示目录已存在，立即停止，不执行后面的 tar。只使用自己这次生成、校验通过的归档，
+  不以管理员身份解包未知来源文件。打开 nano 后，只把以下已有地址字段改成恢复入口；
+  密码、加密秘密和内部 key 必须保留，禁止运行第三章 prepare-env.py 重新生成。
+
+  <CodeBlock label="恢复副本 .env：只改地址与浏览器来源" code={restoreUrls} />
+
+  按 Ctrl+O、回车、Ctrl+X 保存退出。再运行 nano compose.restore.yaml，粘贴下面差异文件并保存。
+  它把入口改到 8089，把恢复用网络设为 internal（阻止通常的外部路由），并禁止新卷自动复制镜像内初始文件。
+  后者保证我们能先检查空卷，再写入备份内容。
+
+  <CodeBlock label="compose.restore.yaml：仅用于恢复项目" code={restoreOverride} printBreak />
+
+  第三章的差异文件负责保留关闭的插件调试口，镜像覆盖负责固定实际镜像，这份恢复差异最后生效。
+  四份文件都要使用，不能只复制“换端口”一行。internal 网络不能代替完整权限体系；
+  同机主机服务、额外网络连接与手工代理仍需核对。隔离 VPS 上不得另有给恢复容器转发外网的主机代理。
+  本演练始终不开放恢复网络、不接 Tunnel、不保存新的有效模型凭证、不点模型运行或凭证验证。
+  [Compose 内部网络](https://docs.docker.com/reference/compose-file/networks/)
+</section>
+
+<section className="book-section" id="book06-11-validate">
+  ## 第七步：检查恢复配置，创建空卷后再写入
+
+  在恢复目录运行 nano check-restore-config.py，粘贴下面公开检查代码并保存。
+  它只读有效配置，不调用 Docker、不打印秘密；检查项目、镜像、端口、网络和挂载是否仍指向恢复范围。
+
+  <CodeBlock label="check-restore-config.py：启动前的结构检查" code={restoreChecker} printBreak={true} />
+
+  <CodeBlock label="VPS 恢复目录：定义 d6r，检查配置与已有对象" code={restoreConfig} />
+
+  第一项检查应显示 OK，后两项应没有结果，证明尚无同名容器和卷；它们不证明数据本身可用。
+  任何 STOP 都先修正恢复文件，不能删去校验条件让它过。
+
+  <CodeBlock label="VPS：仅创建恢复容器和空卷，不启动程序" code={restoreCreate} />
+
+  create 不执行容器里的服务。第二行仍应为空，两个卷的 project 标签都为 book06-dify-restore。
+  不允许存在原项目名或卷名；核对后分别恢复两个卷。命令先确认卷存在，再拒绝向非空目标解包。
+
+  <CodeBlock label="VPS：只恢复到新的 home 卷" code={restoreHome} />
+  <CodeBlock label="VPS：只恢复到新的 workspace 卷" code={restoreWorkspace} />
+
+  两段应正常结束。非空目标、权限或解包错误都停止，不删除目标内容再蒙混通过；先确认是不是上次遗留恢复。
+  原 docker 目录中的数据库、文件与索引已经随目录包恢复，这两段只补齐目录之外的两个 Agent 卷。
+  恢复差异文件还显式声明四个不自动填充内容的匿名代理卷；仅 create 后它们应为空。
+
+  <CodeBlock label="VPS：保持全栈停止，向四个新空代理卷回填各自归档" code={proxyRestore} />
+
+  程序先核对全部目标为空、没有复用原卷或被其他容器共享，再离线回填；任何一项失败都停止，
+  不删除卷重试。四个代理卷与两个 Agent 卷都完成后，才进入下一步启动恢复项目。
+  [Compose create](https://docs.docker.com/reference/cli/docker/compose/create/)
+</section>
+
+<section className="book-section" id="book06-11-proof">
+  ## 第八步：在隔离网络里验证恢复，先不请求模型
+
+  <CodeBlock label="VPS：启动恢复副本，核对回环入口和实际网络" code={restoreStart} />
+
+  逐项确认所需服务与初始化状态，所有恢复网络 internal=true，唯一发布入口为 127.0.0.1:8089。
+  若离线环境导致插件启动或其他必需服务失败，记录未通过，不临时放开外网下载。
+  再检查恢复容器的实际挂载是否全部属于恢复目录和六个新卷；配置检查不能代替这一步。
+  可复用第二步的挂载检查命令，把 d6 换成 d6r，只在本地查看。
+  同时检查每个容器实际连接的网络，只能属于刚核对的恢复网络，不能手工接到原项目或其他网络。
+
+  <CodeBlock label="VPS：只读核对恢复容器实际连接的网络" code={restoreNetworks} />
+
+  在 api 已稳定后，做一次不带凭证、只建立 TCP 连接的负向检查。目标是保留示例站点 example.com 的 443 端口，
+  不发送 HTTP 内容或模型请求；这不是给模型提供方的计费测试。
+
+  <CodeBlock label="VPS 恢复目录：不带凭证的外连检查" code={outboundProbe} />
+
+  出现 STOP 就立即用 d6r stop 停止恢复副本并查网络；不能继续登录和检索验收。
+  无法连接也可能由 DNS 或目标故障造成，因此必须与实际 internal 标志、容器网络成员和主机无代理一起判断，
+  不能仅凭这一次超时宣称所有外发都被阻断。
+
+  在自己的电脑另开终端建立恢复专用转发，沿用本人 SSH 端口、密钥和身份核对方式：
+
+  <CodeBlock label="自己的电脑：恢复副本使用 8089，与原入口区分" code={restoreTunnel} />
+
+  打开 <code>http://localhost:8089</code>，用原管理员登录。看到初始化建号页、空工作区或要求重设管理员，
+  都是恢复未完成；不能新建账号把它包装成成功。
+
+  <ComparisonTable>
+
+  | 核对项 | 同版本恢复应保留 | 失败判断 |
+  | --- | --- | --- |
+  | 管理员与工作区 | 原本人账户可登录，成员归属和权限一致 | 新建号页、未知成员或权限变化 |
+  | 应用 | 原应用、导入检查副本、节点、提示词、草稿与发布版本对应 | 只有空画布或导入了一份 DSL 冒充恢复 |
+  | 文档与索引 | 三份原始 TXT、启用状态、R/S/C 段号与片段存在 | 文件缺失、旧资料仍停用或片段为空 |
+  | 经济检索 | 按第六章固定题可找回相应原文，资料外题如实记录 | 只看到文件列表就说检索通过 |
+  | 历史与设置 | 能打开既有记录；模型选择、参数、插件版本和更新策略可核对 | 不同版本插件或设置被重置 |
+  | 隔离与费用 | 无公开 route；未点运行/验证；提供方用量无本次新增 | 出现外发或无法解释的请求，先停止恢复项目 |
+
+  </ComparisonTable>
+
+  再按第八章做一次经济检索的停用/恢复对照，只改恢复副本中的合成文档，确保它能写入并回到原状态。
+  这验证本地状态操作，不使用生成模型。恢复中可能保留历史队列，因此停止前检查任务和启动后的用量核对都不能省。
+  不通过发送模型请求来测试“会不会扣费”。
+
+  本节不证明恢复后的远程模型鉴权与生成成功：网络受限，界面显示了连接信息也不能证明解密和调用都正常。
+  这部分须在另定预算与隔离步骤下单独验收，不能给恢复副本直接开放外网补分。
+  记录“本地恢复通过、远程生成未覆盖”比写“全部恢复成功”更准确。
+</section>
+
+<section className="book-section" id="book06-11-return">
+  ## 第九步：停止副本，回到原项目
+
+  在 VPS 保持 d6r 对应恢复目录，停止恢复服务；再切回原目录，用 d6 启动原项目。
+
+  <CodeBlock label="VPS：先停恢复副本，再恢复原服务" code={resumeSource} />
+
+  先在原入口重新核对管理员、三份资料与基线记录，再考虑恢复原 route；恢复 route 前仍须有原 Access 保护。
+  电脑恢复转发窗口按 Ctrl+C 关闭，不要关错 SSH 管理终端。新副本及归档暂时保留并登记磁盘占用、保留期限，
+  它们不会因 stop 自动删除；第十二章按归属清单处理。本章不删除原目录、原卷或任何备份。
+
+  恢复失败时停止副本，保留失败证据与原备份，原项目未被覆盖即可继续按原基线处理。
+  不把失败副本的数据库复制回原项目。
+</section>
+
+<section className="book-section" id="book06-11-update">
+  ## 第十步：有恢复证据以后，再评估更新
+
+  更新不是把标签改成 latest。先阅读目标版本 release notes（发布说明），分别核对 Dify、插件、
+  PostgreSQL、Weaviate 与其他依赖的升级要求，再对比新旧 Compose 和环境模板。
+  本书 1.17.1 对既有 Weaviate 数据有分阶段版本路径要求，不能从旧版直接跳过中间步骤；
+  也不为补演练去安装已知不合适的旧版本。
+  [Dify 1.17.1 发布说明](https://github.com/langgenius/dify/releases/tag/1.17.1) ·
+  [Weaviate 升级路径](https://docs.dify.ai/en/self-host/deploy/troubleshooting/weaviate-server-migration-path)
+
+  在更新卡写下目标版本、每个依赖的变化、所需空间与停机时间、数据库迁移方式、测试题、失败时使用哪份
+  更新前备份。先在独立副本验证，逐项达到预期后才安排原环境窗口；缺少某项路径就停在评估，
+  本章不提供未经本册实测的跨版本更新命令。
+
+  数据库迁移是改变数据结构，旧程序不一定能读取新结构。更新后失败时，只把镜像标签改回去可能继续损坏状态；
+  应按已验证方案恢复同一时点的旧程序、旧数据与秘密，不能混用新数据库和旧镜像。
+  同版本演练证明的范围有限，不能据此宣称跨版本降级安全。
+
+  <strong>完成状态：</strong>备份材料、VPS 外副本、同版本恢复记录、费用与剩余范围都可追溯。
+  下一章再把日常维护、暂停与永久退役分开，明确哪些对象保留、哪些操作会停止计费。
+</section>

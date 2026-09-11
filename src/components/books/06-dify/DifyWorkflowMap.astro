@@ -1,0 +1,47 @@
+<figure class="dify-workflow" aria-label="资料问答工作流教学示意">
+  <figcaption><strong>一次问题，两条互斥的结果路径</strong><small>教学示意 · 不会在本页调用模型</small></figcaption>
+  <ol class="dify-workflow__trunk">
+    <li><strong>① 用户输入</strong><span>question：这次的问题</span></li>
+    <li><strong>② 查找资料</strong><span>result：找到的片段列表</span></li>
+    <li><strong>③ 条件分支</strong><span>列表是否为空？只走一边</span></li>
+  </ol>
+  <div class="dify-workflow__branches">
+    <section>
+      <h3>为空 → 固定提示</h3>
+      <p>没有找到可用资料，请换一种说法。</p>
+      <small>不经过生成模型；输出 notice</small>
+    </section>
+    <section>
+      <h3>不为空 → 根据片段回答</h3>
+      <p>一个模型生成回答；模板整理原始片段。</p>
+      <small>分别输出 answer 和 references</small>
+    </section>
+  </div>
+  <p class="dify-workflow__note">找到候选片段，不代表它足以支持答案。仍要核对回答与原文。</p>
+</figure>
+
+<style>
+  .dify-workflow { margin: 0; border: var(--border-thin); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface); }
+  figcaption { display: grid; gap: var(--space-1); background: var(--color-surface-muted); padding: var(--space-4); border-bottom: var(--border-thin); }
+  small, span { color: var(--color-text-muted); }
+  .dify-workflow__trunk { display: grid; gap: var(--space-3); grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: var(--space-4); margin: 0; }
+  li { min-width: 0; border-bottom: 2px solid var(--color-primary); padding: var(--space-3); }
+  li strong, li span { display: block; }
+  li span { font-size: var(--font-size-sm); margin-top: var(--space-2); overflow-wrap: anywhere; }
+  .dify-workflow__branches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); padding: 0 var(--space-4) var(--space-4); }
+  section { min-width: 0; border: var(--border-thin); border-left: 3px solid var(--color-primary); padding: var(--space-4); border-radius: var(--radius-sm); }
+  h3 { font-size: var(--font-size-base); margin: 0; }
+  section p { margin-block: var(--space-2); }
+  .dify-workflow__note { margin: 0; padding: var(--space-3) var(--space-4); border-top: var(--border-thin); background: var(--color-surface-muted); font-size: var(--font-size-sm); }
+  @media (max-width: 48rem) {
+    .dify-workflow__trunk, .dify-workflow__branches { grid-template-columns: 1fr; }
+  }
+  @media print {
+    .dify-workflow { break-inside: avoid; background: white; border-color: #999; }
+    figcaption, .dify-workflow__note { background: white; border-color: #999; }
+    .dify-workflow__trunk { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3mm; gap: 2mm; }
+    .dify-workflow__branches { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; padding: 0 3mm 3mm; }
+    li, section { border-color: #777; padding: 2mm; }
+    small, span { color: #333; }
+  }
+</style>
