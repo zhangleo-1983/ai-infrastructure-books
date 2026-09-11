@@ -6,7 +6,7 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第七册 G1.1 只读盘点已开始，Vultr 账户基线已记录，等待完成报价与域名/Tunnel 核对
+  phase: 第七册 G1.1 已记录 Vultr 账户与东京候选报价，等待域名/Tunnel 基线和部署参数复核
 current:
   summary: Owner 要求合盖带走电脑，暂停至到家明确确认后续跑。第六册 G1—G5 已通过；G6 已执行项恢复，后台任务故障、429 和超时明确未覆盖。G7.1—G7.3 完成：六卷与全目录冷备份、十二材料 SHA256SUMS、VPS 外 FileVault 本机副本校验通过。首次停机四项 137 已保留失败记录；恢复原栈后按原生进程关闭再停机，全栈 0/143、数据库正常退出才归档。新增 stop-stack.py 和 28 项 Python 回归，正文接入及脚本整体实机仍待续接。当前原栈全停、route 撤除、Access 保留；恢复项目未创建。专用 key 8 次/1665 tokens/少于 0.01 元，余 4 次；VPS 仍计费，19:28 显示 0.18 美元，最迟 2026-09-12 16:51:19+08:00 清理。书籍已切换为 release-candidate / 1.0.0-rc.1；本地 RC 检查、第六册 Chromium 8/8、GitHub CI、Pages 部署与线上冒烟均通过。第六册保持 release-candidate / 1.0.0-rc.1。第一至第五册发布候选均已发布。第五册 15 个内容单元为 release-candidate / 1.0.0-rc.1；RC 实机校订 G1—G8、永久清理、production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径验收全部通过。发布合并提交与带注释标签已推送，GitHub CI 和 Pages workflow 成功，线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟通过。第五册临时 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS 已永久删除；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。
   working_on:
@@ -14,9 +14,9 @@ current:
     - 第八至第十册各建立 15 个 draft 内容单元，完成规划、三篇样章起点、12 章正文、附录与资料来源；三册均保持 drafting，尚未执行实机校订或发布
     - 第八至第十册 36 个章节正文已完成第二轮扩写，补充各自主题的概念、最小练习、成功状态、失败判断与交接记录；全站检查继续通过
     - Owner 验收第七册整册 draft；已建立第七册独立 G1—G8 实机方案、费用与安全停止边界、空白结果台账；外部资源尚未创建
-    - 第七册 G1.1 已取得 Vultr Dashboard 只读基线：Current Balance $0.00、Pending Charges $0.00、Bandwidth Usage $0.54；报价、域名和 Tunnel 仍待核对
+    - 第七册 G1.1 已取得 Vultr Dashboard 只读基线：Current Balance $0.00、Pending Charges $0.00、Bandwidth Usage $0.54；部署页显示东京可用的 Dedicated CPU vx1-g-2c-8g（2 vCPU/8 GB/5 TB，$0.060/hr），尚未提交创建
 next_actions:
-  - 完成第七册 G1.1 的套餐报价、域名 DNS/DNSSEC 与 Tunnel 共享依赖核对
+  - 完成第七册 G1.1 的域名 DNS/DNSSEC 与 Tunnel 共享依赖核对，并锁定部署参数
   - 只有费用、对象归属和清理期限明确后，才创建唯一专用 VPS
   - 第七册每个闸门通过并恢复基线后再进入下一门；第八至第十册实机顺序待第七册收口后安排
   - 后续维护窗口升级 GitHub Actions 依赖的 action 主版本，消除 Node.js 20 弃用提示
