@@ -247,8 +247,8 @@ export const books: readonly BookDefinition[] = [
     shortTitle: "搭建自己的 AI 应用",
     subtitle: "Dify 从工作流到知识库",
     description: "使用官方 Compose 部署 Dify，以合成资料建立单次问答工作流，并掌握访问控制、费用与恢复边界。",
-    status: "drafting",
-    version: "0.0.0",
+    status: "release-candidate",
+    version: "1.0.0-rc.1",
     updatedAt: "2026-09-11",
     featured: false,
     cover: {
@@ -261,15 +261,15 @@ export const books: readonly BookDefinition[] = [
     },
     completion: standardCompletionRules,
     search: {
-      enabled: false,
+      enabled: true,
       indexedChapterTypes: allContentTypes,
       resultBookLabel: "Dify",
     },
     print: {
-      enabled: false,
+      enabled: true,
       includedChapterTypes: allContentTypes,
       noindex: true,
-      description: "第六册《搭建自己的 AI 应用：Dify 从工作流到知识库》打印版；当前仅供开发态样章审阅。",
+      description: "第六册《搭建自己的 AI 应用：Dify 从工作流到知识库》发布候选打印版。",
     },
   },
   {

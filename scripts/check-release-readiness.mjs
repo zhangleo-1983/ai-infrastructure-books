@@ -312,6 +312,13 @@ if (book05IndexedPages.length !== 15) {
   );
 }
 
+const book06PrintFile = resolve(outputDirectory, "books/06-dify/print/index.html");
+if (!existsSync(book06PrintFile)) failures.push("第六册缺少整册打印页");
+else if (parse(readFileSync(book06PrintFile, "utf8")).querySelectorAll("[data-print-chapter]").length !== 15) failures.push("第六册整册打印页必须包含 15 个内容单元");
+const book06ChapterPages = chapterPages.filter(({ document }) => document.querySelector("[data-chapter-status-root]")?.getAttribute("data-book-id") === "06-dify");
+if (book06ChapterPages.length !== 15) failures.push(`第六册必须生成 15 个独立内容页，实际 ${book06ChapterPages.length}`);
+if (book06ChapterPages.filter(({ document }) => document.querySelector("[data-pagefind-body]")).length !== 15) failures.push("第六册必须生成 15 个 Pagefind 正文入口");
+
 const configuredSite = process.env.SITE_URL?.trim();
 if (configuredSite) {
   for (const file of htmlFiles) {
@@ -360,6 +367,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一至第五册各 15 个正文索引页，第二册严格原型回归保持通过。`,
+    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一至第六册各 15 个正文索引页，第二册严格原型回归保持通过。`,
   );
 }

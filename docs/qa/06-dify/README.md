@@ -2,8 +2,7 @@
 
 书名：《搭建自己的 AI 应用：Dify 从工作流到知识库》。更新日期：2026-09-11。
 
-当前按 Owner 要求暂停于 G7.3：完整冷备份及电脑副本已校验，恢复项目尚未创建。续接见 [暂停交接](pause-checkpoint.md)。书籍状态仍为：`drafting / 0.0.0`。Owner 回复“确认了”，验收第 12 章、附录、
-资料来源及 15 个完整 draft；不进入 production、Pagefind、sitemap、正式完成状态和正式打印。
+第六册已进入 `release-candidate / 1.0.0-rc.1`，15 个内容单元已纳入 production、Pagefind、完成状态和正式打印。实机边界与未覆盖项见 [发布候选验收](release-candidate.md) 和 [实机结果台账](field-validation-results.md)。
 开发态打印仅用于审阅。
 
 - [已确认内容规格](../../planning/book06-content-spec.md)
@@ -23,7 +22,7 @@
 - [当前暂停节点与续接顺序](pause-checkpoint.md)
 - [G7 备份范围实机盘点与校订](g7-backup-preflight.md)
 
-本次整册确认后已建立 41 个执行步骤、对象与费用卡、请求账、评估/访问/恢复及清理记录模板。
+本次整册确认后已建立 41 个执行步骤、对象与费用卡、请求账、评估/访问/恢复及清理记录模板。RC 证据与发布门槛见 [发布候选验收](release-candidate.md)。
 Owner 随后回复“开始吧”，G1.1 已只读核对实例/Tunnel 清单、DNS/DNSSEC 和 VPS 创建表单。
 Owner 已授权 G1—G8；最新要求暂停至到家确认。G1—G5 已通过，G6 已执行项恢复，G7.1—G7.3 双端备份校验完成；专用 key 8 次/1665 tokens/少于 0.01 元。
 VPS 正在计费，最迟清理时间为北京时间 2026-09-12 16:51:19；无自动销毁任务。本人电脑与手机均通过；当前原栈已停止、route 已撤，Access 与恢复材料保留。
