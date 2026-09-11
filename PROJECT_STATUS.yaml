@@ -6,12 +6,13 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第六册 1.0.0-rc.1 已发布，CI、Pages 与线上冒烟通过
+  phase: 第七册策划草案已建立，等待 Owner 确认书名、主线与样章
 current:
   summary: Owner 要求合盖带走电脑，暂停至到家明确确认后续跑。第六册 G1—G5 已通过；G6 已执行项恢复，后台任务故障、429 和超时明确未覆盖。G7.1—G7.3 完成：六卷与全目录冷备份、十二材料 SHA256SUMS、VPS 外 FileVault 本机副本校验通过。首次停机四项 137 已保留失败记录；恢复原栈后按原生进程关闭再停机，全栈 0/143、数据库正常退出才归档。新增 stop-stack.py 和 28 项 Python 回归，正文接入及脚本整体实机仍待续接。当前原栈全停、route 撤除、Access 保留；恢复项目未创建。专用 key 8 次/1665 tokens/少于 0.01 元，余 4 次；VPS 仍计费，19:28 显示 0.18 美元，最迟 2026-09-12 16:51:19+08:00 清理。书籍已切换为 release-candidate / 1.0.0-rc.1；本地 RC 检查、第六册 Chromium 8/8、GitHub CI、Pages 部署与线上冒烟均通过。第六册保持 release-candidate / 1.0.0-rc.1。第一至第五册发布候选均已发布。第五册 15 个内容单元为 release-candidate / 1.0.0-rc.1；RC 实机校订 G1—G8、永久清理、production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径验收全部通过。发布合并提交与带注释标签已推送，GitHub CI 和 Pages workflow 成功，线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟通过。第五册临时 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS 已永久删除；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。
   working_on:
-    - 第六册 RC 本地验收已完成；实机未覆盖项、G8 清理证据和线上发布结果按 QA 台账记录
+    - 第七册 n8n 策划草案与 P1 复核已建立，尚未创建样章或外部资源
 next_actions:
+  - 等待 Owner 确认第七册最终书名、自动化案例和三篇样章组合
   - 后续维护窗口升级 GitHub Actions 依赖的 action 主版本，消除 Node.js 20 弃用提示
 blockers: []
 milestones:
@@ -219,9 +220,12 @@ milestones:
   - id: milestone-68
     name: 第六册 1.0.0-rc.1 本地发布候选构建、搜索、打印、Chromium 与无障碍验收已完成
     status: completed
+  - id: milestone-69
+    name: 第七册 n8n 选题、15 个内容单元、推荐主线、三篇样章候选与 G1—G8 闸门草案已建立，等待 Owner 确认
+    status: completed
 activity:
-  last_meaningful_update: 2026-09-11T21:45:30+08:00
-  last_status_review: 2026-09-11T21:45:30+08:00
+  last_meaningful_update: 2026-09-11T21:50:30+08:00
+  last_status_review: 2026-09-11T21:50:30+08:00
 management:
   archived: false
   status_maintenance: automatic
