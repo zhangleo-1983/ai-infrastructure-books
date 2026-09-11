@@ -2,7 +2,7 @@
 
 校订日期：2026-09-11
 
-当前结论：发布候选已通过本地综合验收，等待提交、GitHub Pages 部署与线上冒烟确认。
+当前结论：发布候选已合并到 `main`、创建带注释标签并通过 GitHub CI、GitHub Pages 部署与线上冒烟，现为已发布状态。
 
 ## 范围
 
@@ -53,9 +53,19 @@ RC 切换时发现并修复了两类结构问题：整册打印中四次复用�
 
 使用 `SITE_URL=https://zhangleo-1983.github.io` 与 `BASE_PATH=/ai-infrastructure-books/` 重新构建；88 个 HTML、75 个 Pagefind 内容页、2604 条内部链接、canonical、sitemap 与 release readiness 全部通过。
 
+## GitHub Actions 与线上冒烟
+
+- 发布合并提交为 `8f685fcdc82e338fc8daf6685f6ce7043169a56b`，带注释标签为 `book05-v1.0.0-rc.1`；
+- GitHub CI run `34564148563` 的 `verify` 与 `browser` job 均成功，跨浏览器 job 用时 4 分 27 秒；
+- GitHub Pages run `34564148726` 的 `build` 与 `deploy` job 均成功；
+- 公开站点 `https://zhangleo-1983.github.io/ai-infrastructure-books/` 已可访问；首页、书目、第五册封面、第 7 章、第 11 章、资料来源与打印页均返回 HTTP 200；
+- 上述页面 canonical 均指向带 `/ai-infrastructure-books/` 前缀的正式地址；打印页为 `noindex,follow`；不存在路径返回自定义 HTTP 404 与 `noindex,nofollow`；
+- 针对公开站点执行 Chromium 验收 14 / 14 通过，覆盖第五册封面、导航、无 JavaScript 阅读、五档视口、深色与打印样式、WCAG A / AA 自动扫描，以及第一至第五册搜索；第五册 20 / 20 个中文搜索样本命中预期章节；
+- workflow 仅有 `actions/checkout@v4` 与 `actions/setup-node@v4` 的 Node.js 20 弃用预警；runner 已强制使用 Node.js 24，本次检查和部署未受影响，升级 action 主版本留作独立维护任务。
+
 ## 安全与剩余边界
 
 - 仓库只使用 `<LAB_DOMAIN>`、`<LAB_IPV4>` 等占位符；敏感模式扫描随提交前检查复核；
 - 429、上游 timeout、普通用户与分享 UI、跨版本 migration、管理员密码与 Secret 轮换、Ollama 实机仍是明确未覆盖项；
 - G8 已清空第五册临时外部对象。根 zone、nameserver、DNSSEC 与域名续费责任按范围保留；
-- 线上发布状态只有在 GitHub Pages workflow 成功且公开 URL 冒烟通过后才能改为“已发布”。
+- VPS 已永久销毁，不再产生该实例的持续计算费用；销毁前已发生的最终账单行仍可能稍后入账。

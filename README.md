@@ -126,6 +126,7 @@ Tunnel、临时防火墙规则和 VPS；根 zone、nameserver 与 DNSSEC 保留�
 97 tokens、费用低于 0.01 元，没有充值或订阅；VPS 已销毁，不再产生持续计算费用。内容规格见
 [`docs/planning/book05-content-spec.md`](docs/planning/book05-content-spec.md)，实机结果见
 [`docs/qa/05-open-webui/field-validation-results.md`](docs/qa/05-open-webui/field-validation-results.md)。
+该版本已由 `main` 通过 GitHub Pages 发布，并完成线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟检查。
 
 ------------------------------------------------------------------------
 

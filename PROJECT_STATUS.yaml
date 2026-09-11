@@ -6,14 +6,12 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第五册 1.0.0-rc.1 发布准备
+  phase: 第五册 1.0.0-rc.1 已发布
 current:
-  summary: 第一至第四册发布候选均已发布；第五册 15 个内容单元已进入 release-candidate / 1.0.0-rc.1。RC 实机校订 G1—G8 已通过：G6 的应用、route、connector、模型 ID 与 CORS 故障均恢复，G7 的停止写入备份、hash、VPS 外副本和同版本隔离恢复通过，G8 已永久删除第五册 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。第五册 production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径发布前验收已通过，等待提交、标签、部署和线上冒烟。
+  summary: 第一至第五册发布候选均已发布。第五册 15 个内容单元为 release-candidate / 1.0.0-rc.1；RC 实机校订 G1—G8、永久清理、production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径验收全部通过。发布合并提交与带注释标签已推送，GitHub CI 和 Pages workflow 成功，线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟通过。第五册临时 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS 已永久删除；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。
   working_on:
-    - 第五册 1.0.0-rc.1 提交、标签、GitHub Pages 部署与线上冒烟
+    - 第五册 1.0.0-rc.1 发布后观察；等待下一项明确任务
 next_actions:
-  - 将第五册发布候选提交到独立 codex 分支，合并到 main 并创建 book05-v1.0.0-rc.1 带注释标签
-  - 等待 GitHub CI 与 Pages 部署成功，完成线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟检查
   - 后续维护窗口升级 GitHub Actions 依赖的 action 主版本，消除 Node.js 20 弃用提示
 blockers: []
 milestones:
@@ -196,10 +194,10 @@ milestones:
     status: completed
   - id: milestone-60
     name: 第五册 book05-v1.0.0-rc.1 发布提交、标签、GitHub Pages 部署与线上冒烟
-    status: in_progress
+    status: completed
 activity:
-  last_meaningful_update: 2026-09-11T12:50:29+08:00
-  last_status_review: 2026-09-11T12:50:29+08:00
+  last_meaningful_update: 2026-09-11T13:05:00+08:00
+  last_status_review: 2026-09-11T13:05:00+08:00
 management:
   archived: false
   status_maintenance: automatic
@@ -248,3 +246,4 @@ confidence:
     - Owner 授权第五册 G7；停止写入归档、SHA-256 manifest、VPS 外副本与同版本测试 volume 恢复通过，数据库 hash、唯一管理员、4 条合成聊天和配置一致且没有模型调用
     - Owner 授权第五册 G8；公开 route 与 DNS、模型连接与专用 key、容器、两个 volume、Secret、备份、connector、Tunnel、临时防火墙规则和 VPS 已精确删除，公共 DNS 零答案、旧 key 401、计费附加资源清单为空且根 zone 与 DNSSEC 保留
     - 第五册 172 项单元测试、88 页 production build、75 页 Pagefind、2604 条内部链接、156 项 Playwright 收集结果、20 个中文搜索样本、133 页 A4 PDF、Lighthouse 四类 100 分、npm audit 0 与 GitHub Pages 子路径构建提供发布前直接证据
+    - 第五册发布合并提交、带注释标签、GitHub CI verify 与 browser job、Pages build 与 deploy 成功记录，以及线上 7 个关键页面、14 项 Chromium 验收、20 个第五册搜索样本、canonical、打印 noindex、五档视口和自定义 404 提供发布完成直接证据
