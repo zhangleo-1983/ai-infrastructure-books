@@ -1,0 +1,203 @@
+---
+book: "05-open-webui"
+order: 2
+slug: "02-choose-model-provider"
+title: "先选模型来源，再决定服务器规格"
+shortTitle: "选择模型来源"
+description: "比较远程 OpenAI-compatible API 与本地模型的硬件、费用、数据和维护边界，形成一张不含秘密的模型来源决策卡。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 2
+duration: "预计 25—40 分钟"
+labels:
+  - "远程 API"
+  - "成本边界"
+  - "提供方选择"
+completionId: "book05-chapter-02"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockField from "../../../components/mock-ui/MockField.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="不知道远程 API 与本地模型差别，也容易只按“免费”或模型排行榜做决定的读者"
+  duration="预计 25—40 分钟"
+  outcome="选定远程模型主线，核对协议、模型 ID、价格、限额、地区、数据政策和撤销路径，并在费用不明时停止"
+/>
+
+<section className="book-section" id="book05-ch2-source-first">
+  ## 模型来源决定三件事
+
+  在选择 VPS 规格前，先决定模型在哪里运行。它会同时改变：
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">硬件</p>
+      <p>本地推理可能需要大量内存、显存与磁盘；远程 API 把推理交给提供方。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">账单</p>
+      <p>本地模型主要支付服务器资源；远程 API 通常按用量、额度或套餐另行计费。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">数据路径</p>
+      <p>远程 API 会收到完成模型请求所需的输入；本地模型也不自动解决管理员与备份风险。</p>
+    </section>
+  </InfoGrid>
+
+  本书第一版选择**远程 OpenAI-compatible API**。普通 CPU VPS 只运行 Open WebUI，不承担大语言模型推理。
+</section>
+
+<section className="book-section" id="book05-ch2-remote-local">
+  ## 远程 API 与本地模型不是“好坏”比较
+
+  <ComparisonTable>
+
+  | 判断项 | 远程 OpenAI-compatible API | 本地模型 |
+  | --- | --- | --- |
+  | VPS 角色 | 界面、认证、配置与数据 | 还要承担推理服务或连接另一台推理机 |
+  | GPU | 本书主线不需要 | 许多模型需要 GPU 或较大内存才能达到可用速度 |
+  | 初始工作 | 创建受限 key、确认 endpoint 与模型 ID | 选模型、下载权重、安装运行时、评估硬件 |
+  | 主要费用 | VPS + 域名 + 模型调用 | 更高服务器资源、电力或专用 GPU 费用 |
+  | 数据外发 | 必要输入会到模型提供方 | 可不发给远程模型，但仍受本机账户、日志与备份边界影响 |
+  | 更新责任 | 提供方维护模型服务，用户维护连接 | 用户同时维护界面、推理运行时与模型文件 |
+  | 故障层 | endpoint、key、额度、模型与上游 | 还包括 GPU、显存、模型加载与推理队列 |
+
+  </ComparisonTable>
+
+  本地模型不是“完全免费”，远程 API 也不是“买了 key 就无限用”。二者都需要可解释的资源、数据和停止方法。
+
+  <Callout type="info" title="Ollama 只在附录保留路径图">
+    本书不要求购买 GPU VPS，也不在 1 GB CPU VPS 上承诺本地大模型体验。希望学习本地推理的读者，应先完成硬件容量与模型许可评估，再走附录分支。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch2-compatibility">
+  ## 第一步：确认“兼容”具体兼容什么
+
+  OpenAI-compatible 只表示接口采用某些常见请求格式，不保证每个功能都一样。至少从提供方当前官方文档核对：
+
+  <InstructionStep number={1} title="找到 API base URL">
+    它是程序入口，不是提供方首页、账户控制台网址或 Open WebUI 的聊天网址。确认是否包含 <code>/v1</code>。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="确认 Chat Completions">
+    本书主线需要兼容 <code>/v1/chat/completions</code>。只宣传“兼容 OpenAI”但没有接口文档，不足以继续。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="确认模型发现方式">
+    Open WebUI 通常会请求 <code>/models</code>。提供方不支持时，必须有官方说明和精确模型 ID，不能靠随机尝试。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="确认流式响应">
+    核对提供方是否支持流式 Chat Completions、超时边界和并发限制。页面能列出模型不代表流式回答一定兼容。
+  </InstructionStep>
+
+  本书不把 Responses、Assistants、图片、语音、工具调用或私有扩展协议纳入第一遍成功路径。
+</section>
+
+<section className="book-section" id="book05-ch2-provider-checklist">
+  ## 第二步：用七项事实筛选提供方
+
+  <ComparisonTable>
+
+  | 事实 | 必须写下什么 | 不能接受的状态 |
+  | --- | --- | --- |
+  | 协议 | base URL、Chat Completions、流式能力 | 只有营销页，没有当前 API 文档 |
+  | 模型 | 精确 model ID、上下文与可用区域 | 只记显示名或排行榜昵称 |
+  | 价格 | 输入、输出及额外功能怎样计费 | 只写“低价”“免费试用” |
+  | 限额 | 余额、速率、并发、日/月上限和告警 | 不知道超限后是停止还是继续计费 |
+  | 凭证 | 能否创建独立、最小权限、可撤销 key | 只能使用账户管理主密钥 |
+  | 地区与付款 | 自己所在地区、账户与付款方式是否合规可用 | 需要绕过地区或平台限制 |
+  | 数据政策 | 输入、输出、日志、保留、训练和删除说明 | 无法找到当前官方政策或组织不允许使用 |
+
+  </ComparisonTable>
+
+  这些事实都可能变化。本章不推荐供应商排名，也不替读者作法律、税务、隐私或跨境合规结论。
+</section>
+
+<section className="book-section" id="book05-ch2-cost">
+  ## 第三步：先算“最坏可接受支出”
+
+  模型账单与 VPS 账单分开。一次可见聊天还可能触发标题、标签或其他后台模型任务，因此不要用
+  “发送一次 = 计费一次”推算。
+
+  在提供方官方价格页记录：
+
+  ```text
+  选定模型：<MODEL_ID>
+  输入计价单位与单价：<CURRENT_OFFICIAL_PRICE>
+  输出计价单位与单价：<CURRENT_OFFICIAL_PRICE>
+  免费额度及到期日：<CURRENT_OFFICIAL_LIMIT>
+  每日或每月硬上限：<SPEND_LIMIT>
+  余额/用量告警：<ALERT_METHOD>
+  停止调用方式：禁用连接 + 撤销专用 key
+  价格核对日期：2026-09-10
+  ```
+
+  <Callout type="warning" title="“有余额”不是费用控制">
+    余额、信用卡、自动充值、后付费、速率限制和支出上限是不同对象。只有能说明异常请求如何停止、上限是否为硬限制，才可以进入真实测试。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch2-key-plan">
+  ## 第四步：只规划专用 key，不在正文保存真实值
+
+  模型 API key 应同时满足：
+
+  - 专门用于这套 Open WebUI，不与其他应用共用；
+  - 权限只覆盖预期模型与调用动作；
+  - 可以单独撤销，不影响账户管理；
+  - 额度、速率或支出上限尽可能受限；
+  - 只保存在密码管理器与 Open WebUI 的受控管理员设置中；
+  - 不进入 Git、MDX、Compose、`.env` 示例、shell history、日志、截图或交接卡。
+
+  <MockWindow title="模型来源决策卡仿真">
+    <div className="mock-form-grid">
+      <MockField label="Source" wide>Remote OpenAI-compatible API</MockField>
+      <MockField label="API base URL" wide><code>&lt;MODEL_API_BASE_URL&gt;</code></MockField>
+      <MockField label="Model ID" wide><code>&lt;MODEL_ID&gt;</code></MockField>
+      <MockField label="Credential" wide><MockStatusBadge tone="success">Dedicated · limited · revocable</MockStatusBadge></MockField>
+      <MockField label="Spend guard" wide><code>&lt;SPEND_LIMIT_AND_ALERT&gt;</code></MockField>
+      <MockField label="Data policy reviewed" wide><MockStatusBadge tone="neutral">等待 Owner 核对</MockStatusBadge></MockField>
+    </div>
+  </MockWindow>
+
+  第 6 章才会把真实 key 直接从密码管理器粘贴到受控管理员界面。本章的仓库内容只保留占位符。
+</section>
+
+<section className="book-section" id="book05-ch2-stop">
+  ## 出现这些情况必须停止
+
+  - 不知道 base URL 与网页首页的区别；
+  - 无法从官方文档确认 Chat Completions 或精确模型 ID；
+  - 不知道当前价格、免费额度到期日、余额和异常支出上限；
+  - 只有账户管理主密钥，无法创建专用 key；
+  - 所在地区、组织制度或付款方式不允许使用该服务；
+  - 计划上传客户资料、个人敏感信息或受监管数据，但没有数据处理授权；
+  - 提供方要求绕过地区、付款或安全限制；
+  - 需要升级 VPS 或购买 GPU 才能继续，却尚未经过费用确认。
+
+  停止时不需要删除 Open WebUI，因为本章尚未部署它。只保留不含秘密的决策卡，换一个合规候选后重新核对。
+</section>
+
+<ChapterChecklist
+  chapterId="book05-chapter-02"
+  items={[
+    "我理解远程 API 与本地模型会带来不同硬件、费用、数据和维护边界。",
+    "我已选择本书的远程 OpenAI-compatible API 主线，没有把普通 CPU VPS 当作模型服务器。",
+    "我能从提供方官方文档找到 base URL、Chat Completions、模型 ID 和流式说明。",
+    "我已记录当前价格、限额、余额告警、地区与数据政策的核对位置。",
+    "我能创建独立、最小权限、可撤销且有限额的模型 key。",
+    "我知道一次聊天可能触发额外后台模型请求。",
+    "所有真实凭证仍只保存在受控位置；费用或合规不明时我会停止。",
+  ]}
+/>

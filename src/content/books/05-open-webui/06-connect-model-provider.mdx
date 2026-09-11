@@ -1,0 +1,503 @@
+---
+book: "05-open-webui"
+order: 6
+slug: "06-connect-model-provider"
+title: "接入第一个 OpenAI-compatible 模型"
+shortTitle: "接入模型"
+description: "在 SSH 转发下区分 API base URL、API key 与模型 ID，使用最小权限连接和模型 allowlist 完成本机连接探针，并核对实际用量。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 6
+duration: "预计 25—40 分钟，不含模型账户审核或充值等待"
+labels:
+  - "OpenAI-compatible"
+  - "API key"
+  - "模型 allowlist"
+completionId: "book05-chapter-06"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockSidebar from "../../../components/mock-ui/MockSidebar.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import OpenWebUIConnectionMock from "../../../components/mock-ui/OpenWebUIConnectionMock.astro";
+
+<LearningGoals
+  audience="已经在回环地址部署 Open WebUI、创建首位管理员并准备好远程兼容接口的读者"
+  duration="预计 25—40 分钟，不含模型账户审核或充值等待"
+  outcome="在不公开 API key 的前提下建立一个管理员级模型连接，只显示预期模型，并通过 SSH 转发完成一次可核对费用的无敏感连接探针"
+/>
+
+<section className="book-section" id="book05-ch6-scope">
+  ## 这一章只连接一个模型来源
+
+  第 4 章已经让 Open WebUI 在 `127.0.0.1:3000` 运行，第 5 章已经创建首位管理员并确认注册策略。
+  当前应用仍通过 SSH 本地端口转发访问，尚未创建 `chat.example.com` 公开 route。
+
+  本章只完成一条模型请求路径：
+
+  <FlowDiagram>
+    <div className="flow-node">
+      <strong>Open WebUI 后端</strong>
+      <small>管理员保存全局连接</small>
+    </div>
+    <div className="flow-node">
+      <strong>API base URL</strong>
+      <small>兼容接口的基础地址</small>
+    </div>
+    <div className="flow-node">
+      <strong>Bearer API key</strong>
+      <small>提供方验证调用权限</small>
+    </div>
+    <div className="flow-node">
+      <strong>模型 ID</strong>
+      <small>精确选择一个可用模型</small>
+    </div>
+    <div className="flow-node">
+      <strong>流式回答</strong>
+      <small>返回 Open WebUI 页面</small>
+    </div>
+  </FlowDiagram>
+
+  OpenAI-compatible 表示提供方采用 OpenAI Chat Completions 一类通用接口格式。
+  Open WebUI 官方文档要求聊天服务至少能够处理 `/v1/chat/completions`；`/v1/models` 用于自动发现模型，
+  但有些兼容服务不实现它，可以在得到提供方官方确认后手工填写模型 ID。
+
+  <Callout type="warning" title="本章可能产生真实模型费用">
+    在第一次保存和测试前，确认 key 具有合理限额、账户余额可见、当前价格已阅读。若需要充值、订阅或增加支出上限，先停在费用闸门，不自动继续。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-direct-connections">
+  ## 先排除另一条同名路径：Direct Connections
+
+  Open WebUI 还有一项实验性的 Direct Connections（浏览器直连）。它与本章的管理员级
+  External connection 名字相近，但请求路径和凭证位置完全不同：
+
+  <ComparisonTable>
+
+  | 配置入口 | 模型请求怎样走 | key 保存在哪里 | 本书第一版 |
+  | --- | --- | --- | --- |
+  | `Settings → Admin → Connections` 中的 External connection | 浏览器先请求 Open WebUI 后端，再由后端请求提供方 | 服务器端受控配置 | 使用 |
+  | `User Settings → Connections` 的 Direct Connections | 浏览器绕过 Open WebUI 后端，直接请求提供方 | 当前浏览器的 local storage | 关闭 |
+
+  </ComparisonTable>
+
+  Direct Connections 还要求模型提供方允许浏览器 CORS；它显示出来的模型可能与后端模型很相似，
+  但提示词、key、网络来源和排错证据都已经改变。进入本章前，在管理员 Connections 页确认
+  Direct Connections 全局开关为关闭，普通用户设置中也没有个人连接入口。
+
+  <Callout type="warning" title="不要把浏览器直连当作连接失败的绕路方案">
+    如果管理员级连接失败，改用 Direct Connections 只会新增浏览器 key、CORS 和设备差异，无法证明原路径已经修复。
+    本书保持单一后端代理路径，实机台账也只记录这一条路径。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-preconditions">
+  ## 开始前必须满足六项条件
+
+  <ComparisonTable>
+
+  | 条件 | 成功状态 | 失败时回到哪里 |
+  | --- | --- | --- |
+  | Open WebUI 本机可用 | 通过 SSH 转发打开页面并能登录 | 第 4 章容器与本机端口 |
+  | 首位管理员身份明确 | 当前账户能进入 Admin Settings | 第 5 章管理员初始化 |
+  | 认证保持开启 | 页面需要登录，不使用 `WEBUI_AUTH=False` | 第 5 章认证设置 |
+  | API base URL 已核对 | 来自模型提供方当前官方文档 | 第 2 章模型来源 |
+  | 模型 ID 已核对 | 提供方账户或官方模型列表中可用 | 第 2 章模型来源 |
+  | 独立 key 已准备 | 最小权限、可撤销、有限额，不是管理主密钥 | “开始之前”模型连接卡 |
+
+  </ComparisonTable>
+
+  如果当前 Open WebUI 已经通过公网开放，而管理员和注册策略仍未确认，先移除公开 route，
+  不要一边允许未知用户注册，一边添加会产生费用的模型连接。
+</section>
+
+<section className="book-section" id="book05-ch6-three-values">
+  ## 先把三个值写在正确的位置
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">API base URL</p>
+      <p>接口基础地址，例如文档中的 <code>https://…/v1</code>。它不是聊天页 URL。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">API key</p>
+      <p>秘密凭证。只从密码管理器粘贴到受控设置页，不写进笔记。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Model ID</p>
+      <p>提供方识别模型的精确字符串。大小写、前缀和版本后缀都可能有意义。</p>
+    </section>
+  </InfoGrid>
+
+  <ComparisonTable>
+
+  | 常见混淆 | 为什么错误 | 可能现象 |
+  | --- | --- | --- |
+  | URL 填 `https://chat.example.com` | 这是 Open WebUI 的用户入口，不是模型接口 | 循环、404 或连接失败 |
+  | URL 填提供方首页 | 首页不是 API base URL | 返回 HTML、404 或认证失败 |
+  | key 填 Open WebUI 登录密码 | 两类凭证属于不同系统 | 401 Unauthorized |
+  | 模型 ID 填宣传名称 | 显示名不一定是接口 ID | model not found 或 404 |
+  | 把 key 当模型 ID | 秘密被放进可见字段 | 凭证泄露，必须立即撤销 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch6-admin-vs-user">
+  ## 管理员连接与个人设置不是同一个入口
+
+  Open WebUI 当前有管理员级设置和用户个人设置两层。管理员级 Connections（连接）对整个实例生效，
+  可以把一条受控连接提供给获授权用户；个人设置只影响当前用户能够自行调整的部分。
+
+  <MockWindow title="Open WebUI 设置层级仿真">
+    <MockSidebar slot="sidebar">
+      <span className="mock-sidebar__item">Account</span>
+      <span className="mock-sidebar__item">Interface</span>
+      <span className="mock-sidebar__item mock-sidebar__item--active">Admin · Connections</span>
+      <span className="mock-sidebar__item">Admin · Users</span>
+    </MockSidebar>
+    <div className="mock-stack">
+      <div className="mock-panel">
+        <strong>管理员级连接</strong>
+        <p className="mock-small">由管理员配置 endpoint、共享凭证与模型可见范围。</p>
+      </div>
+      <div className="mock-panel">
+        <strong>用户个人设置</strong>
+        <p className="mock-small">只能在管理员允许的范围内改变个人偏好。</p>
+      </div>
+    </div>
+  </MockWindow>
+
+  本书使用管理员级连接，原因是：
+
+  - key 不需要发送到每位用户的浏览器；
+  - 管理员可以集中关闭连接或限制模型；
+  - 普通用户不需要各自复制同一个共享 key；
+  - 日后撤销、轮换和交接有唯一负责人。
+
+  <Callout type="danger" title="管理员级连接会代表授权用户调用模型">
+    登录保护只是第一道边界。任何能够使用该模型的用户都可能消耗管理员配置的额度，因此必须先关闭公开注册，并用模型 allowlist 限制可见范围。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-key-gate">
+  ## 第一步：最后核对一次 key 与费用
+
+  在模型提供方控制台中只核对状态，不复制到公开记录：
+
+  <ComparisonTable>
+
+  | 检查项 | 成功状态 | 停止条件 |
+  | --- | --- | --- |
+  | key 用途 | 专用于当前 Open WebUI 实例 | 与生产系统共用或用途不明 |
+  | 权限 | 提供方支持时，只包含所需模型调用权限 | 是账户管理主密钥；或无法说明 key 的实际权限边界 |
+  | 模型范围 | 预期模型可用 | 模型未开通或地区不可用 |
+  | 额度 | 小额测试足够；提供方限额或人工停发线已经明确 | 需要充值但尚未授权；或没有可观察的费用保护 |
+  | 告警 | 能查看余额或收到用量提醒 | 无法观察支出 |
+  | 撤销 | 能单独删除或禁用这一个 key | 只能删除整个账户 |
+
+  </ComparisonTable>
+
+  不要在终端中执行包含真实 key 的 `curl` 命令。shell history（命令历史）、进程参数和屏幕共享都可能留下它。
+  本章只在受控的 Open WebUI 管理页面中粘贴一次。
+</section>
+
+<section className="book-section" id="book05-ch6-deepseek-rc">
+  ## 本次 RC 的提供方选择：DeepSeek
+
+  2026-09-11 的第五册隔离实机选择 DeepSeek Open Platform。现场先对照官方价格页，再用账户的
+  `/models` 列表和一次实际 Chat Completions 响应交叉确认了下面三个值：
+
+  <ComparisonTable>
+
+  | 字段 | 本次 RC 值 | 怎样复核 |
+  | --- | --- | --- |
+  | OpenAI-compatible base URL | `https://api.deepseek.com` | [DeepSeek 首次调用 API](https://api-docs.deepseek.com/zh-cn/) |
+  | Model ID | `deepseek-flash` | 价格页、账户 `/models` 与实际响应三处一致 |
+  | 当前模型版本 | DeepSeek-V4.1-Flash | [DeepSeek 模型与价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/) |
+
+  </ComparisonTable>
+
+  当前官方价格页还说明：旧名称 `deepseek-v4-flash` 和 `deepseek-v4-flash-vision-exp` 虽然暂时仍可调用，
+  对应旧模型已经下线，请求会改由 DeepSeek-V4.1-Flash 提供。新连接应使用当前正式 ID
+  `deepseek-flash`，不要从旧教程复制历史名称。
+
+  价格按每 100 万 token 计费：输入缓存命中在空闲 / 高峰时段分别为 0.02 / 0.04 元，输入缓存未命中
+  为 1 / 2 元，输出为 4 / 8 元；高峰时段是北京时间周一至周五 9:00—12:00、14:00—18:00。
+  价格和时段都可能变化，读者执行当天仍要重新打开官方价格页，不把本段当作永久报价。
+
+  <Callout type="warning" title="DeepSeek 当前没有逐 key 的硬预算开关">
+    本次控制台能创建和单独删除专用 key，但没有看到逐 key 权限范围、逐 key 支出上限或告警字段。
+    因此本次 RC 不把“专用”误写成“提供方已经技术限额”：补偿控制是只保存这一把可撤销 key、Open WebUI
+    只允许 `deepseek-flash`、达到 4 元停止新增测试、5 元为人工硬上限，并在公开前后核对账户总用量。
+    如果你的业务必须由平台强制限制每把 key 的支出，应选择提供这种能力的账户或提供方。
+  </Callout>
+
+  DeepSeek 2026-02-10 版隐私政策把 API 包含在服务范围内，并说明会处理输入、输出和使用日志，且可能在
+  加密、去标识化后用于模型训练与服务优化；政策同时提供退出训练使用的选择。开放平台条款还要求下游
+  应用运营者向终端用户披露个人信息处理规则。第五册实机只发送固定合成文字；在真正允许用户使用前，
+  Owner 仍需核对账户中的退出选项、适用地区与隐私告知，不能把“自托管界面”描述成“提示词不离开 VPS”。
+</section>
+
+<section className="book-section" id="book05-ch6-open-connections">
+  ## 第二步：打开 Connections
+
+  当前官方说明的路径是：打开个人头像附近的 Settings（设置），进入管理员区域，再选择 Connections。
+  某些版本会直接显示为 `Admin Settings → Connections → OpenAI`，或在 OpenAI 行旁显示扳手形 Manage 按钮。
+
+  无论界面怎样调整，都要用对象关系核对自己是否走对：
+
+  - 页面明确属于管理员设置；
+  - 能看到 OpenAI 或 OpenAI-compatible 连接列表；
+  - 能添加一个 External connection（外部连接）；
+  - 表单包含 URL、API Key 和 Model IDs；
+  - 当前账户不是普通用户设置页。
+
+  失败判断：看不到 Admin 区域、无法打开 Connections、当前账户没有管理员权限，或页面只允许调整主题和个人默认模型。
+  遇到这些情况回第 5 章核对首位管理员，不要重新注册第二个账户碰运气。
+</section>
+
+<section className="book-section" id="book05-ch6-add-connection">
+  ## 第三步：添加一个外部兼容连接
+
+  选择 Add Connection 或当前界面中含义相同的按钮，然后按顺序填写：
+
+  <InstructionStep number={1} title="Connection type 保持 External">
+    本书连接的是服务器外部的远程模型接口，不使用浏览器直连，也不把 Ollama 当作本章主线。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="API type 使用 Chat Completions">
+    第一版只使用已经广泛支持的 OpenAI-compatible Chat Completions，不在这里启用实验性的 Responses 或额外工具协议。
+  </InstructionStep>
+
+  <InstructionStep number={3} title="URL 填官方 base URL">
+    从提供方当前官方文档复制基础地址，核对是否需要 `/v1`。不要从论坛旧帖或搜索摘要复制。
+  </InstructionStep>
+
+  <InstructionStep number={4} title="API Key 从密码管理器粘贴">
+    粘贴后页面应以掩码显示。不要把它转存到 MDX、截图、Compose 注释或交接卡。
+  </InstructionStep>
+
+  <InstructionStep number={5} title="Model IDs 只加入预期模型">
+    把经过核对的精确模型 ID 加入 Filter。这里的 Filter 是 allowlist（允许清单），用于减少误选昂贵或未授权模型。
+  </InstructionStep>
+
+  下面是字段关系仿真，不是 Open WebUI 当前版本的真实截图：
+
+  <OpenWebUIConnectionMock />
+
+  `api.example-provider.invalid` 使用 IANA 保留的 `.invalid` 示例后缀，不会指向真实服务。实际操作时只在受控设置页替换，
+  不把真实 key 写进源码。
+</section>
+
+<section className="book-section" id="book05-ch6-model-discovery">
+  ## 第四步：理解为什么模型自动检测可能失败
+
+  保存连接时，Open WebUI 当前会尝试用标准 Bearer token 请求提供方的 `/models` endpoint，
+  用于确认连接并取得模型列表。
+
+  <ComparisonTable>
+
+  | 结果 | 可能含义 | 下一步 |
+  | --- | --- | --- |
+  | 自动显示预期模型 | `/models`、key 和模型权限基本可用 | 仍应用 allowlist，只保留本书模型 |
+  | 400 | 请求格式或提供方实现不同 | 查提供方官方 OpenAI-compatible 说明 |
+  | 401 | key 无效、过期、粘贴不完整或 base URL 错 | 不重复创建 key，先逐项核对 |
+  | 403 | key 没权限、账户/地区策略拒绝，或 `/models` 不接受该认证 | 阅读提供方官方限制；不要绕过策略 |
+  | 404 | base URL 路径不对，或提供方没有 `/models` | 只有官方确认兼容聊天时才手工填模型 ID |
+  | 列出大量模型 | 聚合接口返回全部目录 | 用 Model IDs Filter 缩小为一到两个模型 |
+
+  </ComparisonTable>
+
+  `/models` 自动检测失败不总等于聊天接口完全不兼容，但也不能直接忽略。只有在模型提供方官方文档明确说明
+  `/v1/chat/completions` 可用、模型 ID 已确认且允许手工配置时，才把模型 ID 加入 allowlist 后继续。
+
+  <Callout type="warning" title="不要用随机模型 ID 试到成功为止">
+    模型名称可能对应不同价格、上下文长度和数据政策。随机尝试既会制造 404，也可能意外调用更昂贵的模型。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-save">
+  ## 第五步：保存后先核对连接，不急着聊天
+
+  选择 Save 后，成功状态应当同时满足：
+
+  - Connections 列表出现一个已启用的 External connection；
+  - URL 指向预期 base URL；
+  - API key 仍以掩码显示，不在页面其他位置明文回显；
+  - Model IDs Filter 只包含选定模型；
+  - 模型选择器出现对应模型，没有额外昂贵模型；
+  - Open WebUI 后端日志没有持续重复认证或模型列表错误。
+
+  <MockWindow title="模型连接保存结果仿真">
+    <div className="mock-table-wrap">
+      <table className="mock-table">
+        <thead>
+          <tr><th>Connection</th><th>API type</th><th>Models</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>example-provider</td>
+            <td>Chat Completions</td>
+            <td><code>&lt;MODEL_ID&gt;</code></td>
+            <td><MockStatusBadge tone="success">Enabled</MockStatusBadge></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </MockWindow>
+
+  如果保存后管理员页面长时间卡在加载模型，先禁用刚添加的连接并核对 URL，不要重建 Open WebUI 容器或删除数据 volume。
+
+  <Callout type="info" title="看到 arena-model 不代表提供方 allowlist 失效">
+    `v0.11.3` 还可能把 Open WebUI 内置的 Evaluation Arena（评测竞技场）显示为一个额外模型。它不是
+    DeepSeek `/models` 返回的第二个模型。若本书第一版要求选择器只出现一个教学模型，还要在管理员
+    Evaluations 设置中关闭 Arena models；随后重新刷新模型列表，确认只剩 `deepseek-flash`。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-task-models">
+  ## 测试前：暂停不需要的后台模型任务
+
+  Open WebUI 的标题、标签、后续问题建议、自动补全和检索查询改写等 Task Models（后台任务模型）
+  可能在用户消息之外发起额外调用。当前官方说明中，未另选 Task Model 时，这些任务默认使用当前聊天模型。
+
+  第一次付费探针前，进入 `Settings → Admin → Interface → Tasks`，记录当前开关，并关闭本次不需要的
+  Title、Tags、Follow Up、Autocomplete、Retrieval Query 和 Web Search Query 生成。这样可以减少变量和费用，
+  但仍不能承诺“一次点击必定只产生一个上游请求”；最终以提供方时间窗和用量记录为准。
+
+  成功状态：本次测试只保留普通纯文本聊天所需能力，没有另选一个未知或更昂贵的 Task Model。
+  失败判断：找不到任务设置、开关状态无法确认，或禁用后仍有持续未知调用；此时先停止模型连接，不发送探针。
+</section>
+
+<section className="book-section" id="book05-ch6-test-prompt">
+  ## 第六步：在 SSH 转发下发送一个连接探针
+
+  新建聊天，明确选择 allowlist 中的模型，然后发送：
+
+  ```text
+  只回复：BOOK05-RC-OK
+  ```
+
+  这个问题不包含账户、域名、IP、客户资料或工作内容，输出也容易核对。
+
+  成功状态：
+
+  - 模型选择器显示预期模型 ID 或管理员设置的显示名；
+  - 页面开始出现生成状态；
+  - 回答通过流式输出逐步显示，最终语义符合要求；
+  - 没有 401、403、404、429 或上游 5xx；
+  - 刷新页面后这条聊天仍在，说明应用数据已持久化；
+  - 模型提供方用量页面出现可以解释的测试记录。
+
+  一次成功还不能证明公开 HTTPS、手机网络或所有高级功能兼容。本章此时不测试文件、图片、工具调用、Web Search 或 RAG。
+
+  <Callout type="info" title="这还不是第一次公开链路真实对话">
+    本探针只证明 Open WebUI 后端能够调用预期模型，并让费用记录有一个最小基线。第 8 章会在 `chat.example.com` route 建立后，从电脑和手机重新验证 Tunnel、登录、流式回答、持久化与用量；两次测试不能合并成一个“都通过”的结论。
+  </Callout>
+
+  <Callout type="success" title="2026-09-11 实机结果">
+    `deepseek-flash` 完成了一次固定短提示：HTTP 200，回答以 SSE 分块返回，流以 `[DONE]` 正常结束，
+    页面最终只显示 `BOOK05-RC-OK`。刷新后，提示词、回答、模型 ID 与合成聊天仍然存在。随后禁用连接，
+    模型列表变为 0；恢复同一连接后只返回 `deepseek-flash`，没有再发送第二次模型请求。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-cost-check">
+  ## 第七步：回到提供方核对真实用量
+
+  在模型提供方控制台核对：
+
+  - 测试发生时间与时区；
+  - 使用的模型 ID；
+  - 输入、输出或总 token；
+  - 是否出现不止一次请求；
+  - 扣费、余额或套餐额度变化；
+  - 限额和告警仍然有效。
+
+  Open WebUI 可能为了标题、标签或其他后台任务额外调用模型。若请求数多于一条，不要立刻认定 key 被盗用；
+  先关闭本章未使用的辅助功能，查看任务模型设置和官方 FAQ，再重新发送一次同样的最小测试做对照。
+
+  提供方控制台的汇总不一定实时。本次 DeepSeek 用量页明确提示数据最多延迟 5 分钟，而流式响应已经立即
+  返回 usage 字段。等待统计窗口结束并刷新用量页，不要因为前几分钟仍显示旧值就重复发送探针；若延迟后
+  仍没有可见增量，可能是金额低于面板显示精度，也可能是统计继续延迟。不要把“没有显示”写成“零费用”；
+  按下面的费用停止规则禁用连接或停止新增调用，保留 API 响应与时间窗的脱敏记录。
+
+  <Callout type="danger" title="费用无法解释时不要继续公开">
+    如果用量持续增长、模型 ID 不符、出现陌生来源或限额未生效，先禁用连接并撤销专用 key。公开 route 会扩大可触发调用的人群，不应在费用异常时建立。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch6-errors">
+  ## 常见失败怎样判断
+
+  <ComparisonTable>
+
+  | 现象 | 先检查 | 不要先做什么 |
+  | --- | --- | --- |
+  | 模型列表为空 | base URL、`/models` 支持与 allowlist | 不要删除应用 volume |
+  | 401 Unauthorized | key 是否完整、有效、属于当前 endpoint | 不要反复粘贴到日志或聊天求助 |
+  | 403 Forbidden | key 权限、账户或地区策略 | 不要尝试绕过服务条款 |
+  | 404 / model not found | base URL 路径与精确模型 ID | 不要随机猜模型名称 |
+  | 429 | 余额、速率限制、并发或支出上限 | 不要连续快速重试扩大费用 |
+  | 5xx 或超时 | 提供方状态、网络与官方超时建议 | 不要先重建 Tunnel；页面路径可能正常 |
+  | 页面出现许多陌生模型 | Model IDs Filter 未限制 | 不要让普通用户自行试用 |
+  | 保存后设置没有变化 | 持久化 ConfigVar 或界面保存状态 | 不要只改 Compose 环境变量后假设已覆盖数据库 |
+
+  </ComparisonTable>
+
+  第 11 章会把这些错误与浏览器、Cloudflare、connector、容器和登录问题放进统一排错顺序。
+</section>
+
+<section className="book-section" id="book05-ch6-rollback">
+  ## 如果不准备继续，怎样安全回退
+
+  本章回退只处理模型连接：
+
+  1. 在 Connections 中先 Disable（禁用）这条连接；
+  2. 确认模型选择器不再显示对应模型；
+  3. 如果配置错误且不再需要，核对对象后删除这条连接；
+  4. 到模型提供方撤销专用 API key；
+  5. 查看用量不再增长；
+  6. 在交接卡记录“连接已禁用/删除、key 已撤销”的状态，不记录 key 值。
+
+  不需要执行：
+
+  - `docker compose down -v`；
+  - 删除 Open WebUI 用户或聊天 volume；
+  - 删除域名、Cloudflare zone 或整个 Tunnel；
+  - 创建另一个无限额 key 继续试。
+</section>
+
+<section className="book-section" id="book05-ch6-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book05-chapter-06"
+    items={[
+      "我能区分 Open WebUI 登录、API base URL、API key 和模型 ID",
+      "当前使用管理员级 Connections，不是普通用户个人设置",
+      "模型 key 专用于本实例、最小权限、可以单独撤销并具有合理费用保护",
+      "若提供方不支持逐 key 限额，我已建立单模型 allowlist、人工停发线和硬上限等补偿控制",
+      "真实 key 没有进入仓库、截图、命令历史、日志摘录或交接卡",
+      "连接使用 OpenAI-compatible Chat Completions，base URL 来自提供方当前官方文档",
+      "Direct Connections 保持关闭，模型请求仍由 Open WebUI 后端发往提供方",
+      "Model IDs Filter 只允许预期模型，没有把整个聚合目录开放给用户",
+      "我已排除或关闭 Open WebUI 内置 Arena 等额外模型入口",
+      "我理解 /models 自动检测失败与 chat completions 不兼容不是完全相同的判断",
+      "第一次探针前已关闭不需要的后台模型任务，并理解一次点击仍不保证只有一个上游请求",
+      "SSH 转发下的连接探针只使用无敏感文字，并得到预期流式回答",
+      "我已在提供方核对模型、请求数量、token 或额度变化",
+      "费用无法解释时会先禁用连接并撤销 key，而不是继续公开",
+      "我知道怎样只回退模型连接，不删除 Open WebUI volume、域名或 Tunnel",
+    ]}
+  />
+</section>

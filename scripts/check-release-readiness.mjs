@@ -278,6 +278,40 @@ if (book04IndexedPages.length !== 15) {
   );
 }
 
+const book05PrintFile = resolve(
+  outputDirectory,
+  "books/05-open-webui/print/index.html",
+);
+if (!existsSync(book05PrintFile)) {
+  failures.push("第五册缺少整册打印页");
+} else {
+  const book05PrintDocument = parse(readFileSync(book05PrintFile, "utf8"));
+  if (
+    book05PrintDocument.querySelectorAll("[data-print-chapter]").length !== 15
+  ) {
+    failures.push("第五册整册打印页必须包含 15 个内容单元");
+  }
+}
+const book05ChapterPages = chapterPages.filter(
+  ({ document }) =>
+    document
+      .querySelector("[data-chapter-status-root]")
+      ?.getAttribute("data-book-id") === "05-open-webui",
+);
+if (book05ChapterPages.length !== 15) {
+  failures.push(
+    `第五册必须生成 15 个独立内容页，实际 ${book05ChapterPages.length}`,
+  );
+}
+const book05IndexedPages = book05ChapterPages.filter(({ document }) =>
+  document.querySelector("[data-pagefind-body]"),
+);
+if (book05IndexedPages.length !== 15) {
+  failures.push(
+    `第五册必须生成 15 个 Pagefind 正文入口，实际 ${book05IndexedPages.length}`,
+  );
+}
+
 const configuredSite = process.env.SITE_URL?.trim();
 if (configuredSite) {
   for (const file of htmlFiles) {
@@ -326,6 +360,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一至第四册各 15 个正文索引页，第二册严格原型回归保持通过。`,
+    `发布准备检查通过：${htmlFiles.length} 个 HTML、${coverPages.length} 本可阅读书籍、${chapterPages.length} 个内容页、${printPages.length} 个打印页、唯一标题与单一 h1、结构化数据、打印 noindex、${externalBlankLinks} 个安全新窗口链接、示例凭证边界；第一至第五册各 15 个正文索引页，第二册严格原型回归保持通过。`,
   );
 }

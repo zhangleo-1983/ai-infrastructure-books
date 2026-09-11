@@ -26,7 +26,8 @@
     "check:content:book02": "node scripts/check-content-integrity.mjs",
     "check:content:book03": "vitest run tests/unit/book03-content.test.ts tests/unit/book03-qa.test.ts",
     "check:content:book04": "vitest run tests/unit/book04-content.test.ts",
-    "check:content": "npm run check:content:series && npm run check:content:book01 && npm run check:content:book02 && npm run check:content:book03 && npm run check:content:book04",
+    "check:content:book05": "vitest run tests/unit/book05-content.test.ts",
+    "check:content": "npm run check:content:series && npm run check:content:book01 && npm run check:content:book02 && npm run check:content:book03 && npm run check:content:book04 && npm run check:content:book05",
     "check:links": "node scripts/check-internal-links.mjs dist",
     "check:release": "node scripts/check-release-readiness.mjs",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run check:content && npm run check:links",
@@ -35,7 +36,7 @@
   "dependencies": {
     "@astrojs/mdx": "^7.0.3",
     "@astrojs/sitemap": "^3.7.3",
-    "astro": "^7.1.3"
+    "astro": "^7.3.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
@@ -50,6 +51,6 @@
     "pagefind": "1.5.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

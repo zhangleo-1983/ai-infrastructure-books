@@ -1,0 +1,390 @@
+---
+book: "05-open-webui"
+order: 10
+slug: "10-backup-and-update"
+title: "备份、更新、验证与恢复"
+shortTitle: "备份与更新"
+description: "停止写入后备份 named volume 与 Secret，校验归档并在独立测试 volume 启动同版本副本；更新固定标签后验证账户、聊天、模型、附件和公开链路。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 10
+duration: "预计 45—75 分钟，下载、维护窗口与独立存储传输另计"
+labels:
+  - "volume 备份"
+  - "固定版本更新"
+  - "隔离恢复"
+completionId: "book05-chapter-10"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+
+export const backupPreflight = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose ps
+sudo docker volume inspect book05-open-webui-data --format '{{.Name}} {{.Mountpoint}}'
+df -h /
+stat -c '%a %n' .env`;
+
+export const createBackup = `cd "$HOME/docker-labs/open-webui"
+BOOK05_BACKUP_STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+BOOK05_BACKUP_DIR="$HOME/backups/book05-open-webui/$BOOK05_BACKUP_STAMP"
+install -d -m 700 "$BOOK05_BACKUP_DIR"
+install -m 600 compose.yaml "$BOOK05_BACKUP_DIR/compose.yaml"
+install -m 600 .env "$BOOK05_BACKUP_DIR/open-webui.env"
+printf '%s\n' 'source_volume=book05-open-webui-data' > "$BOOK05_BACKUP_DIR/manifest.txt"
+printf '%s\n' 'source_image=ghcr.io/open-webui/open-webui:v0.11.3' >> "$BOOK05_BACKUP_DIR/manifest.txt"
+
+sudo docker compose stop open-webui
+sudo docker run --rm \
+  --mount type=volume,src=book05-open-webui-data,dst=/data,readonly \
+  --mount type=bind,src="$BOOK05_BACKUP_DIR",dst=/backup \
+  alpine:3.22 \
+  tar --numeric-owner -czf /backup/open-webui-data.tar.gz -C /data .
+sudo docker compose start open-webui
+
+sudo chown -R "$(id -u):$(id -g)" "$BOOK05_BACKUP_DIR"
+find "$BOOK05_BACKUP_DIR" -type f -exec chmod 600 {} +
+sha256sum "$BOOK05_BACKUP_DIR/open-webui-data.tar.gz" > "$BOOK05_BACKUP_DIR/open-webui-data.tar.gz.sha256"
+printf '%s\n' "$BOOK05_BACKUP_DIR"`;
+
+export const verifyBackup = `read -rp "输入本次备份目录的完整路径：" BOOK05_BACKUP_DIR
+test -d "$BOOK05_BACKUP_DIR"
+sha256sum --check "$BOOK05_BACKUP_DIR/open-webui-data.tar.gz.sha256"
+tar -tzf "$BOOK05_BACKUP_DIR/open-webui-data.tar.gz" | grep -E '(^|/)webui\.db$'
+test -s "$BOOK05_BACKUP_DIR/open-webui.env"
+stat -c '%a %n' "$BOOK05_BACKUP_DIR" "$BOOK05_BACKUP_DIR/open-webui.env"
+curl --fail --silent --show-error http://127.0.0.1:3000/health`;
+
+export const prepareRestoreVolume = `if sudo docker volume inspect book05-open-webui-restore-check >/dev/null 2>&1; then
+  echo '停止：测试 volume 已存在，先确认它的归属。'
+  exit 1
+fi
+sudo docker volume create book05-open-webui-restore-check
+sudo docker run --rm \
+  --mount type=volume,src=book05-open-webui-restore-check,dst=/restore \
+  --mount type=bind,src="$BOOK05_BACKUP_DIR",dst=/backup,readonly \
+  alpine:3.22 \
+  tar -xzf /backup/open-webui-data.tar.gz -C /restore
+sudo docker run --rm \
+  --mount type=volume,src=book05-open-webui-restore-check,dst=/restore,readonly \
+  alpine:3.22 \
+  test -s /restore/webui.db`;
+
+export const startRestoreCheck = `cd "$HOME/docker-labs/open-webui"
+sudo docker run -d \
+  --name book05-open-webui-restore-check \
+  --restart=no \
+  --env-file "$BOOK05_BACKUP_DIR/open-webui.env" \
+  --env WEBUI_AUTH=True \
+  --env CORS_ALLOW_ORIGIN=http://localhost:3100 \
+  --env WEBUI_SESSION_COOKIE_SECURE=False \
+  --env WEBUI_AUTH_COOKIE_SECURE=False \
+  --publish 127.0.0.1:3100:8080 \
+  --volume book05-open-webui-restore-check:/app/backend/data \
+  ghcr.io/open-webui/open-webui:v0.11.3
+curl --fail --retry 24 --retry-delay 5 --retry-all-errors \
+  http://127.0.0.1:3100/health`;
+
+export const removeRestoreCheck = `read -rp "输入要删除的测试容器名称：" BOOK05_TEST_CONTAINER
+test "$BOOK05_TEST_CONTAINER" = 'book05-open-webui-restore-check' || exit 1
+sudo docker stop book05-open-webui-restore-check
+sudo docker rm book05-open-webui-restore-check
+
+read -rp "输入要删除的测试 volume 名称：" BOOK05_TEST_VOLUME
+test "$BOOK05_TEST_VOLUME" = 'book05-open-webui-restore-check' || exit 1
+sudo docker volume rm book05-open-webui-restore-check`;
+
+export const selectTargetVersion = `cd "$HOME/docker-labs/open-webui"
+read -rp "输入已经审阅的目标固定版本（例如 vX.Y.Z）：" BOOK05_TARGET_VERSION
+printf '%s\n' "$BOOK05_TARGET_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || {
+  echo '停止：版本格式不符合 vX.Y.Z。'
+  exit 1
+}
+sed -i "s/^OPEN_WEBUI_VERSION=.*/OPEN_WEBUI_VERSION=$BOOK05_TARGET_VERSION/" .env
+sudo docker compose config -q`;
+
+export const applyUpdate = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose pull open-webui
+sudo docker compose up -d open-webui
+sudo docker compose ps
+curl --fail --retry 24 --retry-delay 5 --retry-all-errors \
+  http://127.0.0.1:3000/health
+sudo systemctl is-active cloudflared`;
+
+<LearningGoals
+  audience="Open WebUI 已经有账户、聊天和公开 route，准备第一次维护固定版本的 Owner"
+  duration="预计 45—75 分钟，下载、维护窗口与独立存储传输另计"
+  outcome="得到一份包含数据、配置与 Secret 的受控备份，用测试 volume 证明同版本副本可以启动，再用新固定标签更新并完成端到端复核"
+/>
+
+<section className="book-section" id="book05-ch10-risk">
+  ## 更新不是“拉一个新镜像再看看”
+
+  Open WebUI 把用户、配置、聊天、附件与数据库保存在 `/app/backend/data`。新版本启动时可能执行 database migration
+  （数据库迁移），把旧结构转换为新结构。某些迁移不能靠重新使用旧镜像自动撤销。
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>已知正常版本</strong><small>固定标签与镜像摘要</small></div>
+    <div className="flow-node"><strong>停止写入</strong><small>形成一致的 volume 时间点</small></div>
+    <div className="flow-node"><strong>受控备份</strong><small>数据 + Compose + Secret</small></div>
+    <div className="flow-node"><strong>隔离恢复</strong><small>同版本测试 volume</small></div>
+    <div className="flow-node"><strong>固定目标版本</strong><small>读 release notes 后更新</small></div>
+    <div className="flow-node"><strong>完整验证</strong><small>失败时恢复旧备份</small></div>
+  </FlowDiagram>
+
+  <Callout type="danger" title="旧镜像不等于回退">
+    如果新版本已经迁移 production volume，只把镜像标签改回旧版可能得到不兼容数据库。可靠回退需要“上一固定镜像 + 更新前备份 + 原 WEBUI_SECRET_KEY”一起恢复。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch10-gate">
+  ## G7 更新与恢复闸门
+
+  真正更新前必须单独确认维护窗口，因为应用会短暂停止，镜像下载会占磁盘与网络，远端备份存储也可能收费。
+
+  <ComparisonTable>
+
+  | 闸门条件 | 成功状态 | 停止条件 |
+  | --- | --- | --- |
+  | 当前基线 | 登录、聊天、模型、Tunnel 均已知正常 | 正在排查未知故障 |
+  | 固定源版本 | 记录当前标签与 digest | 只知道“latest” |
+  | 目标版本 | 阅读官方 release notes、兼容性和已知问题 | 目标仍是占位符或滚动标签 |
+  | 磁盘 | 可容纳归档、辅助镜像、新旧应用镜像与测试 volume | 空间不足或 inode 异常 |
+  | 备份位置 | 权限、保留期和负责人明确 | 只在待销毁 VPS 上保留唯一副本 |
+  | 费用 | 外部存储、快照或新 VPS 已明确授权 | 需要购买却没有费用确认 |
+  | 回退 | 能精确指出旧备份、旧版本和原 Secret | 计划直接对 live volume 试错 |
+
+  </ComparisonTable>
+
+  本章 draft 使用 `v0.11.3` 作为源版本，但不会猜一个未来目标版本。RC 实机时必须把 `<TARGET_VERSION>` 替换成当时
+  已审阅的固定稳定版本，再执行更新。
+
+  `v0.11.3` 的官方 release notes 特别修正了从 `0.11.0`、`0.11.1` 或 `0.11.2` 升级时，
+  migration 失败后应用仍可能半更新启动的问题。这说明“补丁升级”也可能触发数据库边界；采用
+  `v0.11.3` 作为新部署起点，并不能替代更新前备份、启动日志和隔离恢复。
+</section>
+
+<section className="book-section" id="book05-ch10-preflight">
+  ## 第一步：检查 volume、磁盘与 Secret 文件权限
+
+  在 VPS 执行：
+
+  <CodeBlock label="备份前只读检查" code={backupPreflight} />
+
+  成功状态：Compose 正常、源 volume 精确名为 `book05-open-webui-data`、磁盘余量可解释、`.env` 权限为 `600`。
+  不要运行 `cat .env`，也不要用 `docker compose config` 打印展开后的 Secret。
+</section>
+
+<section className="book-section" id="book05-ch10-create-backup">
+  ## 第二步：停止应用写入并创建一致备份
+
+  下面命令会短暂停止 `open-webui` service。`alpine:3.22` 是本书固定的最小辅助镜像；本机没有时会下载，
+  会占用网络与磁盘，但不会创建持续运行的服务。
+
+  <CodeBlock label="备份 volume、Compose 与权限受限 .env" code={createBackup} printBreak />
+
+  命令按以下顺序工作：
+
+  1. 用 UTC 时间建立权限 `700` 的独立目录；
+  2. 复制 Compose 与包含 Secret 的 `.env`，两者权限设为 `600`；
+  3. 停止应用，避免数据库继续写入；
+  4. 只读挂载 production volume 并生成压缩归档；
+  5. 无论下一步怎样，都要先把应用重新启动；
+  6. 为归档生成 SHA-256 校验文件；
+  7. 最后一行只显示备份目录，不显示 Secret。
+
+  如果归档命令失败，首先执行 `sudo docker compose start open-webui` 恢复服务，然后保留错误输出排查。不要因为备份失败就删除
+  源 volume 或旧归档。
+
+  <Callout type="warning" title="同一 VPS 上的归档还不是独立灾难备份">
+    磁盘损坏或 VPS 被销毁时，本机归档与 production volume 会一起丢失。把归档复制到独立、加密、访问受控且保留期明确的位置，才覆盖主机级故障；对象存储、快照或额外 VPS 可能收费，必须先确认费用与地区合规。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch10-verify-archive">
+  ## 第三步：校验归档，而不是只看文件存在
+
+  从上一条命令复制**目录路径**，执行：
+
+  <CodeBlock label="检查 hash、数据库条目、权限与 live health" code={verifyBackup} />
+
+  成功状态：
+
+  - hash 显示 `OK`；
+  - 归档中能找到 `webui.db`；
+  - 备份的 `.env` 非空且权限为 `600`；
+  - 备份目录权限为 `700`；
+  - live Open WebUI 已恢复 health。
+
+  不要把 `tar -tvf` 的完整清单贴到公开日志；附件文件名本身也可能包含隐私。
+</section>
+
+<section className="book-section" id="book05-ch10-isolated-restore">
+  ## 第四步：恢复到新的测试 volume，绝不覆盖 live volume
+
+  恢复测试固定使用另一个名字：`book05-open-webui-restore-check`。命令会先确认它不存在；已经存在时立即停止，
+  不清空、不复用、不猜归属。
+
+  <CodeBlock label="把归档解到全新测试 volume" code={prepareRestoreVolume} printBreak />
+
+  成功状态：新 volume 建立，归档解压完成，并能确认恢复副本的 `webui.db` 非空。production volume
+  `book05-open-webui-data` 全程只读且名称没有出现在恢复目标中。
+
+  接着使用**同一个 v0.11.3 镜像**、备份中的原 `.env` Secret 和回环测试端口 3100 启动副本：
+
+  <CodeBlock label="在 127.0.0.1:3100 启动同版本恢复副本" code={startRestoreCheck} printBreak />
+
+  该容器不接入 Tunnel，只监听 VPS 回环。通过 SSH local forwarding 把本地 3100 转到 VPS 3100，使用 Owner 账户核对：
+
+  - 可以登录；
+  - 至少一条第 8 章测试聊天存在；
+  - 用户数量与角色符合第 9 章卡片；
+  - 模型连接配置存在，但不要发送新的付费请求；
+  - 如果有无敏感测试附件，它的记录可读取；
+  - live 的 `https://chat.example.com` 仍指向 3000，不会进入这个副本。
+
+  <MockWindow title="隔离恢复结果仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>Live</strong> <code>book05-open-webui-data · 127.0.0.1:3000</code> <MockStatusBadge tone="success">未修改</MockStatusBadge></div>
+      <div className="mock-panel"><strong>Restore check</strong> <code>book05-open-webui-restore-check · 127.0.0.1:3100</code> <MockStatusBadge tone="success">同版本可启动</MockStatusBadge></div>
+      <div className="mock-panel"><strong>Public route</strong> 仍只映射 live 的 <code>127.0.0.1:3000</code></div>
+    </div>
+  </MockWindow>
+
+  这证明“归档能在一个新 volume 启动”，但同 VPS 测试仍不覆盖整台主机损坏。独立存储副本必须另行完成。
+</section>
+
+<section className="book-section" id="book05-ch10-clean-test">
+  ## 第五步：确认精确名称后清理恢复副本
+
+  保存通过/失败结论后，测试容器与测试 volume 可以清理。下面命令要求把两个精确名称分别输入一次：
+
+  <CodeBlock label="只删除恢复测试容器与测试 volume" code={removeRestoreCheck} />
+
+  两个 `test` 判断任意一个不匹配都会停止。命令绝不能改成 `docker volume prune`，也不能输入
+  `book05-open-webui-data`。归档仍应保留到超过既定保留期并完成下一次可恢复备份后再考虑删除。
+</section>
+
+<section className="book-section" id="book05-ch10-select-version">
+  ## 第六步：阅读 release notes 后选择目标固定版本
+
+  更新前从 Open WebUI 官方 Releases 和更新指南核对：
+
+  - 目标是 stable release，不是 prerelease、`main`、`latest` 或 `dev`；
+  - 从 v0.11.3 到目标版本是否需要跨版本步骤；
+  - 数据库、认证、环境变量、模型连接与 WebSocket 是否有 breaking change；
+  - 已知问题是否影响 Ubuntu 24.04 amd64、SQLite 或当前功能；
+  - 目标镜像的官方标签与摘要怎样验证；
+  - 失败时是否明确要求从备份恢复。
+
+  把目标版本输入下面命令。它只替换 `.env` 的版本行，不打印 Secret：
+
+  <CodeBlock label="写入已审阅的目标固定版本" code={selectTargetVersion} />
+
+  成功状态：输入符合 `vX.Y.Z`，Compose 配置可以解析。若目标仍写成示例、没有 release notes 或需要跳过官方迁移步骤，
+  立即把版本行恢复为 `OPEN_WEBUI_VERSION=v0.11.3`，不要拉取镜像。
+</section>
+
+<section className="book-section" id="book05-ch10-update">
+  ## 第七步：在维护窗口拉取并重建应用
+
+  更新时只改变 Open WebUI 镜像，不同时修改 Cloudflare route、模型 key、用户权限或 VPS 防火墙：
+
+  <CodeBlock label="拉取目标固定镜像并启动" code={applyUpdate} />
+
+  `pull` 可能占用额外磁盘；`up -d` 会重建应用容器并可能在启动时执行数据库迁移。等待 health 成功前不要连续重启，
+  先看 `docker compose ps` 与当前启动时间的脱敏日志。
+
+  <Callout type="warning" title="不使用无人值守自动更新作为主线">
+    Watchtower 一类自动更新工具可能在无人观察时替换镜像并触发迁移。本书使用固定标签、人工维护窗口和更新后验证；是否自动化需要另行设计测试、告警与恢复，不在这里顺手启用。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch10-verify-update">
+  ## 第八步：按同一张表验证更新结果
+
+  <ComparisonTable>
+
+  | 层级 | 必须检查 | 失败判断 |
+  | --- | --- | --- |
+  | 容器 | Running/healthy，镜像为目标固定标签与预期摘要 | Restarting、unhealthy、标签不符 |
+  | 数据 | Owner、用户、角色与第 8 章测试聊天仍在 | 要求重新创建管理员或数据为空 |
+  | Secret | 原 `.env` 未改变，现有会话行为可解释 | 所有人无故退出或加密数据不可读 |
+  | 模型 | connection 与 allowlist 正确 | key 丢失、陌生模型出现 |
+  | 功能 | 发送 1 条经费用确认的固定短问题，流式完成 | 401、429、CORS、WS 或超时 |
+  | 附件 | 只核对既有无敏感测试材料 | 文件记录丢失或索引异常 |
+  | 公开路径 | 电脑与手机 HTTPS 登录正常 | 证书、route、Cookie 或 Origin 异常 |
+  | 费用 | 更新后单次验证用量可解释 | 重复请求或持续增长 |
+
+  </ComparisonTable>
+
+  更新验证中的模型消息也是付费请求。沿用第 8 章固定问题，并在测试卡中单独记录，不连续点击发送。
+</section>
+
+<section className="book-section" id="book05-ch10-recovery">
+  ## 更新失败时，怎样选择“修复”还是“恢复”
+
+  <ComparisonTable>
+
+  | 现象 | 优先动作 | 是否直接降级镜像 |
+  | --- | --- | --- |
+  | 镜像拉取失败，旧容器仍正常 | 保留旧容器，查 registry、磁盘与标签 | 不需要 |
+  | 新容器未开始迁移且配置错误 | 回退本次配置，验证旧基线 | 先读日志确认 |
+  | 新版本已迁移数据库后失败 | 停止写入，保留失败现场，准备旧版 + 旧备份恢复 | 不能只改标签 |
+  | Secret 变化 | 恢复原受控 `.env`，查是否有加密数据影响 | 与镜像降级无关 |
+  | 只有公开路径失败 | 查 Cookie、CORS、route 与 connector | 不应先动数据库 |
+  | 只有模型 401 / 429 | 查连接、key、额度与提供方 | 不应先恢复 volume |
+
+  </ComparisonTable>
+
+  真正恢复 production 会覆盖更新后的数据，必须再次精确确认目标、停机时间和“更新后新增数据是否接受丢失”。
+  本章故意不提供一条会清空 live volume 的复制命令。先在新 volume 按第四步复现旧版 + 旧备份，确认登录、聊天与模型配置，
+  再把 production 切换方案交给独立恢复闸门执行。
+</section>
+
+<section className="book-section" id="book05-ch10-retention">
+  ## 备份也需要保留期与删除边界
+
+  每份备份至少记录：创建时间、源版本、源 volume、hash、存放位置、恢复验证日期、负责人、计划过期日。
+  保留过少无法应对晚发现问题，永久保留又会积累聊天、附件与 Secret 副本。
+
+  备份过期删除前确认：
+
+  - 至少有一份更晚且已完成隔离恢复的备份；
+  - 当前版本与服务健康；
+  - 法律、合同和组织制度允许删除；
+  - 删除目标是精确归档，不是整个备份根目录；
+  - 远端对象的版本历史或回收站行为已理解；
+  - 删除不会顺带删除 production volume、`.env` 或唯一恢复材料。
+</section>
+
+<section className="book-section" id="book05-ch10-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book05-chapter-10"
+    items={[
+      "更新前基线正常，当前固定版本、镜像摘要、磁盘和维护窗口已记录",
+      "备份在停止应用写入后创建，包含 data volume、compose.yaml 与权限受限的原 .env",
+      "归档 hash、webui.db、文件权限和 live health 均已验证",
+      "备份已经复制到独立、加密、访问受控且费用明确的位置",
+      "恢复只使用 book05-open-webui-restore-check，没有写入 production volume",
+      "同版本恢复副本可登录并读到用户、聊天和连接配置，且没有发送模型请求",
+      "测试容器与测试 volume 只在精确输入名称后清理",
+      "目标版本来自当前官方 release notes，是 vX.Y.Z 固定稳定标签",
+      "更新后账户、聊天、Secret、模型、附件、HTTPS、手机与费用全部复核",
+      "我知道数据库迁移后不能只降级镜像，production 恢复必须另行确认覆盖范围",
+      "自动更新、付费备份、快照和额外 VPS 都没有在本章未经确认启用",
+    ]}
+  />
+</section>

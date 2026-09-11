@@ -1,0 +1,115 @@
+---
+import MockField from "./MockField.astro";
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockWindow from "./MockWindow.astro";
+---
+
+<MockWindow title="Open WebUI · 首位管理员初始化仿真">
+  <div slot="toolbar">
+    <MockStatusBadge tone="neutral">仅经 SSH 本地转发访问</MockStatusBadge>
+  </div>
+
+  <div class="bootstrap-grid">
+    <section aria-labelledby="bootstrap-signup-title">
+      <p class="mock-heading" id="bootstrap-signup-title">Create administrator account</p>
+      <div class="mock-form-grid">
+        <MockField label="Name" wide>站点管理员</MockField>
+        <MockField label="Email" wide><code>&lt;ADMIN_EMAIL&gt;</code></MockField>
+        <MockField label="Password" wide>
+          <span class="bootstrap-secret" aria-label="已隐藏的管理员密码">••••••••••••••••</span>
+        </MockField>
+      </div>
+      <p class="bootstrap-note">密码只保存在密码管理器，不进入命令、截图或交接卡。</p>
+    </section>
+
+    <section class="bootstrap-result" aria-labelledby="bootstrap-result-title">
+      <p class="mock-heading" id="bootstrap-result-title">初始化后的安全状态</p>
+      <dl>
+        <div><dt>首位账户</dt><dd><MockStatusBadge tone="success">Admin</MockStatusBadge></dd></div>
+        <div><dt>应用认证</dt><dd><MockStatusBadge tone="success">Enabled</MockStatusBadge></dd></div>
+        <div><dt>公开注册</dt><dd><MockStatusBadge tone="success">Disabled</MockStatusBadge></dd></div>
+        <div><dt>未知用户</dt><dd><MockStatusBadge tone="success">0</MockStatusBadge></dd></div>
+      </dl>
+    </section>
+  </div>
+</MockWindow>
+
+<style>
+  .bootstrap-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(15rem, 0.75fr);
+    gap: var(--space-6);
+  }
+
+  .bootstrap-secret {
+    letter-spacing: 0.16em;
+  }
+
+  .bootstrap-note {
+    margin: var(--space-3) 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .bootstrap-result {
+    border-left: var(--border-thin);
+    padding-left: var(--space-6);
+  }
+
+  dl,
+  dl div {
+    margin: 0;
+  }
+
+  dl {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  dl div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border-bottom: var(--border-thin);
+    padding-bottom: var(--space-3);
+  }
+
+  dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  @media (max-width: 43.75rem) {
+    .bootstrap-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .bootstrap-result {
+      border-top: var(--border-thin);
+      border-left: 0;
+      padding-top: var(--space-5);
+      padding-left: 0;
+    }
+  }
+
+  @media print {
+    .bootstrap-grid {
+      gap: 5mm;
+    }
+
+    .bootstrap-result {
+      border-color: #bbbbbb;
+      padding-left: 5mm;
+    }
+
+    dl div {
+      border-color: #bbbbbb;
+      padding-bottom: 2mm;
+    }
+  }
+</style>

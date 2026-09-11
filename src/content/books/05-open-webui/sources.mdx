@@ -1,0 +1,195 @@
+---
+book: "05-open-webui"
+order: 14
+slug: "sources"
+title: "资料来源与校订记录"
+shortTitle: "资料来源"
+description: "按安装版本、认证、模型连接、公开入口、数据更新、维护许可和 Ollama 替代路径列出第五册使用的官方资料与当前未验证边界。"
+chapterType: "sources"
+updatedAt: "2026-09-11"
+labels:
+  - "官方资料"
+  - "校订记录"
+draft: false
+---
+
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+
+<section className="book-section" id="book05-sources-scope">
+  ## 本页怎样使用
+
+  第五册的 Open WebUI 安装、账户、模型连接、数据、许可、Cloudflare Tunnel、Docker 和 Ollama 事实，优先依据对应项目的官方文档与官方仓库。社区文章可以提供排错线索，但不能单独决定零基础读者要执行的命令。
+
+  当前事实校订日期：**2026-09-11**。
+
+  当前状态：
+
+  - “开始之前”、第 1—12 章、附录和本页共 15 个发布候选内容单元，版本为 `release-candidate / 1.0.0-rc.1`；
+  - 15 个内容单元均为 `draft: false`，已经进入 production、Pagefind、完成状态和正式打印；
+  - RC 固定主线是 Ubuntu 24.04 LTS、Docker Compose、Open WebUI `v0.11.3`、回环 `127.0.0.1:3000`、named volume、显式 Secret、DeepSeek `deepseek-flash` 后端连接，以及专用 Tunnel 上的独立 `chat` route；
+  - RC 实机 G1—G8 已通过：固定镜像、回环应用、唯一管理员、注册收紧、专用模型 key、单模型 allowlist、公开 route、HTTPS、多网络、故障恢复、备份恢复和永久清理均有脱敏证据；
+  - G8 已删除教学 route / DNS、模型连接与专用 key、容器、volume、备份、connector、Tunnel 和 VPS；根 zone、nameserver 与 DNSSEC 保留；
+  - 模型校订最终为 2 次合成请求、97 tokens、费用低于 0.01 元；没有充值、订阅或购买模型额度，临时 VPS 销毁后不再持续计费；
+  - Ollama 只在附录画出替代架构，不包含安装、模型下载、GPU 配置或第二套完整 Compose；
+  - 所有界面图都是 HTML/CSS 教学仿真，不是真实软件截图，也不声称与某个版本像素一致；
+  - 仓库没有保存真实域名、IP、账户、用户邮箱、API key、Cookie、Secret、Tunnel UUID/token 或账单身份信息。
+
+  <Callout type="warning" title="实机已通过，不等于未来环境不会变化">
+    本轮结果只证明 2026-09-11、固定版本与隔离环境中的主线。控制台布局、模型价格、地区与账户资格、镜像摘要、网络和错误边界以后仍可能变化；下一版校订必须重新核对。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-sources-install">
+  ## Open WebUI 安装、镜像与版本
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/getting-started/quick-start/" target="_blank" rel="noopener noreferrer">Open WebUI Quick Start</a>：Docker 推荐路径、标准与 Ollama 镜像变体、容器端口、`/app/backend/data` 和固定版本标签入口。</li>
+    <li><a href="https://github.com/open-webui/open-webui/releases" target="_blank" rel="noopener noreferrer">Open WebUI GitHub Releases</a>：稳定版本、发布时间、release notes 与升级前检查入口。</li>
+    <li><a href="https://github.com/open-webui/open-webui/releases/tag/v0.11.3" target="_blank" rel="noopener noreferrer">Open WebUI v0.11.3 release</a>：本轮 RC 固定的源版本；包含 migration 失败时停止半更新启动的修复，RC 仍不能自动把它当作未来最新版本。</li>
+    <li><a href="https://github.com/open-webui/open-webui/blob/v0.11.3/Dockerfile" target="_blank" rel="noopener noreferrer">v0.11.3 官方 Dockerfile</a>：镜像构建、容器 endpoint 与健康检查的版本化证据。</li>
+    <li><a href="https://github.com/open-webui/open-webui/blob/v0.11.3/backend/start.sh" target="_blank" rel="noopener noreferrer">v0.11.3 backend start script</a>：启动时 Secret 与持久化行为的源代码证据。</li>
+  </ol>
+
+  `:main`、`:latest`、`:dev` 和固定 `vX.Y.Z` 标签的含义会变化。每个 RC 应重新记录目标固定版本、镜像 digest、架构、下载大小、release notes、已知问题和实际资源占用。
+</section>
+
+<section className="book-section" id="book05-sources-auth">
+  ## 账户、认证、权限与环境变量
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/reference/env-configuration/" target="_blank" rel="noopener noreferrer">Environment Variable Configuration</a>：`WEBUI_AUTH`、注册、默认角色、URL、CORS、Cookie、Ollama、用户信息 header、聊天访问和 ConfigVar 持久化语义。</li>
+    <li><a href="https://docs.openwebui.com/getting-started/advanced-topics/hardening/" target="_blank" rel="noopener noreferrer">Hardening Open WebUI</a>：首位管理员、认证、密码、Secret、公开部署、反向代理、API key 与最小权限的安全基线。</li>
+    <li><a href="https://docs.openwebui.com/getting-started/quick-start/settings/" target="_blank" rel="noopener noreferrer">Admin and User Settings</a>：管理员全局设置与用户个人设置的当前入口。</li>
+    <li><a href="https://docs.openwebui.com/features/authentication-access/rbac/" target="_blank" rel="noopener noreferrer">Role-Based Access Control</a>：角色、组和资源权限的当前模型。</li>
+    <li><a href="https://docs.openwebui.com/features/authentication-access/rbac/permissions/" target="_blank" rel="noopener noreferrer">Permissions</a>：用户功能权限和 API key 权限边界。</li>
+    <li><a href="https://docs.openwebui.com/features/authentication-access/api-keys/" target="_blank" rel="noopener noreferrer">Open WebUI API Keys</a>：应用 API key 的创建、替换、继承权限、撤销与限制；它不是模型提供方 key。</li>
+    <li><a href="https://docs.openwebui.com/features/chat-conversations/direct-connections/" target="_blank" rel="noopener noreferrer">Direct Connections</a>：实验性浏览器直连、浏览器 local storage 中的个人 key、CORS 与后端代理路径的差异。</li>
+  </ol>
+
+  首位用户、signup 自动关闭、`pending`、密码规则和当前 UI 必须在固定 RC 版本上实机核对。关闭某个管理 UI 功能不能证明 VPS、数据库或备份管理员无法接触底层数据。
+</section>
+
+<section className="book-section" id="book05-sources-provider">
+  ## 远程模型连接与调用费用
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/" target="_blank" rel="noopener noreferrer">Connect a Provider</a>：Open WebUI 当前支持的连接入口和协议分类。</li>
+    <li><a href="https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible/" target="_blank" rel="noopener noreferrer">OpenAI-Compatible Provider</a>：base URL、API key、模型发现、`/v1/chat/completions` 与模型 ID allowlist。</li>
+    <li><a href="https://docs.openwebui.com/faq/" target="_blank" rel="noopener noreferrer">Open WebUI FAQ</a>：协议边界、标题、标签、搜索等额外后台模型请求和常见行为说明。</li>
+    <li><a href="https://docs.openwebui.com/features/administration/task-models/" target="_blank" rel="noopener noreferrer">Task Models</a>：标题、标签、建议、自动补全与查询改写等后台模型调用、开关和费用边界。</li>
+    <li><a href="https://docs.openwebui.com/troubleshooting/connection-error/" target="_blank" rel="noopener noreferrer">Connection Error Troubleshooting</a>：容器 localhost、模型连接、HTTPS、CORS、Cookie、WebSocket 与流式响应的排错边界。</li>
+    <li><a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noopener noreferrer">DeepSeek 首次调用 API</a>：当前 OpenAI-compatible base URL 与模型 ID。</li>
+    <li><a href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/" target="_blank" rel="noopener noreferrer">DeepSeek 模型与价格</a>：`deepseek-flash`、DeepSeek-V4.1-Flash、峰谷时段、token 单价与旧模型名称迁移说明。</li>
+    <li><a href="https://api-docs.deepseek.com/zh-cn/api/list-models/" target="_blank" rel="noopener noreferrer">DeepSeek 获取模型列表</a>：`/models` 响应与精确模型 ID 的接口证据。</li>
+    <li><a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-privacy-policy.html" target="_blank" rel="noopener noreferrer">DeepSeek 隐私政策</a>：API 适用范围、输入输出处理、训练退出与敏感信息边界。</li>
+    <li><a href="https://cdn.deepseek.com/policies/en-US/deepseek-open-platform-terms-of-service.html" target="_blank" rel="noopener noreferrer">DeepSeek Open Platform Terms of Service</a>：API key 保管、下游用户告知、费用与余额责任。</li>
+  </ol>
+
+  选定模型提供方后还必须只用该提供方官方资料复核 base URL、模型 ID、价格、token 口径、并发、限额、地区、数据处理、保留、删除、停服与退款。第五册不承诺任何提供方始终可用，也不提供绕过地区、付款或账户限制的方法。
+</section>
+
+<section className="book-section" id="book05-sources-cloudflare">
+  ## Cloudflare Tunnel、公开 URL 与 HTTPS
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/reference/https/cloudflare-tunnel/" target="_blank" rel="noopener noreferrer">Open WebUI：Cloudflare Tunnel</a>：公开 URL、CORS、WebSocket、流式响应和反向代理的应用侧要求。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/routing-to-tunnel/" target="_blank" rel="noopener noreferrer">Cloudflare Published applications</a>：公开 hostname 到本地 service 的映射、控制台 route 与 DNS 的关系，以及发布应用不要求购买 Access 的当前边界。</li>
+    <li><a href="https://developers.cloudflare.com/billing/understand/usage-based-billing/" target="_blank" rel="noopener noreferrer">Cloudflare Usage-based billing</a>：Tunnel 路径之外，Workers、R2、Argo 等产品仍有各自免费额度或计费维度。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/troubleshooting/tunnel/" target="_blank" rel="noopener noreferrer">Cloudflare Tunnel troubleshooting</a>：connector 状态、同机 system service 边界、1033 与 502 的当前含义。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/" target="_blank" rel="noopener noreferrer">Tunnel with firewall</a>：connector 出站网络要求。</li>
+    <li><a href="https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/" target="_blank" rel="noopener noreferrer">Universal SSL</a>：Cloudflare 边缘证书的产品边界；证书成功不等于应用认证或模型路径成功。</li>
+  </ol>
+
+  第五册优先在仍然存在、已验证且归属明确的 Tunnel 上增加一个独立 route；如果第四册实验资源已经清理，
+  则先按独立 runbook 建立第五册专用的无 route Tunnel 与单 connector。两种分支都不在发布步骤安装
+  第二个 connector，不把 Tunnel token 放进 Compose，也不开放公网 3000。创建、修改和删除 route 都是外部操作闸门。
+</section>
+
+<section className="book-section" id="book05-sources-data">
+  ## Docker、数据、备份、更新与恢复
+
+  <ol className="source-list">
+    <li><a href="https://docs.docker.com/compose/" target="_blank" rel="noopener noreferrer">Docker Compose</a>：Compose v2 项目、服务和配置入口。</li>
+    <li><a href="https://docs.docker.com/engine/storage/volumes/" target="_blank" rel="noopener noreferrer">Docker volumes</a>：named volume 生命周期、挂载和删除边界。</li>
+    <li><a href="https://docs.docker.com/compose/how-tos/networking/" target="_blank" rel="noopener noreferrer">Networking in Compose</a>：默认网络、服务名发现、容器与宿主机端口、`host-gateway` 和 host network 风险。</li>
+    <li><a href="https://docs.openwebui.com/getting-started/updating/" target="_blank" rel="noopener noreferrer">Updating Open WebUI</a>：更新前备份、数据 volume、数据库 migration、固定版本与回退警告。</li>
+  </ol>
+
+  本书的恢复基线是“停止写入后的 volume 归档 + Compose + 原 Secret + 固定源版本”，并在独立测试 volume 中先恢复。旧镜像标签本身不能逆转已经执行的数据库迁移。
+</section>
+
+<section className="book-section" id="book05-sources-maintenance">
+  ## 维护、凭证轮换与许可
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/getting-started/updating/" target="_blank" rel="noopener noreferrer">Updating Open WebUI</a>：计划更新、备份、版本选择与数据迁移边界。</li>
+    <li><a href="https://docs.openwebui.com/features/authentication-access/api-keys/" target="_blank" rel="noopener noreferrer">Open WebUI API Keys</a>：应用 API key 当前一用户一把、新建立即替换旧 key、权限继承和无自动到期的行为。</li>
+    <li><a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/remote-tunnel-permissions/" target="_blank" rel="noopener noreferrer">Cloudflare Tunnel permissions</a>：Tunnel token 属于敏感凭证及其权限范围。</li>
+    <li><a href="https://docs.openwebui.com/license/" target="_blank" rel="noopener noreferrer">Open WebUI License</a>：当前许可说明、品牌限制和商业支持入口。</li>
+    <li><a href="https://github.com/open-webui/open-webui/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Open WebUI repository LICENSE</a>：仓库当前许可文本；发布前与固定版本对应文本交叉核对。</li>
+  </ol>
+
+  凭证轮换和永久退役不能只参考软件文档，还要核对域名、VPS、模型提供方和备份服务的账户所有权、套餐取消、自动充值、数据保留和账单规则。
+</section>
+
+<section className="book-section" id="book05-sources-ollama">
+  ## Ollama 附录路径
+
+  <ol className="source-list">
+    <li><a href="https://docs.openwebui.com/getting-started/quick-start/connect-a-provider/starting-with-ollama/" target="_blank" rel="noopener noreferrer">Open WebUI：Starting with Ollama</a>：管理入口、`host.docker.internal:11434` 和多实例连接的当前说明。</li>
+    <li><a href="https://docs.openwebui.com/alternatives/ollama/" target="_blank" rel="noopener noreferrer">Open WebUI &amp; Ollama</a>：Open WebUI 与 Ollama 的职责关系和常见容器路径。</li>
+    <li><a href="https://docs.ollama.com/docker" target="_blank" rel="noopener noreferrer">Ollama Docker</a>：官方镜像、11434 端口、模型 volume 和 CPU/GPU 变体。</li>
+    <li><a href="https://docs.ollama.com/faq" target="_blank" rel="noopener noreferrer">Ollama FAQ</a>：默认回环绑定、`OLLAMA_HOST`、模型存储、代理与 GPU 边界。</li>
+    <li><a href="https://docs.ollama.com/gpu" target="_blank" rel="noopener noreferrer">Ollama Hardware support</a>：GPU 支持和运行限制入口。</li>
+  </ol>
+
+  附录不会告诉读者直接把 `OLLAMA_HOST` 改为 `0.0.0.0`，也不发布 11434。宿主机、同 Compose 网络和捆绑镜像是三种不同架构，需要各自的版本、模型 volume、硬件、费用、监听与回退设计。
+</section>
+
+<section className="book-section" id="book05-sources-facts">
+  ## 本轮关键事实记录
+
+  <ComparisonTable>
+
+  | 事实 | 当前 RC 结论 | RC 重查触发条件 |
+  | --- | --- | --- |
+  | 安装主线 | 官方当前推荐 Docker；数据挂载到 `/app/backend/data` | Quick Start、镜像或数据路径变化 |
+  | 固定版本 | 本轮源版本为 `v0.11.3`，不使用滚动标签 | 新稳定版、修复或已知问题出现 |
+  | 健康检查 | v0.11.3 镜像使用 `/health` endpoint | Dockerfile 或健康语义变化 |
+  | 首位管理员 | 当前首次注册用户成为 admin，之后 signup 自动关闭 | 认证或初始化流程变化 |
+  | ConfigVar | 管理界面保存值可能优先于后续环境变量 | 持久化规则变化 |
+  | 模型协议 | `/v1/chat/completions` 为主线必需，`/models` 用于发现 | 提供方或 Open WebUI 改用其他协议 |
+  | 本次远程模型 | DeepSeek OpenAI-compatible base URL 为 `https://api.deepseek.com`；当前正式 ID 为 `deepseek-flash`，版本为 DeepSeek-V4.1-Flash | DeepSeek 模型、别名或 base URL 变化 |
+  | 本次模型费用保护 | 提供方控制台当前没有逐 key 权限与支出上限；使用专用可撤销 key、单模型 allowlist、4 元停发线和 5 元人工硬上限补偿 | 提供方新增逐 key 限额、告警或权限范围 |
+  | 额外调用 | 标题、标签、建议、自动补全与查询改写等后台任务可能产生额外模型请求 | Task Model、开关或默认功能变化 |
+  | Arena 模型 | `v0.11.3` 的内置 Evaluation Arena 可能额外显示 `arena-model`；一模型基线需单独关闭 Arena models | Evaluations 默认值或模型选择器变化 |
+  | Direct Connections | 浏览器会绕过 Open WebUI 后端直连提供方，个人 key 当前保存在浏览器 local storage；第一版关闭 | 实验功能、CORS 或存储方式变化 |
+  | RBAC 与分享 | 默认权限和群组权限叠加；聊天可按指定对象、Public 或 Open 三种范围分享，第一版全部关闭 | 权限模型、管理员豁免或分享语义变化 |
+  | 公开入口 | RC 使用专用 Tunnel 把 hostname 映射到 `127.0.0.1:3000`；G8 已删除该临时 route、DNS、connector 与 Tunnel | Cloudflare 控制台、产品或错误码变化 |
+  | WebSocket / CORS | 当前流式与登录依赖正确 URL、Origin、Cookie 和代理链 | 前端传输或安全默认变化 |
+  | 更新回退 | migration 可能单向；旧镜像不能替代更新前备份 | 数据库或更新机制变化 |
+  | 应用 API key | 当前一用户一把，新建会立即替换旧 key，继承用户权限且不会自动到期；第一版关闭 | API key 产品模型变化 |
+  | Tunnel 费用 | Tunnel 所有方案可用，发布应用当前不要求购买 Access；其他 Cloudflare 产品仍需独立核账 | 方案、免费额度或附加产品变化 |
+  | Ollama 宿主机路径 | Docker 中使用 host gateway 访问宿主机 11434 | Docker、Open WebUI 或 Ollama 网络默认变化 |
+  | 许可 | 当前 Open WebUI License 含品牌限制且不是 OSI 批准许可证 | 固定版本 LICENSE 或官方许可页变化 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-sources-unverified">
+  ## 当前未覆盖与已知边界
+
+  - 当前版本的普通用户、叠加权限、三类分享、管理员聊天访问与导出 UI；
+  - 429、上游超时与部分提供方 5xx：当前没有安全 sandbox，不靠高频请求、耗尽余额或破坏整机网络制造；
+  - 跨版本数据库 migration 与降级：校订时 `v0.11.3` 仍是最新稳定版，不人为安装旧版或预发布版；
+  - 管理员密码与 Secret 的实际轮换窗口；本轮已验证模型 key 撤销，但没有为制造结果同时轮换全部凭证；
+  - Ollama 任何安装、模型下载、11434 网络、硬件、模型 volume、性能、费用或恢复行为；
+  - 未来模型提供方价格、域名续费以及其他账户或地区条件。
+
+  这些项目必须保留为未知或未覆盖，不能从本轮实机结果外推。
+
+  <Callout type="info" title="资料来源不计入完成率">
+    第五册完成率只计算第 1—12 章。本页和附录不计入完成率，但作为 RC 内容已进入 production、Pagefind 与正式打印。
+  </Callout>
+</section>

@@ -1,0 +1,226 @@
+---
+book: "05-open-webui"
+order: 1
+slug: "01-two-request-paths"
+title: "一个聊天框背后有哪两条请求路径？"
+shortTitle: "两条请求路径"
+description: "把浏览器访问路径与模型请求路径逐段拆开，理解页面、Open WebUI、Cloudflare、API endpoint、API key 和远程模型各自负责什么。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 1
+duration: "预计 20—30 分钟"
+labels:
+  - "浏览器路径"
+  - "模型路径"
+  - "责任边界"
+completionId: "book05-chapter-01"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import InfoGrid from "../../../components/book/InfoGrid.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import OpenWebUIPathMap from "../../../components/book/OpenWebUIPathMap.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals
+  audience="第一次接触自托管 AI 对话界面，容易把页面、模型、Cloudflare 和 API 混成一个对象的读者"
+  duration="预计 20—30 分钟"
+  outcome="能画出两条请求路径，给每一段标出协议、责任方和可观察证据，并先判断故障属于哪条路径"
+/>
+
+<section className="book-section" id="book05-ch1-one-box-two-paths">
+  ## 一个聊天框，不是一条连接
+
+  在浏览器里输入一句话时，至少发生两件彼此独立的事：浏览器先找到 Open WebUI，Open WebUI
+  再代表已登录用户请求模型。第一件事成功，第二件事仍可能失败。
+
+  <OpenWebUIPathMap labelId="book05-chapter-01-path-title" />
+
+  为了便于后续排错，本书固定使用两个名字：
+
+  - **路径 A：浏览器访问路径**，回答“用户怎样打开并登录页面”；
+  - **路径 B：模型请求路径**，回答“Open WebUI 怎样取得模型回复”。
+
+  <Callout type="info" title="本章只建立地图，不改任何外部资源">
+    本章不创建 DNS、Tunnel、容器、用户或模型 key，也不会产生模型调用费用。看到路径图后先把对象分清，下一章才决定模型来源。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch1-path-a">
+  ## 路径 A：浏览器怎样到达 Open WebUI
+
+  正式公开后，路径 A 是：
+
+  ```text
+  手机或电脑浏览器
+  → https://chat.example.com
+  → Cloudflare DNS 与边缘 HTTPS
+  → 已准备的 Cloudflare Tunnel
+  → VPS 上的 cloudflared connector
+  → http://127.0.0.1:3000
+  → Open WebUI 容器的 8080 端口
+  ```
+
+  `127.0.0.1` 是 VPS 自己的回环地址，只能从 VPS 本机访问。`3000` 是主机端口，`8080`
+  是容器内部端口。Tunnel connector 在 VPS 内把 Cloudflare 请求送到回环端口，因此不需要向公网开放 3000。
+
+  <ComparisonTable>
+
+  | 路径 A 的一段 | 协议或对象 | 谁负责 | 可观察的成功证据 |
+  | --- | --- | --- | --- |
+  | 浏览器 → 主机名 | HTTPS URL | 用户与浏览器 | 地址正确，没有意外端口或证书警告 |
+  | 主机名 → Cloudflare | DNS、TLS | 域名与 Cloudflare zone | DNS 有答案，证书对应主机名 |
+  | Cloudflare → Tunnel | 加密出站连接 | Cloudflare 与 connector | Tunnel 至少有一个 Healthy connector |
+  | connector → VPS 回环 | HTTP | route 与本机监听 | `127.0.0.1:3000` 返回 Open WebUI |
+  | 主机 3000 → 容器 8080 | Docker 端口映射 | Compose | 容器为 Running/healthy，端口只绑定回环 |
+
+  </ComparisonTable>
+
+  路径 A 只说明页面抵达应用。即使登录页完全正常，模型账户也可能没有余额，API key 也可能无效。
+</section>
+
+<section className="book-section" id="book05-ch1-four-addresses">
+  ## 四个地址分别填在哪里
+
+  新手最容易把四个看起来都像“网址”的值互相复制。它们服务于不同节点：
+
+  <ComparisonTable>
+
+  | 地址 | 谁使用 | 填写位置 | 填错后的典型现象 |
+  | --- | --- | --- | --- |
+  | `https://chat.example.com` | 人的浏览器 | 书签、`WEBUI_URL`、允许的网页 Origin | 填成模型 endpoint 后无法发现模型 |
+  | `http://127.0.0.1:3000` | VPS 本机与同机 connector | 本机探针、Tunnel route 的 Service URL | 填进手机浏览器时指向手机自己，不是 VPS |
+  | `8080` | Docker 容器内部 | Compose 端口映射右侧 | 当作公网端口时会绕开既定入口设计 |
+  | `<MODEL_API_BASE_URL>` | Open WebUI 后端 | Admin Settings 的模型连接 | 填成聊天网址时页面能开但模型请求失败 |
+
+  </ComparisonTable>
+
+  `localhost` 和 `127.0.0.1` 都表示“发起连接的这台机器自己”。在 VPS Shell 中它们指 VPS；在手机
+  浏览器中它们指手机；在容器内部则指该容器。后续每次看到回环地址，都要先问“这条命令由谁执行”。
+</section>
+
+<section className="book-section" id="book05-ch1-path-b">
+  ## 路径 B：Open WebUI 怎样取得模型回答
+
+  本书选择远程 OpenAI-compatible API，因此路径 B 是：
+
+  ```text
+  已登录用户在 Open WebUI 发送消息
+  → Open WebUI 后端读取选定连接与模型 ID
+  → HTTPS 请求远程 API endpoint
+  → 模型提供方验证 API key、权限、余额与限额
+  → 指定模型生成内容
+  → 流式响应返回 Open WebUI
+  → 浏览器逐步显示回答
+  ```
+
+  API endpoint 是程序接收请求的网络地址；API key 是秘密凭证；模型 ID 是模型在接口中的精确名称。
+  三者缺一不可，也不能互相替代。
+
+  <InfoGrid columns={3}>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Endpoint</p>
+      <p>决定请求发到哪里，例如提供方文档给出的兼容 API base URL。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">API key</p>
+      <p>决定调用者是谁、拥有哪些权限与额度，必须视为秘密。</p>
+    </section>
+    <section className="info-grid__item">
+      <p className="info-grid__title">Model ID</p>
+      <p>决定调用哪个模型；显示名与真实接口 ID 可能不同。</p>
+    </section>
+  </InfoGrid>
+
+  <Callout type="warning" title="自托管界面不等于提示词只留在 VPS">
+    Open WebUI 的账户、配置和聊天记录可以保存在自己的 volume，但远程模型请求仍会把必要输入发送给模型提供方。是否保存、训练、审计或跨区域处理，要以所选提供方当前官方政策为准。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch1-return-path">
+  ## 回答回来时，仍要经过完整返回路径
+
+  模型不是一次性把整段答案塞回浏览器。流式响应会把内容分批送回 Open WebUI，再持续显示给用户。
+  中间可能使用 SSE（Server-Sent Events，服务器持续推送事件）或 WebSocket 等长连接能力。
+
+  <MockWindow title="一次受控对话的状态仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>1. 页面与登录</strong> <MockStatusBadge tone="success">路径 A 已通过</MockStatusBadge></div>
+      <div className="mock-panel"><strong>2. 模型请求</strong> <MockStatusBadge tone="neutral">正在验证连接与额度</MockStatusBadge></div>
+      <div className="mock-panel"><strong>3. 流式返回</strong> <MockStatusBadge tone="success">内容连续到达</MockStatusBadge></div>
+      <div className="mock-panel"><strong>4. 保存与用量</strong> <MockStatusBadge tone="neutral">等待账单与持久化核对</MockStatusBadge></div>
+    </div>
+  </MockWindow>
+
+  回答开始后中断，既可能是模型提供方超时，也可能是 Cloudflare、CORS、WebSocket 或浏览器网络变化。
+  第 11 章会沿同一地图保存证据，而不是先重启所有服务。
+</section>
+
+<section className="book-section" id="book05-ch1-symptom-split">
+  ## 用现象先判断哪条路径失败
+
+  <ComparisonTable>
+
+  | 用户现象 | 路径 A | 路径 B | 第一检查方向 |
+  | --- | --- | --- | --- |
+  | 找不到主机名或证书错误 | 失败 | 尚未开始 | DNS、证书与 route |
+  | Cloudflare 1033 / 502 | 失败 | 尚未开始 | connector、回环源站与端口 |
+  | 登录页能开但不能登录 | 已到应用 | 尚未开始 | 账户、Cookie、Secret 与时间 |
+  | 登录正常但没有模型 | 成功 | 失败在发现阶段 | Connections、base URL、allowlist |
+  | 发送后 401 / 403 / 429 | 成功 | 失败 | key、权限、账户、额度与限速 |
+  | 回答开始后中断 | 基本成功 | 已开始但未完整返回 | 流式协议、超时、网络与上游 |
+
+  </ComparisonTable>
+
+  这里的判断是分流，不是最终根因。看到 401 时仍要确认它来自 Open WebUI 登录接口，还是来自远程模型接口。
+</section>
+
+<section className="book-section" id="book05-ch1-cost-and-data">
+  ## 两条路径对应不同账单与数据边界
+
+  - 路径 A 主要涉及 VPS、域名和可选的 Cloudflare 产品；本书不默认开通付费 Cloudflare 产品；
+  - 路径 B 主要涉及远程模型调用，可能按 token、请求、套餐或额度计费；
+  - Open WebUI 可能为标题、标签或其他后台任务额外调用模型，因此一次点击不一定只对应一条上游请求；
+  - HTTPS 保护传输过程，不代表 VPS、Open WebUI 管理员或模型提供方看不到其职责范围内的数据；
+  - 应用登录限制谁能使用界面，不替代模型 key 的权限和支出上限。
+
+  如果不能分别说明“钱付给谁、数据到哪里、怎样停止”，就不应进入真实模型调用。
+</section>
+
+<section className="book-section" id="book05-ch1-exercise">
+  ## 练习：不用真实值画出自己的地图
+
+  在本地笔记中填写下面的占位卡，不写真实 key、Cookie、Tunnel token 或账户 ID：
+
+  ```text
+  路径 A 主机名：chat.example.com
+  Open WebUI 本机入口：http://127.0.0.1:3000
+  容器端口：8080
+  Tunnel 负责人：<ROLE_OR_TEAM>
+
+  路径 B API base URL：<MODEL_API_BASE_URL>
+  模型 ID：<MODEL_ID>
+  key 保存位置：<PASSWORD_MANAGER_ENTRY_NAME>
+  额度与撤销负责人：<ROLE_OR_TEAM>
+  ```
+
+  成功状态：你能从任一箭头说出前一节点、后一节点、责任方和一项证据。失败判断：仍把
+  `chat.example.com` 当作模型 endpoint，或把 Open WebUI 登录密码当作模型 API key。
+</section>
+
+<ChapterChecklist
+  chapterId="book05-chapter-01"
+  items={[
+    "我能分别画出浏览器访问路径和模型请求路径。",
+    "我知道 127.0.0.1:3000 是 VPS 回环入口，容器内部使用 8080。",
+    "我能区分公开聊天网址、模型 API endpoint、API key 和模型 ID。",
+    "我知道页面能打开不代表模型能回答。",
+    "我知道自托管 Open WebUI 不等于数据不会发送给远程模型提供方。",
+    "我能根据现象先判断路径 A、路径 B 或返回链路。",
+    "我没有记录任何真实凭证，也没有创建外部资源或产生模型费用。",
+  ]}
+/>

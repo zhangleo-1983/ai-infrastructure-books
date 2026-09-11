@@ -117,6 +117,16 @@ route、DNS、connector、Tunnel 与临时 VPS，计费附加资源均为空；�
 [`docs/qa/04-cloudflare/release-candidate.md`](docs/qa/04-cloudflare/release-candidate.md)。该版本已由
 `main` 通过 GitHub Pages 发布并完成线上搜索、打印、canonical、移动端与 404 冒烟检查。
 
+第五册《搭建自己的 AI 对话入口：Open WebUI 从部署到维护》共 15 个内容单元，已进入
+`1.0.0-rc.1`，并启用 production、Pagefind、完成状态和整册打印。G1—G8 实机校订已经通过，覆盖
+固定 `v0.11.3`、回环 3000、唯一管理员、注册与权限收紧、DeepSeek `deepseek-flash` 单模型连接、
+Cloudflare Tunnel、Universal SSL、桌面与手机蜂窝网络、WebSocket / SSE、受控故障、备份和同版本
+隔离恢复。G8 已永久删除教学 route、自动 DNS、模型连接与专用 key、容器、volume、备份、connector、
+Tunnel、临时防火墙规则和 VPS；根 zone、nameserver 与 DNSSEC 保留。模型校订最终为 2 次合成请求、
+97 tokens、费用低于 0.01 元，没有充值或订阅；VPS 已销毁，不再产生持续计算费用。内容规格见
+[`docs/planning/book05-content-spec.md`](docs/planning/book05-content-spec.md)，实机结果见
+[`docs/qa/05-open-webui/field-validation-results.md`](docs/qa/05-open-webui/field-validation-results.md)。
+
 ------------------------------------------------------------------------
 
 ## 目标读者

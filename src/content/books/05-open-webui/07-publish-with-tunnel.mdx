@@ -1,0 +1,328 @@
+---
+book: "05-open-webui"
+order: 7
+slug: "07-publish-with-tunnel"
+title: "用独立子域名发布 AI 对话入口"
+shortTitle: "通过 Tunnel 公开"
+description: "在保持 3000 只监听回环地址的前提下，配置公开 URL、CORS 与 Secure Cookie，并把独立 chat 子域名映射到已准备且归属明确的 Cloudflare Tunnel。"
+chapterType: "chapter"
+updatedAt: "2026-09-11"
+chapterNumber: 7
+duration: "预计 30—45 分钟，不含 DNS 与证书等待"
+labels:
+  - "Cloudflare Tunnel"
+  - "HTTPS"
+  - "CORS 与 Cookie"
+completionId: "book05-chapter-07"
+draft: false
+---
+
+import ChapterChecklist from "../../../components/book/ChapterChecklist.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import FlowDiagram from "../../../components/book/FlowDiagram.astro";
+import InstructionStep from "../../../components/book/InstructionStep.astro";
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockStatusBadge from "../../../components/mock-ui/MockStatusBadge.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+import TerminalMock from "../../../components/mock-ui/TerminalMock.astro";
+import TunnelRouteMock from "../../../components/mock-ui/TunnelRouteMock.astro";
+
+export const localPreflight = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo ss -lntp 'sport = :3000'
+sudo systemctl is-active cloudflared
+sudo systemctl is-enabled cloudflared`;
+
+export const publicEnvironment = `environment:
+  WEBUI_AUTH: "True"
+  WEBUI_SECRET_KEY: "\${WEBUI_SECRET_KEY}"
+  WEBUI_URL: "https://chat.example.com"
+  CORS_ALLOW_ORIGIN: "https://chat.example.com"
+  WEBUI_SESSION_COOKIE_SECURE: "True"
+  WEBUI_AUTH_COOKIE_SECURE: "True"`;
+
+export const applyPublicEnvironment = `cd "$HOME/docker-labs/open-webui"
+sudo docker compose config -q
+sudo docker compose up -d
+sudo docker compose ps
+curl --fail --silent --show-error http://127.0.0.1:3000/health`;
+
+export const externalPublishProbe = `nslookup chat.example.com
+curl --head --show-error --connect-timeout 10 https://chat.example.com`;
+
+export const serverPublishProbe = `curl --fail --silent --show-error http://127.0.0.1:3000/health
+sudo systemctl is-active cloudflared
+sudo ss -lntp 'sport = :3000'`;
+
+<LearningGoals
+  audience="已经完成本机部署、管理员初始化和模型连接，准备让电脑与手机通过 HTTPS 访问的读者"
+  duration="预计 30—45 分钟，不含 DNS 与证书等待"
+  outcome="使用已准备且归属明确的 Tunnel 建立 chat.example.com 到 127.0.0.1:3000 的独立公开路由，同时保持认证、Secure Cookie、单一 Origin 和公网 3000 关闭"
+/>
+
+<section className="book-section" id="book05-ch7-boundary">
+  ## 本章会把登录页公开到互联网
+
+  前六章一直通过 SSH local forwarding（SSH 本地端口转发）访问 Open WebUI。本章保存 published application route
+  之后，能够解析 `chat.example.com` 的互联网用户都可能看到登录页。因此，**保存 route 是一个外部操作闸门**，
+  不能因为 Tunnel 已经存在就自动执行。
+
+  <Callout type="danger" title="公开 HTTPS 不等于只有你能访问">
+    HTTPS 保护浏览器与 Cloudflare 之间的传输，不会自动判断访客是不是 Owner。保存 route 前必须确认认证开启、首位管理员归属明确、signup 已关闭、用户总数与预期一致，且模型连接费用可以观察。
+  </Callout>
+
+  <Callout type="warning" title="当前官方 Hardening 还建议在应用登录之前增加访问控制">
+    Open WebUI 当前把自己定位为面向私有、可信网络的应用，并建议公网部署在登录页前增加 VPN、Zero Trust / Access、IP allowlist 或等价的限速与访问控制。第一版 draft 先把 route、应用认证与数据流写清；G5 RC 前必须单独决定前置访问控制、恢复账户和费用边界，不能把“Tunnel + 登录页”写成生产加固已经完成。
+  </Callout>
+
+  如果第四册交接的 Tunnel 与 systemd connector 仍存在、归属明确且能安全复用，本章只在其中增加
+  一条 route。如果第四册已经按清理流程删除实验资源，应先在独立实机 runbook 中建立一个第五册专用、
+  无 route 的 Tunnel 与单 connector，再回到本章。两条分支都不会创建第二个 Tunnel，也不会在本章安装
+  第二个 connector system service；不会把 Tunnel token 放进 Compose，也不会开放公网 80、443 或 3000。
+</section>
+
+<section className="book-section" id="book05-ch7-path">
+  ## 公开后，浏览器路径怎样变化
+
+  <FlowDiagram>
+    <div className="flow-node"><strong>电脑或手机</strong><small>https://chat.example.com</small></div>
+    <div className="flow-node"><strong>Cloudflare 边缘</strong><small>DNS 与边缘 HTTPS</small></div>
+    <div className="flow-node"><strong>已准备的 Tunnel</strong><small>选择 Healthy connector</small></div>
+    <div className="flow-node"><strong>cloudflared</strong><small>VPS 上的 systemd service</small></div>
+    <div className="flow-node"><strong>回环源站</strong><small>http://127.0.0.1:3000</small></div>
+    <div className="flow-node"><strong>Open WebUI</strong><small>容器内 8080</small></div>
+  </FlowDiagram>
+
+  浏览器只使用 `https://chat.example.com`。`http://127.0.0.1:3000` 是 connector 在同一台 VPS 上访问的源站地址，
+  不会写进用户书签，也不需要公网证书。
+</section>
+
+<section className="book-section" id="book05-ch7-gate">
+  ## 保存 route 前的 G5 闸门
+
+  先在 VPS 执行只读检查：
+
+  <CodeBlock label="检查应用、监听与已准备的 connector" code={localPreflight} />
+
+  <ComparisonTable>
+
+  | 检查对象 | 成功状态 | 停止条件 |
+  | --- | --- | --- |
+  | Compose | 配置可解析，service 为 Running/healthy | Restarting、Exited 或配置报错 |
+  | 本机 health | `127.0.0.1:3000/health` 成功 | 本机源站已经失败 |
+  | 主机监听 | 只有 `127.0.0.1:3000` | 出现 `0.0.0.0:3000` 或 `[::]:3000` |
+  | 首位管理员 | 归属明确，能进入 Admin Settings | 身份不明或出现未知管理员 |
+  | 注册 | signup 已关闭，用户数量符合预期 | 匿名注册仍可用或有未知用户 |
+  | 模型 | allowlist 只有预期模型，最小连接探针已通过 | key、额度或实际用量无法解释 |
+  | connector | systemd 同时为 active 与 enabled | service 失联、重复失败或 Tunnel 不明 |
+  | 主机名 | `chat` 独立用于本应用 | 同名 DNS、route 或业务用途不明 |
+
+  </ComparisonTable>
+
+  任何一项失败都先回对应章节修复。不要先保存 route，再希望公开访问帮助定位本机错误。
+</section>
+
+<section className="book-section" id="book05-ch7-app-config">
+  ## 第一步：让 Open WebUI 知道自己的公开地址
+
+  Open WebUI 的 `WEBUI_URL` 表示用户最终访问的公开 HTTPS 地址。当前版本把它作为 ConfigVar：第一次启动后，
+  数据库中已保存的值可能优先于新的 Compose 环境值。因此采用两层记录：
+
+  <InstructionStep number={1} title="先在 SSH 转发页面修改 WebUI URL">
+    以管理员登录，在 Admin Settings 的 System / General 或当前含义相同的区域，把 WebUI URL 改为 `https://chat.example.com` 并保存。界面路径会随版本变化，必须核对字段含义，不凭按钮位置猜测。
+  </InstructionStep>
+
+  <InstructionStep number={2} title="再把公开配置写入 Compose">
+    在 `compose.yaml` 的 `open-webui.environment` 中保留原有认证与 Secret，并加入下列非秘密配置。这样交接者能从配置文件读到预期公开地址；已有 ConfigVar 仍以管理界面保存值为准。
+  </InstructionStep>
+
+  <CodeBlock label="open-webui.environment 公开配置片段" code={publicEnvironment} />
+
+  <ComparisonTable>
+
+  | 变量 | 做什么 | 本书值为何这样写 |
+  | --- | --- | --- |
+  | `WEBUI_URL` | 记录应用的公开地址 | 只写唯一 HTTPS 主机名 |
+  | `CORS_ALLOW_ORIGIN` | 允许指定网页 Origin 调用应用接口 | 从默认 `*` 收紧为同一个主机名 |
+  | `WEBUI_SESSION_COOKIE_SECURE` | 让 session Cookie 只经安全连接发送 | 公开入口只使用 HTTPS |
+  | `WEBUI_AUTH_COOKIE_SECURE` | 让登录认证 Cookie 只经安全连接发送 | 避免 Cookie 被明文 HTTP 发送 |
+  | `WEBUI_AUTH` | 保持应用登录 | 公网主线不得设为 `False` |
+
+  </ComparisonTable>
+
+  `SameSite` 第一版保持官方默认 `lax`。如果以后启用 OAuth/SSO（第三方统一登录），再依据当前官方文档单独设计；
+  不要为了“更严格”直接改成可能破坏登录回调的值。
+
+  <Callout type="info" title="2026 年 9 月实机：环境值正确，不代表 ConfigVar 已更新">
+    RC 重建后，容器里的四个环境变量都已正确，但管理员配置接口仍返回第一次启动时保存的旧
+    WebUI URL。再次在 Admin Settings 保存公开 HTTPS 地址后，接口值才与 Compose 一致。这里必须
+    同时核对“容器环境”和“管理界面保存值”，不能只看 <code>docker compose config</code> 就判定成功。
+  </Callout>
+
+  <Callout type="warning" title="启用 Secure Cookie 后，本地 HTTP 登录不再是主入口">
+    浏览器不会把 Secure Cookie 发送给普通 HTTP 地址。配置应用后仍可用 VPS 上的 `/health` 做本机检查，但管理员登录应改用公开 HTTPS。若 route 创建失败且必须回到 SSH 转发登录，应在维护窗口明确回退 Cookie 与 Origin 配置，而不是关闭认证。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch7-apply-config">
+  ## 第二步：应用配置，但先不保存 route
+
+  保存 `compose.yaml` 后执行：
+
+  <CodeBlock label="验证配置并重建应用容器" code={applyPublicEnvironment} />
+
+  `docker compose config -q` 不打印展开后的 Secret。`up -d` 会在配置变化时重建应用容器，但保留 named volume；
+  不要改用 `down -v`。
+
+  成功状态：容器重新进入 Running/healthy，本机 `/health` 成功，`book05-open-webui-data` 与原来的
+  `WEBUI_SECRET_KEY` 均未改变。失败判断：登录 Secret 被重新生成、volume 挂载丢失、容器持续重启或本机 health 失败。
+</section>
+
+<section className="book-section" id="book05-ch7-existing-tunnel">
+  ## 第三步：只打开已准备的 Tunnel，不在这里安装 connector
+
+  在 Cloudflare 当前 Tunnel 管理页面中，打开交接卡或第五册 G1 结果记录的那个 Tunnel，核对：
+
+  - 名称与交接卡一致；
+  - 只有预期 connector；
+  - 状态为 Healthy / Connected；
+  - connector 对应当前 VPS；
+  - 运行方式仍为 systemd；
+  - 同一 Tunnel 中的其他 route 不受本章修改；如果没有其他 route，也明确记录为空。
+
+  Cloudflare 当前说明同一台机器通常只运行一个 `cloudflared` system service。为新应用增加 route，不需要再安装
+  第二个 service 或再粘贴 token。
+
+  <MockWindow title="已准备 Tunnel 的复用检查仿真">
+    <div className="mock-stack">
+      <div className="mock-panel"><strong>Tunnel</strong> 已交接或 G1 建立、归属明确的 Tunnel</div>
+      <div className="mock-panel"><strong>Connector</strong> <MockStatusBadge tone="success">Healthy · 1 个预期实例</MockStatusBadge></div>
+      <div className="mock-panel"><strong>本章只新增</strong> <code>chat.example.com → http://127.0.0.1:3000</code></div>
+      <div className="mock-panel"><strong>本章不会新增</strong> Tunnel、connector、token、80/443/3000 入站端口</div>
+    </div>
+  </MockWindow>
+</section>
+
+<section className="book-section" id="book05-ch7-route">
+  ## 第四步：经确认后创建 published application route
+
+  进入 Routes，选择 Published application（公开应用）或当前含义相同的路由类型，填写：
+
+  <TunnelRouteMock
+    hostname="chat.example.com"
+    serviceUrl="http://127.0.0.1:3000"
+  />
+
+  <ComparisonTable>
+
+  | 字段 | 本书主线值 | 常见错误 |
+  | --- | --- | --- |
+  | Subdomain | `chat` | 输入 `https://chat` 或完整 URL |
+  | Domain | 当前 Active zone | 选择了另一账户或另一 zone |
+  | Path | 留空 | 意外只发布某个子路径 |
+  | Service type | HTTP | 对没有本机 TLS 的源站选 HTTPS |
+  | Service URL | `127.0.0.1:3000` | 填公网 IP、`0.0.0.0` 或公开 URL |
+
+  </ComparisonTable>
+
+  确认这是预期外部变更后，选择 Add route / Save。Cloudflare 当前控制台从 Tunnel 增加 published application 时，
+  会为公开主机名自动建立相应 DNS 记录。
+
+  成功状态：Routes 列表出现唯一 `chat.example.com → http://127.0.0.1:3000`；完整 DNS 设置中出现由该 route
+  建立的代理记录；connector 仍 Healthy；没有新增指向 VPS 公网 IP 的 A/AAAA 记录。
+
+  <Callout type="danger" title="不要用冲突删除来猜正确答案">
+    如果保存时提示 hostname 或 DNS record already exists，先查清同名对象的负责人、目标和用途。不要删除未知 A、AAAA、CNAME 或旧 route 强行通过。
+  </Callout>
+</section>
+
+<section className="book-section" id="book05-ch7-verify">
+  ## 第五步：先验证登录页，不发送模型请求
+
+  在 VPS 之外的电脑终端执行：
+
+  <CodeBlock label="检查公开 DNS 与 HTTPS 响应" code={externalPublishProbe} />
+
+  再在 VPS 执行：
+
+  <CodeBlock label="复核本机源站、connector 与回环监听" code={serverPublishProbe} />
+
+  浏览器手动打开 `https://chat.example.com`，核对：
+
+  - 最终主机名没有改变；
+  - 没有证书或隐私警告；
+  - 出现 Open WebUI 登录页，而不是注册商停放页、第四册教学页或 Cloudflare 错误页；
+  - 未登录时不能看到已有聊天和模型；
+  - 使用 Owner 账户可以登录，刷新后会话仍在；
+  - 地址栏不出现公网 IP 或 `:3000`；
+  - 浏览器控制台没有 CORS、mixed content 或 Cookie 拒绝错误。
+
+  <TerminalMock title="公开入口第一层验收示意">
+    DNS&nbsp;<span className="term-green">有 Cloudflare 代理回答</span><br />
+    HTTPS&nbsp;<span className="term-green">证书覆盖 chat.example.com</span><br />
+    页面&nbsp;<span className="term-green">Open WebUI 登录与刷新正常</span><br />
+    Origin&nbsp;<span className="term-green">https://chat.example.com</span><br />
+    VPS&nbsp;<span className="term-green">仍只监听 127.0.0.1:3000</span>
+  </TerminalMock>
+
+  本章到此不发送新聊天。WebSocket、SSE（服务器持续推送事件）和真实模型请求要在第 8 章用固定测试问题一起验收。
+</section>
+
+<section className="book-section" id="book05-ch7-failures">
+  ## 页面未出现时，先判断哪一层失败
+
+  <ComparisonTable>
+
+  | 现象 | 第一判断 | 下一步 |
+  | --- | --- | --- |
+  | DNS 为 NXDOMAIN | route 或自动 DNS 尚未建立 | 核对 route 保存结果与 zone，不改源站 |
+  | 证书警告 | 边缘证书尚未覆盖或主机名错误 | 停止登录，不忽略警告 |
+  | Cloudflare 1016 | DNS 目标与可用 Tunnel 关系异常 | 查 route、DNS 与 Tunnel 对象 |
+  | Cloudflare 1033 | 没有健康 connector | 查 systemd 与 Tunnel connector |
+  | Cloudflare / Tunnel 502 | connector 无法到达本机源站 | 查 route URL 与 `curl 127.0.0.1:3000/health` |
+  | 登录后立刻退出 | Secure Cookie、Secret 或公开 URL 不一致 | 查 Cookie 配置与 Secret 是否变化 |
+  | 浏览器报 CORS / WebSocket 403 | `CORS_ALLOW_ORIGIN` 与实际 Origin 不一致 | 精确核对协议、主机名与端口 |
+  | 页面正确但出现注册入口 | signup 状态没有按第 5 章收紧 | 移除 route 后修复用户边界 |
+
+  </ComparisonTable>
+</section>
+
+<section className="book-section" id="book05-ch7-rollback">
+  ## 公开失败时，只回退本章 route
+
+  如果公开结果不符合预期：
+
+  1. 记录故障时间、状态码和第一处异常，不保存 Cookie 或页面源码中的敏感值；
+  2. 在已准备的 Tunnel 中移除 `chat.example.com` 这一条 published application route；
+  3. 在完整 DNS 设置中确认与该 route 对应的记录已经消失；如果仍在，先核对来源再处理；
+  4. 保留 Tunnel、connector、其他 route、Open WebUI 容器和 named volume；
+  5. 在 VPS 继续用 `/health` 验证本机应用；
+  6. 若必须恢复 SSH 转发登录，明确回退 CORS 与 Secure Cookie 配置后重建容器，再修复原因。
+
+  删除 `chat` route 不会删除聊天数据，也不会撤销模型 key。不要为了回退一次 route 执行
+  `docker compose down -v`、删除整个 Tunnel 或开放公网 3000。
+</section>
+
+<section className="book-section" id="book05-ch7-checklist">
+  ## 本章完成检查
+
+  <ChapterChecklist
+    chapterId="book05-chapter-07"
+    items={[
+      "保存 route 前，认证、管理员、注册、用户数量、模型费用与本机 health 均已通过",
+      "WEBUI_URL 和 CORS_ALLOW_ORIGIN 都指向唯一的 https://chat.example.com",
+      "WEBUI_SESSION_COOKIE_SECURE 与 WEBUI_AUTH_COOKIE_SECURE 已启用",
+      "本章使用已准备的 Healthy Tunnel，没有在公开步骤新增 cloudflared service 或暴露 token",
+      "唯一新 route 是 chat.example.com 到 http://127.0.0.1:3000",
+      "自动 DNS 记录存在，没有同名公网 A/AAAA 记录冲突",
+      "HTTPS 登录与刷新正常，浏览器没有证书、CORS、Cookie 或 mixed content 错误",
+      "VPS 仍只监听 127.0.0.1:3000，没有开放公网 80、443 或 3000",
+      "我知道公开失败时只移除 chat route，不删除 Tunnel、volume 或模型连接",
+      "第 8 章开始前，本章没有为了验证页面额外发送模型请求",
+    ]}
+  />
+</section>

@@ -1,0 +1,102 @@
+---
+import MockField from "./MockField.astro";
+import MockStatusBadge from "./MockStatusBadge.astro";
+import MockWindow from "./MockWindow.astro";
+
+interface Props {
+  baseUrl?: string;
+  modelId?: string;
+}
+
+const {
+  baseUrl = "https://api.example-provider.invalid/v1",
+  modelId = "<MODEL_ID>",
+} = Astro.props;
+---
+
+<MockWindow title="Open WebUI · Connections 仿真">
+  <div slot="toolbar">
+    <MockStatusBadge tone="neutral">External · Enabled</MockStatusBadge>
+  </div>
+  <p class="mock-heading">Add OpenAI-compatible connection</p>
+  <div class="mock-form-grid">
+    <MockField label="URL" wide>
+      <code>{baseUrl}</code>
+    </MockField>
+    <MockField label="API Key" wide>
+      <span class="connection-secret" aria-label="已隐藏的 API key">••••••••••••••••</span>
+    </MockField>
+    <MockField label="Model IDs (Filter)" wide>
+      <code>{modelId}</code>
+    </MockField>
+  </div>
+  <div class="connection-summary">
+    <span>Connection type</span>
+    <strong>Chat Completions</strong>
+    <span>可见模型</span>
+    <strong>仅 allowlist 中的模型</strong>
+  </div>
+  <div class="mock-actions">
+    <span class="connection-button connection-button--secondary">Cancel</span>
+    <span class="connection-button">Save</span>
+  </div>
+</MockWindow>
+
+<style>
+  .connection-secret {
+    letter-spacing: 0.16em;
+  }
+
+  .connection-summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    margin-top: var(--space-4);
+    border-top: var(--border-thin);
+    padding-top: var(--space-4);
+    font-size: var(--font-size-sm);
+  }
+
+  .connection-summary span {
+    color: var(--color-text-muted);
+  }
+
+  .connection-button {
+    border-radius: var(--radius-sm);
+    background: var(--color-primary);
+    color: var(--color-bg);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--font-size-sm);
+    font-weight: 750;
+  }
+
+  .connection-button--secondary {
+    border: var(--border-thin);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  @media (max-width: 35.625rem) {
+    .connection-summary {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .connection-summary strong + span {
+      margin-top: var(--space-2);
+    }
+  }
+
+  @media print {
+    .connection-summary {
+      border-color: #bbbbbb;
+      gap: 2mm 4mm;
+      padding-top: 3mm;
+    }
+
+    .connection-button {
+      border: 1px solid #777777;
+      background: white;
+      color: #111111;
+    }
+  }
+</style>
