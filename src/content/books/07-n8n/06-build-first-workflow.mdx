@@ -1,0 +1,52 @@
+---
+book: "07-n8n"
+order: 6
+slug: "06-build-first-workflow"
+title: "做一个手动触发的报名整理流程"
+shortTitle: "第一次工作流"
+description: "用手动触发、字段处理和结果节点完成一条不写外部系统的练习流程。"
+chapterType: "chapter"
+chapterNumber: 6
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import Callout from "../../../components/common/Callout.astro";
+import CodeBlock from "../../../components/common/CodeBlock.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="已经完成 n8n 自托管初始化、尚未创建真实凭证的读者" duration="约 30 分钟；只运行合成输入" outcome="能从执行记录解释输入、处理和输出的对应关系" />
+
+<Callout type="warning" title="只用合成数据">
+  本章不连接 Gmail、表格、CRM 或支付系统。若界面要求选择凭证，先取消操作；没有凭证也能完成这条练习流程。
+</Callout>
+
+## 先画出一条没有外部写入的路径
+
+手动触发节点只负责开始运行。接下来的 Set（字段设置）节点把一段输入拆成姓名、日期和人数，最后由 Edit Fields 或 Code 以外的内置字段节点生成摘要。教学仿真如下：
+
+<MockWindow title="报名整理器：教学仿真">
+  <ol>
+    <li><strong>Manual Trigger：</strong>你点击 Execute workflow 后开始。</li>
+    <li><strong>Set：</strong>写入 `raw_text`、`event_date` 和 `guest_count`。</li>
+    <li><strong>IF：</strong>判断 `guest_count` 是否小于等于 2。</li>
+    <li><strong>Set：</strong>分别输出“可以登记”或“需要人工确认”。</li>
+  </ol>
+</MockWindow>
+
+## 第一步：建立输入和预期结果
+
+在自己的电脑打开受保护的 n8n 管理界面，创建一个空工作流，命名为“活动报名整理器（练习）”。先保存名称，再添加 Manual Trigger。节点出现且没有红色错误时，点击 Execute workflow；此时运行应该立即结束，因为还没有后续节点。
+
+接着添加字段节点，写入下面的低敏感样本。字段名必须使用英文下划线，避免后续表达式引用错对象。
+
+<CodeBlock label="字段值：仅用于练习" code={`raw_text=林林，周六下午，带一位朋友\nevent_date=周六下午\nguest_count=2`} />
+
+把字段节点连到输出节点，再执行一次。成功状态是执行记录中能看到三项输入和一份摘要；失败判断是节点未执行、字段名拼错，或输出里出现没有输入来源的内容。先打开失败节点查看输入和错误，再改一个地方后重跑，不要连续点击制造一串难以区分的记录。
+
+## 第二步：读执行记录而不是只看绿色图标
+
+每次运行都有独立的执行记录。打开记录，依次核对触发时间、每个节点的输入、输出和耗时。若某节点显示成功但输出为空，向上查看它收到的字段；若表达式显示 `undefined`，说明字段名或连线不匹配。
+
+<strong>成功状态：</strong>你可以从记录复述“输入是什么、哪一步改了它、最终输出是什么”。<strong>失败判断：</strong>只能凭画布颜色判断成功，或把一次失败重跑后的最新记录当成第一次结果；此时保留失败记录并回到对应节点。

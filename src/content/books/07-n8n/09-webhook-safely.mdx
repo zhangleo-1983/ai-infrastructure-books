@@ -1,0 +1,48 @@
+---
+book: "07-n8n"
+order: 9
+slug: "09-webhook-safely"
+title: "受控 Webhook：公开入口前先定义边界"
+shortTitle: "安全使用 Webhook"
+description: "区分管理入口和 Webhook 入口，先设计签名、重放和最小权限，再决定是否公开。"
+chapterType: "chapter"
+chapterNumber: 9
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="已经理解手动工作流，准备评估 HTTP 触发入口的读者" duration="约 30 分钟；不含真实第三方回调配置" outcome="能解释 Webhook 的公开范围、签名检查和撤销步骤" />
+
+<Callout type="danger" title="不要把管理登录当成 Webhook 保护">
+  管理界面的登录会话只保护管理入口。Webhook 是另一个 HTTP 入口；只要 URL 泄露，任何人都可能尝试发送请求。正式配置前必须明确签名、时间戳、重放和关闭方法。
+</Callout>
+
+## 两条请求路径
+
+管理员先访问 n8n 管理界面，再在画布里查看和修改工作流；外部系统调用 Webhook 时不会自动拥有管理员权限。两条路径可以共享服务器，但身份、日志和撤销动作不同。
+
+<MockWindow title="Webhook 边界图：教学仿真">
+  <ol>
+    <li>外部请求 → Cloudflare Access 或其他入口控制 → Webhook 路径。</li>
+    <li>Webhook 节点检查方法、签名、时间戳和事件类型。</li>
+    <li>通过后才进入“报名整理器”；失败请求不写入外部系统。</li>
+    <li>管理员 → 受保护控制台 → 查看执行记录与停用开关。</li>
+  </ol>
+</MockWindow>
+
+| 检查项 | 通过标准 | 失败时动作 |
+| --- | --- | --- |
+| 方法 | 只接受预期的 HTTP 方法 | 立即返回拒绝，不尝试解析业务数据 |
+| 签名 | 使用独立密钥计算并比较签名 | 撤销旧密钥，保留失败日志 |
+| 时间戳 | 请求在允许窗口内 | 拒绝过期请求，防止旧请求重放 |
+| 事件类型 | 只允许练习流程需要的事件 | 拒绝未知字段，不把它传给后续节点 |
+| 停止 | 能停用工作流并撤回 route | 先关闭入口，再排查执行记录 |
+
+本章样章只画出边界，不给真实服务商的回调 URL、签名密钥或公开域名。正式写作时会先在本地或隔离入口验证拒绝路径，再决定是否配置公开 Webhook。
+
+<strong>成功状态：</strong>你能区分控制台会话和 Webhook 请求，并写出关闭入口的动作。<strong>失败判断：</strong>认为“URL 很难猜”就等于身份认证，或为了测试把管理入口公开；此时停止配置。

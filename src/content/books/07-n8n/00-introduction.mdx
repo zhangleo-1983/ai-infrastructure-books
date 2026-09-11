@@ -1,0 +1,50 @@
+---
+book: "07-n8n"
+order: 0
+slug: "start"
+title: "开始之前：先确认自动化边界与测试数据"
+shortTitle: "开始之前"
+description: "先分清自动化、脚本和外部系统写入，准备合成报名资料、测试入口与费用停止方法。"
+chapterType: "introduction"
+updatedAt: "2026-09-11"
+draft: true
+---
+
+import LearningGoals from "../../../components/book/LearningGoals.astro";
+import ComparisonTable from "../../../components/book/ComparisonTable.astro";
+import Callout from "../../../components/common/Callout.astro";
+import MockWindow from "../../../components/mock-ui/MockWindow.astro";
+
+<LearningGoals audience="会管理 VPS 和 Docker，但第一次接触 n8n 的零基础读者" duration="约 20 分钟；不含购买、部署和第三方授权" outcome="能判断一次自动化会读取什么、写入什么，以及怎样停用它" />
+
+<Callout type="info" title="样章审阅说明">
+  这是第七册样章草稿。n8n 的版本、界面和许可证将在正式写作与实机阶段重新核对；本章不要求创建账号、凭证或公开 Webhook。
+</Callout>
+
+## 这次要做成什么
+
+n8n 是把多个步骤连成工作流的自动化工具。工作流是按顺序运行的一组节点；触发器决定什么时候开始，节点处理数据，执行记录保存每次运行的输入、输出和错误。
+
+贯穿案例叫“活动报名整理器”。它只使用作者合成的一行报名文字，例如“林林，周六下午，带一位朋友”。流程先把文字整理成字段，再判断人数是否超过练习上限，最后返回结构化摘要。它不会给真实联系人发邮件，也不会写入真实 CRM。
+
+<MockWindow title="自动化边界卡：教学仿真">
+  <ul>
+    <li><strong>输入：</strong>合成报名文本，不含真实姓名、电话或支付信息。</li>
+    <li><strong>处理：</strong>文本清理、条件判断、结果格式化。</li>
+    <li><strong>输出：</strong>屏幕上的练习摘要；没有外部写入。</li>
+    <li><strong>停止：</strong>停用工作流、撤销凭证、停止容器并核对费用。</li>
+  </ul>
+</MockWindow>
+
+## 自动化、脚本和外部写入不是一回事
+
+脚本通常由你在终端手动启动；自动化工具会保存流程、凭证和执行记录，按照触发条件再次运行。只要流程调用了 HTTP、邮件、表格或数据库节点，就可能改变外部系统。节点显示绿色只表示本次执行没有报告错误，不代表业务结果已经被人工确认。
+
+| 名词 | 本册中的含义 | 第一次练习的边界 |
+| --- | --- | --- |
+| 触发器 | 让工作流开始运行的节点 | 先用手动触发，不接真实事件 |
+| 凭证 | 供节点访问服务的加密配置 | 使用占位凭证或本地练习，不粘贴真 key |
+| 执行记录 | 一次运行的输入、输出和错误 | 保留一条低敏感样本，随后清理 |
+| Webhook | 可由 HTTP 请求触发的入口 | 后续单独讲签名、重放和公开范围 |
+
+<strong>成功状态：</strong>你能说出案例读了什么、写了什么、怎样停止。<strong>失败判断：</strong>把工作流当成“只会在网页里画图”，或无法指出凭证和执行记录位置；此时停在准备阶段。
