@@ -1,0 +1,47 @@
+---
+book: "08-skills-plugins-mcp"
+order: 19
+slug: "sources"
+title: "资料来源与校订说明"
+shortTitle: "资料来源"
+description: "记录本册关于扩展能力、工具调用、权限和凭证边界的校订说明。"
+chapterType: "sources"
+updatedAt: "2026-09-13"
+labels: ["来源", "校订"]
+draft: false
+---
+
+# 资料来源与校订说明
+
+Skill、插件和 MCP 的具体名称、安装入口、协议版本与权限字段会随产品变化。使用时应以对应工具的官方文档、发布说明、隐私条款和组织安全制度为准。
+
+校订日期：2026-09-13。本册不把任何扩展视为默认可信，也不代表对第三方工具的背书。
+
+## OpenAI 官方资料
+
+- [OpenAI Developers：Plugins](https://developers.openai.com/)：当前官方入口说明插件可以由 Skill、MCP 服务器和可选界面组成。
+- [OpenAI API 快速开始](https://developers.openai.com/api/docs/quickstart)：介绍发出 API 请求与使用模型能力的基本路径。
+- [OpenAI 平台数据控制](https://platform.openai.com/docs/models/default-usage-policies-by-endpoint)：提醒远程 MCP 服务器属于第三方服务，发送的数据受对方保留政策约束。
+
+具体 Codex 或 ChatGPT 客户端的安装入口、审批方式和可用插件会变化，应在实际安装时查看产品内说明。
+
+## MCP 官方资料
+
+- [Model Context Protocol 规范](https://modelcontextprotocol.io/specification/latest)：协议结构和当前规范入口。
+- [MCP 架构概览](https://modelcontextprotocol.io/docs/learn/architecture)：理解客户端、服务器及能力之间的关系。
+- [MCP 安全最佳实践](https://modelcontextprotocol.io/specification/latest/basic/security_best_practices)：核对授权、令牌、代理与访问边界。
+- [MCP 授权规范](https://modelcontextprotocol.io/specification/latest/basic/authorization)：核对远程服务器的当前授权要求。
+
+MCP 规范将资源、提示和工具视为不同服务器能力，并强调用户同意、数据隐私和工具安全。协议本身不能替使用者决定某个服务器是否可信。
+
+## 易变事实清单
+
+| 内容 | 本册做法 | 实际使用时 |
+| --- | --- | --- |
+| Skill 与插件文件结构 | 只解释共同组成 | 读取发布者当前说明 |
+| MCP 协议版本 | 不固定版本号 | 查看规范 latest 页面和服务器声明 |
+| 客户端支持的能力 | 以概念说明 | 查看客户端能力列表 |
+| 权限和审批名称 | 使用只读、写入、外部动作分类 | 核对真实授权页和工具参数 |
+| 数据保留与费用 | 不作统一承诺 | 查看各服务条款和计费页 |
+
+本册所有练习应使用合成资料、公开资料或隔离只读账号。真实组织数据的使用必须符合对应法律、服务条款和组织安全制度。

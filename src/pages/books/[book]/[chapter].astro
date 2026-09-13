@@ -5,9 +5,9 @@ import ChapterNavigation from "../../../components/book/ChapterNavigation.astro"
 import TableOfContents from "../../../components/book/TableOfContents.astro";
 import type { BookDefinition } from "../../../data/books";
 import {
-  books,
+  allBooks,
   getBookById,
-  getReadableBooks,
+  getPublicBooks,
   isReadableBook,
 } from "../../../data/books";
 import {
@@ -32,15 +32,22 @@ const includeDrafts = import.meta.env.DEV;
 export async function getStaticPaths() {
   const includeDraftEntries = import.meta.env.DEV;
   const availableBooks = includeDraftEntries
-    ? books.filter(
+    ? allBooks.filter(
         (book) => isReadableBook(book) || book.status === "drafting",
       )
-    : getReadableBooks();
+    : getPublicBooks();
   const readableBookIds = new Set(availableBooks.map((book) => book.id));
+  const publicPreviewBookIds = new Set(
+    availableBooks
+      .filter((book) => book.publicPreview)
+      .map((book) => book.id),
+  );
   const chapters = await getCollection(
     "chapters",
     ({ data }) =>
-      (includeDraftEntries || !data.draft) &&
+      (includeDraftEntries ||
+        !data.draft ||
+        publicPreviewBookIds.has(data.book)) &&
       readableBookIds.has(data.book),
   );
 
@@ -63,9 +70,12 @@ const { Content, headings } = await render(entry);
 const allEntries = await getCollection(
   "chapters",
   ({ data }) =>
-    data.book === book.id && (includeDrafts || !data.draft),
+    data.book === book.id &&
+    (includeDrafts || book.publicPreview === true || !data.draft),
 );
-const bookEntries = entriesForBook(allEntries, book, { includeDrafts });
+const bookEntries = entriesForBook(allEntries, book, {
+  includeDrafts: includeDrafts || book.publicPreview === true,
+});
 const tocItems = toBookTocItems(bookEntries, book);
 const currentEntryIndex = bookEntries.findIndex(
   (item) => item.data.slug === entry.data.slug,
@@ -92,11 +102,15 @@ function navigationTarget(
 
 const previousTarget = navigationTarget(
   previousEntry,
-  book.status === "drafting" ? "上一篇样章" : "上一页",
+  book.status === "drafting" && book.publicPreview !== true
+    ? "上一篇样章"
+    : "上一页",
 );
 const nextTarget = navigationTarget(
   nextEntry,
-  book.status === "drafting" ? "下一篇样章" : "下一章",
+  book.status === "drafting" && book.publicPreview !== true
+    ? "下一篇样章"
+    : "下一章",
 );
 const chapterNumberProps = entry.data.chapterNumber
   ? { chapterNumber: entry.data.chapterNumber }
@@ -168,6 +182,12 @@ const structuredData = {
         ? `book:${book.id}`
         : undefined}
     >
+      {book.track === "optional" && (
+        <aside class="optional-route-note" aria-label="选读路线说明">
+          <strong>选读 · 开源共建</strong>
+          <span>{book.optionalNote ?? "本册适合有余力和兴趣的读者自主学习与验证。"}</span>
+        </aside>
+      )}
       <ChapterHeader
         title={entry.data.title}
         description={entry.data.description}
@@ -182,3 +202,18 @@ const structuredData = {
     <ChapterNavigation {...navigationProps} />
   </div>
 </BookLayout>
+
+<style>
+  .optional-route-note {
+    display: grid;
+    gap: var(--space-1);
+    margin-bottom: var(--space-6);
+    border-left: 0.25rem solid var(--color-primary);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-surface);
+  }
+
+  .optional-route-note span {
+    color: var(--color-text-muted);
+  }
+</style>

@@ -1,0 +1,50 @@
+---
+book: "07-prompt-context"
+order: 14
+slug: "sources"
+title: "资料来源与校订说明"
+shortTitle: "资料来源"
+description: "记录本册关于 Prompt、上下文、工具权限和人工复核的校订说明。"
+chapterType: "sources"
+updatedAt: "2026-09-12"
+labels: ["来源", "校订"]
+draft: false
+---
+
+# 资料来源与校订说明
+
+本册以跨产品都适用的任务设计原则为主，产品按钮、模型名称、上下文长度和套餐会随服务变化。使用具体产品时，应以该产品当前官方文档、隐私条款和组织规则为准。
+
+校订日期：2026-09-13。AI 输出不自动构成事实、专业意见或授权行为；高风险任务仍需人工与专业人员复核。
+
+## OpenAI 官方资料
+
+- [ChatGPT Prompt 编写最佳实践](https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt)：说明清楚、具体、提供充分上下文并迭代改进。
+- [OpenAI API Prompt 编写最佳实践](https://help.openai.com/en/articles/6654000-best-practices-for-prompt-engineering-with-the-openai-api)：提供指令、上下文分隔、具体输出要求和示例等原则。
+- [OpenAI Prompt engineering 指南](https://platform.openai.com/docs/guides/prompt-engineering)：核对当前模型的提示设计建议。
+
+本册将这些建议转化为普通读者可使用的目标句、上下文包、约束表、输出协议和评审卡。具体模型可能需要不同写法，因此不固定模型名称或参数。
+
+## Anthropic 官方资料
+
+- [Claude Prompt engineering 概览](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview)：说明先定义成功标准，再通过清晰指令、上下文、示例与结构改进结果。
+- [Claude Prompting best practices](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/prompt-templates-and-variables)：包含长上下文、示例、输出格式、工具使用与长任务状态管理建议。
+- [Claude Projects 介绍](https://support.anthropic.com/en/articles/9517075-what-are-projects)：说明项目知识和项目说明如何为对话提供背景。
+- [创建和管理 Claude Projects](https://support.anthropic.com/en/articles/9519177-how-can-i-create-and-manage-projects)：说明项目知识的使用范围，并提醒不同对话不会自动共享未加入项目知识的上下文。
+
+## 本册采用的稳定原则
+
+| 原则 | 为什么相对稳定 |
+| --- | --- |
+| 明确目标、读者和交付物 | 不依赖具体产品界面 |
+| 提供完成任务所需的最小资料 | 能降低无关信息与版本冲突 |
+| 让约束和输出格式可检查 | 便于发现遗漏和偏差 |
+| 长任务保存外部交接摘要 | 不依赖产品是否保留全部上下文 |
+| 工具动作设置权限和人工停点 | Prompt 不能替代实际权限控制 |
+| 独立评审并保留证据 | AI 自查不能替代最终责任人 |
+
+## 易变事实与阅读边界
+
+上下文长度、记忆、历史搜索、项目知识、文件限制和模型行为会随产品、套餐、地区与版本变化。本册不承诺固定数值。实际使用前查看对应产品当天的官方说明，并通过小范围测试确认当前对话真正能读取哪些资料。
+
+本册示例均为教学用合成内容。读者应遵守所在地法律、产品服务条款、隐私规则和所在组织的数据制度。

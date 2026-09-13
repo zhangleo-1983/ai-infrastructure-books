@@ -4,8 +4,8 @@ import BookCover from "../../../components/book/BookCover.astro";
 import TableOfContents from "../../../components/book/TableOfContents.astro";
 import type { BookDefinition } from "../../../data/books";
 import {
-  books,
-  getReadableBooks,
+  allBooks,
+  getPublicBooks,
   isReadableBook,
 } from "../../../data/books";
 import {
@@ -25,19 +25,25 @@ interface Props {
 
 export async function getStaticPaths() {
   const includeDraftEntries = import.meta.env.DEV;
+  const publicPreviewBookIds = new Set(
+    allBooks.filter((book) => book.publicPreview).map((book) => book.id),
+  );
   const chapters = await getCollection(
     "chapters",
-    ({ data }) => includeDraftEntries || !data.draft,
+    ({ data }) =>
+      includeDraftEntries ||
+      !data.draft ||
+      publicPreviewBookIds.has(data.book),
   );
   const availableBooks = includeDraftEntries
-    ? books.filter(
+    ? allBooks.filter(
         (book) => isReadableBook(book) || book.status === "drafting",
       )
-    : getReadableBooks();
+    : getPublicBooks();
 
   return availableBooks.flatMap((book) => {
     const entries = entriesForBook(chapters, book, {
-      includeDrafts: includeDraftEntries,
+      includeDrafts: includeDraftEntries || book.publicPreview === true,
     });
     if (entries.length === 0) return [];
 
@@ -56,7 +62,10 @@ const updatedAt = entries.reduce(
   "1970-01-01",
 );
 const firstEntry = entries[0];
-const isDraftBook = book.status === "drafting";
+const isPrivateDraft =
+  book.status === "drafting" && book.publicPreview !== true;
+const isPublicPreview =
+  book.status === "drafting" && book.publicPreview === true;
 const canonicalUrl = Astro.site
   ? new URL(Astro.url.pathname, Astro.site).href
   : undefined;
@@ -89,20 +98,43 @@ const draftLayoutProps =
     updatedAt={updatedAt}
     startHref={chapterHref(book, firstEntry!.data.slug)}
     printHref={printHref(book)}
-    startLabel={isDraftBook ? "阅读样章" : "开始阅读"}
-    printLabel={isDraftBook ? "样章打印" : "整册打印"}
+    startLabel={isPrivateDraft
+      ? "阅读样章"
+      : isPublicPreview
+        ? "阅读预览"
+        : "开始阅读"}
+    printLabel={isPrivateDraft
+      ? "样章打印"
+      : isPublicPreview
+        ? "预览打印"
+        : "整册打印"}
   />
+
+  {book.track === "optional" && (
+    <aside class="optional-route-note" aria-label="选读路线说明">
+      <p class="eyebrow">选读 · 开源共建</p>
+      <p>{book.optionalNote ?? "本册属于选读路线，适合有余力和兴趣的读者自主学习与验证。"}</p>
+    </aside>
+  )}
 
   <section class="book-index" aria-labelledby="book-index-title">
     <div>
-      <p class="eyebrow">{isDraftBook ? "Draft" : "目录"}</p>
+      <p class="eyebrow">
+        {isPrivateDraft ? "Draft" : isPublicPreview ? "Public preview" : "目录"}
+      </p>
       <h2 id="book-index-title">
-        {isDraftBook ? "当前样章" : "完整目录"}
+        {isPrivateDraft
+          ? "当前样章"
+          : isPublicPreview
+            ? "公开预览目录"
+            : "完整目录"}
       </h2>
       <p>
-        {isDraftBook
+        {isPrivateDraft
           ? "这里只列出已经创建的样章；未完成章节不会生成空白页面。"
-          : "从“开始之前”到资料来源，全部内容均可直接阅读。"}
+          : isPublicPreview
+            ? "本册仍在编写和验证，现有内容可直接试读；请以页面中的验证说明为准。"
+            : "从“开始之前”到资料来源，全部内容均可直接阅读。"}
       </p>
     </div>
     <TableOfContents book={book} items={tocItems} />
@@ -110,6 +142,19 @@ const draftLayoutProps =
 </BookLayout>
 
 <style>
+  .optional-route-note {
+    margin-top: var(--space-8);
+    border: var(--border-thin);
+    border-left: 0.25rem solid var(--color-primary);
+    padding: var(--space-5);
+    background: var(--color-surface);
+  }
+
+  .optional-route-note p:not(.eyebrow) {
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
   .book-index {
     display: grid;
     grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);

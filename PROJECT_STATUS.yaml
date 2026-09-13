@@ -6,21 +6,25 @@ project:
 status:
   state: active
   health: healthy
-  phase: 第七册 G1.3 基础环境已完成；G2 暂停在 Compose 文件写入前，等待可靠的终端输入通道
+  phase: 新主线第六至第十册整册正文与全量审校完成；Owner 已授权提交，旧版选读路线进入部署
 current:
-  summary: Owner 要求合盖带走电脑，暂停至到家明确确认后续跑。第六册 G1—G5 已通过；G6 已执行项恢复，后台任务故障、429 和超时明确未覆盖。G7.1—G7.3 完成：六卷与全目录冷备份、十二材料 SHA256SUMS、VPS 外 FileVault 本机副本校验通过。首次停机四项 137 已保留失败记录；恢复原栈后按原生进程关闭再停机，全栈 0/143、数据库正常退出才归档。新增 stop-stack.py 和 28 项 Python 回归，正文接入及脚本整体实机仍待续接。当前原栈全停、route 撤除、Access 保留；恢复项目未创建。专用 key 8 次/1665 tokens/少于 0.01 元，余 4 次；VPS 仍计费，19:28 显示 0.18 美元，最迟 2026-09-12 16:51:19+08:00 清理。书籍已切换为 release-candidate / 1.0.0-rc.1；本地 RC 检查、第六册 Chromium 8/8、GitHub CI、Pages 部署与线上冒烟均通过。第六册保持 release-candidate / 1.0.0-rc.1。第一至第五册发布候选均已发布。第五册 15 个内容单元为 release-candidate / 1.0.0-rc.1；RC 实机校订 G1—G8、永久清理、production、Pagefind、完成状态、整册打印、133 页 A4 PDF、三引擎 E2E、中文搜索、无障碍、性能、安全与 GitHub Pages 子路径验收全部通过。发布合并提交与带注释标签已推送，GitHub CI 和 Pages workflow 成功，线上封面、正文、搜索、打印、canonical、移动端与 404 冒烟通过。第五册临时 route / DNS、模型连接 / key、容器、volume、Secret、备份、connector、Tunnel、临时防火墙规则与 VPS 已永久删除；根 zone、nameserver 和 DNSSEC 保留。模型最终为 2 次合成请求、97 tokens、费用低于 0.01 元；VPS 销毁后不再持续计费。
+  summary: 新主线第六至第十册已经完成整册正文与全量审校，共 86 个内容单元、71 章正文；第八册按 Skill、插件与 MCP 的理解、连接、权限和撤销链路扩为 17 章，第九、十册各按恢复、无障碍、安全、基准、自动评审和漂移监测扩为 15 章。新主线五册保持 drafting，只在开发环境可审阅，未进入生产构建。原第六至第十册完成独立编辑审查并保留原 URL；原第六册继续作为实机完成的发布候选，原第七至第十册以 publicPreview 生成 noindex 公开预览，其中第七册基础实机 G1—G8 完成，第八至第十册统一标注“未做实机校验，欢迎读者一起参与校验和 update”。全站 220 项单元测试、173 页生产构建、4778 个内部链接与三浏览器 E2E 通过。Owner 已授权提交和部署，等待 GitHub CI 与 Pages 结果。
   working_on:
-    - 第七册 15 个内容单元已建立并通过本地检查；外部实机与正式发布范围尚未启动
-    - 第八至第十册各建立 15 个 draft 内容单元，完成规划、三篇样章起点、12 章正文、附录与资料来源；三册均保持 drafting，尚未执行实机校订或发布
-    - 第八至第十册 36 个章节正文已完成第二轮扩写，补充各自主题的概念、最小练习、成功状态、失败判断与交接记录；全站检查继续通过
-    - Owner 验收第七册整册 draft；已建立第七册独立 G1—G8 实机方案、费用与安全停止边界、空白结果台账；外部资源尚未创建
-    - 第七册 G1.1 已取得 Vultr Dashboard 只读基线：Current Balance $0.00、Pending Charges $0.00、Bandwidth Usage $0.54；Cloudflare One 连接器页未列出现有 connector，bitbeats.cn 仅有 brain-staging CNAME 且 DNSSEC 成功。G1.2 已创建并启动东京专用实例：ID 8e3632a3-dca1-4914-9801-791091c11945，公网 IPv4 202.182.125.158，Debian 13，1 vCPU/2 GB/50 GB NVMe，book06-dify-lab SSH key，book01-ssh-validation 防火墙，页面 Current Charges $0.03；noVNC root 登录成功；内核 6.12.107+deb13-amd64；Docker 26.1.5 与 Compose 2.26.1 已安装并 active；根盘 47G/37G 可用（17%）；重连后的 noVNC 画面显示 Connected，但自动键盘输入未可靠送入 shell，G2 暂停在 Compose 文件写入前
+    - 新主线第六至第十册 86 个内容单元、71 章正文已完成，并形成独立全量审校记录
+    - 第八册扩为 17 章，第九、十册扩为 15 章；扩章依据、跨册连续性和每章交付物已复核
+    - 新主线五册保持 drafting 与生产隔离，开发态桌面、手机、深色和打印视图已抽查
+    - 原第六至第十册已完成独立编辑审查；原第七至第十册以 publicPreview 生成 noindex 公开预览，并继续关闭搜索与完成率
+    - 原第七册基础实机 G1—G8 已完成；原第八册受免费项目配额阻塞；原第九、十册尚无实机结果
+    - 全站类型、Lint、220 项单元测试、173 页构建、4778 个内部链接与 Chromium、Firefox、WebKit 回归通过
 next_actions:
-  - 在专用 VPS 上通过可靠终端输入通道按固定版本部署 n8n 回环 Compose，并记录容器、卷与健康检查
-  - 回环源站稳定后再创建唯一 Cloudflare connector
-  - 第七册每个闸门通过并恢复基线后再进入下一门；第八至第十册实机顺序待第七册收口后安排
+  - 将已审校内容快进推送到 main，并等待 GitHub CI 与 Pages 部署完成
+  - 部署完成后核对线上书目、旧版公开预览、noindex、打印页和新主线生产隔离
+  - 后续由 Owner 决定新主线逐册发布候选顺序，并在发布前复核易变产品名称、入口和权限说明
+  - 原第八册 Supabase 云端实机保持暂停，欢迎读者按 runbook 自主验证
+  - 原第九、十册若要从社区预览升级为发布候选，先补官方来源并在隔离环境完成实机校订
   - 后续维护窗口升级 GitHub Actions 依赖的 action 主版本，消除 Node.js 20 弃用提示
-blockers: []
+blockers:
+    - 原第八册 Supabase 云端实机受 Free 项目配额阻塞；该册已转为选读并明确欢迎自主验证
 milestones:
   - id: milestone-1
     name: 书籍注册表已填写并经过复核
@@ -247,15 +251,44 @@ milestones:
   - id: milestone-75
     name: 第七册 draft 验收后建立独立 G1—G8 实机校订方案、费用与停止边界及空白结果台账，并通过全站检查
     status: completed
+  - id: milestone-76
+    name: 新主线第七册《Prompt 与上下文》15 个内容单元完整 draft 已建立于规划区，并通过单元测试、diff 与项目状态校验
+    status: completed
+  - id: milestone-77
+    name: 新主线第八册《Skill、插件与 MCP》15 个内容单元完整 draft 已建立于规划区，并通过单元测试与 diff 检查
+    status: completed
+  - id: milestone-78
+    name: 新主线第九册《Vibe coding》15 个内容单元完整 draft 已建立于规划区，并通过单元测试与 diff 检查
+    status: completed
+  - id: milestone-79
+    name: 新主线第十册《Harness》15 个内容单元完整 draft 已建立于规划区，并通过单元测试与 diff 检查
+    status: completed
+  - id: milestone-80
+    name: 新主线第六至第十册接入正式内容系统，旧第六至第十册保留独立选读入口；全站检查、内部链接与 Chromium 回归通过
+    status: completed
+  - id: milestone-81
+    name: 新主线第六册 15 个内容单元完成第二轮完整正文与官方来源校订，并通过专用内容门禁、整站检查、链接及桌面、手机深色模式和打印页浏览器验收
+    status: completed
+  - id: milestone-82
+    name: 新主线第七册 15 个内容单元完成第二轮完整正文与官方来源校订，并通过专用内容门禁、整站检查、链接及桌面、手机深色模式和打印页浏览器验收
+    status: completed
+  - id: milestone-83
+    name: 新主线第八至第十册分别以 17、15、15 章完成整册正文、官方来源与跨册结构审校，并通过专用内容门禁和开发态浏览器复核
+    status: completed
+  - id: milestone-84
+    name: 新主线第六至第十册完成全量审校，旧版第六至第十册完成独立审查与 noindex 公开预览准备；全站 220 项单元测试、173 页构建、4778 个内部链接与三浏览器回归通过
+    status: completed
 activity:
-  last_meaningful_update: 2026-09-11T22:16:30+08:00
-  last_status_review: 2026-09-11T22:16:30+08:00
+  last_meaningful_update: 2026-09-13T00:40:00+08:00
+  last_status_review: 2026-09-13T00:40:00+08:00
 management:
   archived: false
   status_maintenance: automatic
 confidence:
   overall: high
   rationale:
+    - 新主线第六至第十册 86 个内容单元、71 章连续章节编号、专用内容测试、结构审校记录和开发态浏览器抽查提供完整正文与章节分配证据
+    - 旧版选读路线独立审校、publicPreview 路由、173 页生产构建、4778 个内部链接、Pagefind 排除断言和三浏览器 E2E 提供公开预览准备证据；提交、推送和部署均未执行
     - 第三册注册表、15 个 MDX 内容单元和发布候选报告提供直接证据
     - 构建、搜索、E2E、PDF、Lighthouse、安全与子路径部署结果已记录
     - Git 历史与带注释标签直接证明第三册已合并并形成 rc.1 版本基线

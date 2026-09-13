@@ -1,0 +1,38 @@
+---
+book: "09-vibe-coding"
+order: 17
+slug: "sources"
+title: "资料来源与校订说明"
+shortTitle: "资料来源"
+description: "记录本册关于原型开发、代码评审、隐私和专业交接的校订说明。"
+chapterType: "sources"
+updatedAt: "2026-09-13"
+labels: ["来源", "校订"]
+draft: false
+---
+
+# 资料来源与校订说明
+
+本册讲的是跨工具的原型协作方法。具体框架、依赖版本、部署平台和 AI 产品能力会变化，实际使用时应以对应项目的官方文档、许可证和安全公告为准。
+
+校订日期：2026-09-13。原型能运行不代表适合生产；涉及真实敏感数据和不可逆业务时，应进行专业设计与安全评审。
+
+## Web 平台基础资料
+
+- [MDN：表单可用性](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/How_to_structure_a_web_form)：核对标签、字段和表单结构。
+- [MDN：响应式设计](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design)：核对窄屏和弹性布局基本原则。
+- [W3C WAI：键盘可访问性](https://www.w3.org/WAI/WCAG22/Understanding/keyboard)：解释为什么功能需要通过键盘操作。
+- [W3C WAI：调整文本大小](https://www.w3.org/WAI/WCAG22/Understanding/resize-text)：核对放大文本时内容仍可使用的要求。
+
+## 版本、依赖与安全资料
+
+- [Git 官方文档：记录变更](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository)：理解版本基线、差异和恢复记录。
+- [npm 官方文档：package-lock.json](https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json)：理解依赖锁文件记录的安装树。
+- [OWASP：输入验证速查表](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)：核对陌生输入和允许范围。
+- [OWASP：Secrets Management 速查表](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)：核对凭证存储、轮换和泄露处理原则。
+
+## 本册的技术边界
+
+本册不固定框架、包管理器、托管平台或 AI 编程产品。示例项目只要求本地可运行、使用合成数据、不连接真实模型或数据库。具体项目采用的每项依赖都应以其官方安装说明、版本支持和许可证为准。
+
+所谓 Vibe coding 不改变软件的基本责任：代码仍需运行验证，网页仍需浏览器检查，公开服务仍需安全、隐私、可靠性和维护设计。

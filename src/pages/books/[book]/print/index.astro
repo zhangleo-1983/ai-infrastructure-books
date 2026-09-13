@@ -5,8 +5,8 @@ import ChapterHeader from "../../../../components/book/ChapterHeader.astro";
 import PrintSectionHeading from "../../../../components/book/PrintSectionHeading.astro";
 import type { BookDefinition } from "../../../../data/books";
 import {
-  books,
-  getReadableBooks,
+  allBooks,
+  getPublicBooks,
   isReadableBook,
 } from "../../../../data/books";
 import {
@@ -27,22 +27,29 @@ interface Props {
 
 export async function getStaticPaths() {
   const includeDraftEntries = import.meta.env.DEV;
+  const publicPreviewBookIds = new Set(
+    allBooks.filter((book) => book.publicPreview).map((book) => book.id),
+  );
   const chapters = await getCollection(
     "chapters",
-    ({ data }) => includeDraftEntries || !data.draft,
+    ({ data }) =>
+      includeDraftEntries ||
+      !data.draft ||
+      publicPreviewBookIds.has(data.book),
   );
   const availableBooks = includeDraftEntries
-    ? books.filter(
+    ? allBooks.filter(
         (book) => isReadableBook(book) || book.status === "drafting",
       )
-    : getReadableBooks();
+    : getPublicBooks();
 
   return availableBooks.flatMap((book) => {
     const isDraftBookPreview =
-      includeDraftEntries && book.status === "drafting";
+      (includeDraftEntries || book.publicPreview === true) &&
+      book.status === "drafting";
     if (!book.print.enabled && !isDraftBookPreview) return [];
     const entries = entriesForBook(chapters, book, {
-      includeDrafts: includeDraftEntries,
+      includeDrafts: includeDraftEntries || book.publicPreview === true,
     }).filter(
       (entry) =>
         isDraftBookPreview ||

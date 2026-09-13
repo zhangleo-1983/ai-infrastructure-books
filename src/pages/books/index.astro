@@ -2,7 +2,8 @@
 import {
   books,
   bookStatusLabel,
-  isReadableBook,
+  isPublicBook,
+  optionalBooks,
 } from "../../data/books";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { bookHref } from "../../lib/book-content";
@@ -10,7 +11,7 @@ import { sitePath } from "../../lib/site-path";
 
 const includeDrafts = import.meta.env.DEV;
 const canBrowse = (book: (typeof books)[number]) =>
-  isReadableBook(book) ||
+  isPublicBook(book) ||
   (includeDrafts && book.status === "drafting");
 ---
 
@@ -22,11 +23,17 @@ const canBrowse = (book: (typeof books)[number]) =>
     <p class="eyebrow">Books</p>
     <h1>全部书目</h1>
     <p class="lede">
-      第一册至第四册已开放 Release Candidate 阅读；其他书目只展示系列规划，
-      不创建空白正文页面。
+      主线前五册从基础设施走到自托管 AI 对话入口，第六册起转向普通用户更常用的
+      AI 工作伙伴、Prompt、扩展能力、原型和评估方法。
     </p>
   </header>
 
+  <section class="book-route" aria-labelledby="core-books-title">
+    <div class="book-route__heading">
+      <p class="eyebrow">Core route</p>
+      <h2 id="core-books-title">主线阅读</h2>
+      <p>按书号循序阅读；编写中的书册只展示规划状态。</p>
+    </div>
   <ol class="book-list">
     {
       books.map((book) => (
@@ -51,11 +58,47 @@ const canBrowse = (book: (typeof books)[number]) =>
       ))
     }
   </ol>
+  </section>
+
+  <section class="book-route book-route--optional" aria-labelledby="optional-books-title">
+    <div class="book-route__heading">
+      <p class="eyebrow">Optional · Open source</p>
+      <h2 id="optional-books-title">选读与开源共建</h2>
+      <p>
+        这些内容保留原 URL，适合有自托管、自动化、数据库或服务器运维兴趣的读者。
+        实机状态以每册说明为准。
+      </p>
+    </div>
+    <ol class="book-list">
+      {
+        optionalBooks.map((book) => (
+          <li>
+            <span class="book-list__number">
+              {String(book.number).padStart(2, "0")}
+            </span>
+            <div>
+              <h2>
+                {canBrowse(book) ? (
+                  <a href={sitePath(bookHref(book))}>{book.title}</a>
+                ) : (
+                  book.title
+                )}
+              </h2>
+              <p>{book.optionalNote ?? book.description}</p>
+            </div>
+            <span class="status-label" data-status={book.status}>
+              {bookStatusLabel(book.status)}
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
 </BaseLayout>
 
 <style>
   .page-heading,
-  .book-list {
+  .book-route {
     width: min(100%, var(--width-content));
     margin-inline: auto;
     padding-inline: var(--space-5);
@@ -73,8 +116,31 @@ const canBrowse = (book: (typeof books)[number]) =>
   }
 
   .book-list {
-    margin-block: 0 var(--space-16);
+    margin-block: 0;
     list-style: none;
+  }
+
+  .book-route {
+    padding-bottom: var(--space-16);
+  }
+
+  .book-route__heading {
+    max-width: var(--width-reading);
+    padding-block: var(--space-8) var(--space-4);
+  }
+
+  .book-route__heading h2 {
+    margin-top: var(--space-2);
+    font-size: var(--font-size-2xl);
+  }
+
+  .book-route__heading p:not(.eyebrow) {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+  }
+
+  .book-route--optional {
+    border-top: var(--border-thin);
   }
 
   .book-list li {
@@ -112,7 +178,7 @@ const canBrowse = (book: (typeof books)[number]) =>
 
   @media (max-width: 35.625rem) {
     .page-heading,
-    .book-list {
+    .book-route {
       padding-inline: var(--space-4);
     }
 

@@ -1,0 +1,42 @@
+---
+book: "10-harness"
+order: 17
+slug: "sources"
+title: "资料来源与校订说明"
+shortTitle: "资料来源"
+description: "记录本册关于 AI 评估、测试、成本、隐私和版本管理的校订说明。"
+chapterType: "sources"
+updatedAt: "2026-09-13"
+labels: ["来源", "校订"]
+draft: false
+---
+
+# 资料来源与校订说明
+
+Harness、评估、工具调用和模型成本的具体实现会随产品变化。本册优先讲可迁移的测试与交接方法，实际使用时应以对应产品和组织的官方文档、安全制度及计费说明为准。
+
+校订日期：2026-09-13。测试结果只能支持范围明确的判断，不能证明 AI 在所有未来输入上都可靠。
+
+## OpenAI 官方资料
+
+- [Evaluation best practices](https://platform.openai.com/docs/guides/evaluation-best-practices)：核对任务定义、测试数据、评价标准和持续评估原则。
+- [Evals](https://platform.openai.com/docs/guides/evals)：了解评估运行、数据和结果的官方工作流。
+- [Prompt optimizer](https://platform.openai.com/docs/guides/prompt-optimizer)：了解使用数据与评估改进 Prompt 的方式及人工复核要求。
+- [Safety best practices](https://platform.openai.com/docs/guides/safety-best-practices)：核对人工监督、输入限制与安全测试原则。
+
+## Anthropic 官方资料
+
+- [Define success criteria and build evaluations](https://docs.anthropic.com/en/docs/test-and-evaluate/develop-tests)：说明在优化 Prompt 前先定义可衡量成功标准和经验测试。
+- [Create strong empirical evaluations](https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks)：核对多样测试、边界输入和安全评估思路；具体页面结构会随文档更新。
+
+## 稳定方法与易变实现
+
+| 稳定方法 | 可能变化的实现 |
+| --- | --- |
+| 测试前写任务和成功标准 | 产品内 Evals 界面和字段 |
+| 保存输入、输出、版本和人工结论 | 模型名称、参数和计费单位 |
+| 逐样例比较关键回归 | 自动评审模型和评分 API |
+| 将安全、费用和延迟纳入发布闸门 | 各平台日志和监测产品 |
+| 上线后抽样并补充新失败 | 具体告警与仪表盘 |
+
+本册允许从文档与表格开始，不要求购买评估平台或编写自动化框架。AI 评委、自动分数和统计指标只能辅助判断，不能取代事实核对、专业资格和最终责任人。

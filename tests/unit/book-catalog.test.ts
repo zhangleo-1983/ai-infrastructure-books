@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  allBooks,
   books,
   getBookById,
   getFeaturedBook,
+  getPublicBooks,
   getReadableBooks,
+  optionalBooks,
 } from "../../src/data/books";
 import {
   bookHref,
@@ -83,6 +86,39 @@ describe("系列书籍注册表", () => {
     expect(new Set(books.map((book) => book.number)).size).toBe(books.length);
     expect(new Set(books.map((book) => book.id)).size).toBe(books.length);
     expect(new Set(books.map((book) => book.slug)).size).toBe(books.length);
+  });
+
+  it("主线保持十册，旧第六至第十册保留为独立选读路线", () => {
+    expect(books).toHaveLength(10);
+    expect(books.map((book) => book.number)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index + 1),
+    );
+    expect(books.slice(5).every((book) => book.track === "core")).toBe(true);
+
+    expect(optionalBooks).toHaveLength(5);
+    expect(optionalBooks.map((book) => book.id)).toEqual([
+      "06-dify",
+      "07-n8n",
+      "08-supabase",
+      "09-ai-development-environment",
+      "10-server-security-operations",
+    ]);
+    expect(optionalBooks.every((book) => book.optionalNote)).toBe(true);
+    expect(optionalBooks.slice(1).every((book) => book.publicPreview)).toBe(true);
+
+    const publicBookIds = getPublicBooks().map((book) => book.id);
+    expect(publicBookIds).toEqual(
+      expect.arrayContaining([
+        "06-dify",
+        "07-n8n",
+        "08-supabase",
+        "09-ai-development-environment",
+        "10-server-security-operations",
+      ]),
+    );
+
+    expect(new Set(allBooks.map((book) => book.id)).size).toBe(allBooks.length);
+    expect(new Set(allBooks.map((book) => book.slug)).size).toBe(allBooks.length);
   });
 
   it("书籍 URL 由注册表数据统一生成", () => {
