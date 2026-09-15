@@ -3,6 +3,7 @@ import {
   books,
   bookStatusLabel,
   getFeaturedBook,
+  getSeriesStartBook,
   isReadableBook,
   seriesTitle,
 } from "../data/books";
@@ -11,6 +12,7 @@ import { bookHref } from "../lib/book-content";
 import { sitePath } from "../lib/site-path";
 
 const featuredBook = getFeaturedBook();
+const startBook = getSeriesStartBook();
 const routeBooks = books.filter((book) => book.id !== featuredBook.id);
 const featuredNumber = String(featuredBook.number).padStart(2, "0");
 ---
@@ -27,8 +29,8 @@ const featuredNumber = String(featuredBook.number).padStart(2, "0");
         从基础设施起步，再走向 AI 工作伙伴、Prompt、扩展能力、原型与评估。
         每一步都说明做什么、为什么、成功状态和失败判断。
       </p>
-      <a class="text-link" href={sitePath(bookHref(featuredBook))}>
-        阅读当前维护的{featuredBook.cover.navigationLabel} <span aria-hidden="true">→</span>
+      <a class="text-link" href={sitePath(bookHref(startBook))}>
+        从{startBook.cover.navigationLabel}开始阅读 <span aria-hidden="true">→</span>
       </a>
     </div>
     <div class="home-hero__number" aria-hidden="true">01—10</div>

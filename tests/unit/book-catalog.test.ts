@@ -6,6 +6,7 @@ import {
   getFeaturedBook,
   getPublicBooks,
   getReadableBooks,
+  getSeriesStartBook,
   optionalBooks,
 } from "../../src/data/books";
 import {
@@ -29,6 +30,10 @@ describe("系列书籍注册表", () => {
     expect(firstBook?.version).toBe("1.0.0-rc.2");
     expect(firstBook?.search.enabled).toBe(true);
     expect(firstBook?.print.enabled).toBe(true);
+
+    const startBook = getSeriesStartBook();
+    expect(startBook.id).toBe("01-first-vps");
+    expect(startBook.number).toBe(1);
 
     const book = getFeaturedBook();
     expect(book.id).toBe("02-overseas-network");

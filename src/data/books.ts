@@ -600,6 +600,14 @@ export function getPublicBooks(): BookDefinition[] {
   return allBooks.filter(isPublicBook);
 }
 
+export function getSeriesStartBook(): BookDefinition {
+  const firstReadableBook = books.find(isReadableBook);
+  if (!firstReadableBook) {
+    throw new Error("系列书籍注册表中必须有一本可阅读的起始图书。");
+  }
+  return firstReadableBook;
+}
+
 export function getFeaturedBook(): BookDefinition {
   const featured = books.find((book) => book.featured && isReadableBook(book));
   if (!featured) {
