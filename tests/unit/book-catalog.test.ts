@@ -20,9 +20,9 @@ import {
 import { sitePath } from "../../src/lib/site-path";
 
 describe("系列书籍注册表", () => {
-  it("保留十册规划并公开前五册发布候选", () => {
+  it("公开完整十册主线并保留旧第六册发布候选", () => {
     expect(books).toHaveLength(10);
-    expect(getReadableBooks()).toHaveLength(6);
+    expect(getReadableBooks()).toHaveLength(11);
 
     const firstBook = getBookById("01-first-vps");
     expect(firstBook).toBeDefined();
@@ -69,7 +69,21 @@ describe("系列书籍注册表", () => {
     expect(sixthBook?.version).toBe("1.0.0-rc.1");
     expect(sixthBook?.search.enabled).toBe(true);
     expect(sixthBook?.print.enabled).toBe(true);
-    expect(getReadableBooks()).toHaveLength(6);
+    expect(getReadableBooks()).toHaveLength(11);
+
+    for (const id of [
+      "06-ai-workpartners",
+      "07-prompt-context",
+      "08-skills-plugins-mcp",
+      "09-vibe-coding",
+      "10-harness",
+    ]) {
+      const mainlineBook = getBookById(id);
+      expect(mainlineBook?.status, id).toBe("release-candidate");
+      expect(mainlineBook?.version, id).toBe("1.0.0-rc.1");
+      expect(mainlineBook?.search.enabled, id).toBe(true);
+      expect(mainlineBook?.print.enabled, id).toBe(true);
+    }
   });
 
   it("每本书具有完整的系列级配置", () => {
@@ -114,6 +128,11 @@ describe("系列书籍注册表", () => {
     const publicBookIds = getPublicBooks().map((book) => book.id);
     expect(publicBookIds).toEqual(
       expect.arrayContaining([
+        "06-ai-workpartners",
+        "07-prompt-context",
+        "08-skills-plugins-mcp",
+        "09-vibe-coding",
+        "10-harness",
         "06-dify",
         "07-n8n",
         "08-supabase",
